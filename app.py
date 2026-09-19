@@ -129,17 +129,32 @@ DIVISIONES_DISPONIBLES = ["Valorant A", "Valorant B", "Valorant C", "Valorant Fe
 
 # --- CONEXIÓN A GOOGLE SHEETS ---
 @st.cache_resource
-def conectar_google_sheets():
-    try:
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds_dict = dict(st.secrets["gcp_service_account"])
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-        client = gspread.authorize(creds)
-        spreadsheet = client.open("crea el proyecto en formato hoja de calculo como...")
-        return spreadsheet
-    except Exception as e:
-        st.error(f"Error crítico conectando a Google Sheets: {e}")
-        return None
+def obtener_hojas_division(division_nombre):
+    if spreadsheet is None: return None, None, None, None
+    prefix = division_nombre.replace(" ", "_")
+    try: sheet_roster = spreadsheet.worksheet(f"{prefix}_Roster")
+    except gspread.exceptions.WorksheetNotFound:
+        sheet_roster = spreadsheet.add_worksheet(title=f"{prefix}_Roster", rows="100", cols="15")
+        sheet_roster.update([DATOS_INICIALES_ROSTER.columns.values.tolist()] + DATOS_INICIALES_ROSTER.values.tolist())
+
+    try: sheet_asistencia = spreadsheet.worksheet(f"{prefix}_Asistencia")
+    except gspread.exceptions.WorksheetNotFound:
+        sheet_asistencia = spreadsheet.add_worksheet(title=f"{prefix}_Asistencia", rows="100", cols="35")
+        df_asistencia_init = pd.DataFrame(columns=["Nombre Real", "Mes", "Días Hábiles"] + [str(i) for i in range(1, 32)])
+        sheet_asistencia.update([df_asistencia_init.columns.values.tolist()])
+
+    try: sheet_disciplina = spreadsheet.worksheet(f"{prefix}_Disciplina")
+    except gspread.exceptions.WorksheetNotFound:
+        sheet_disciplina = spreadsheet.add_worksheet(title=f"{prefix}_Disciplina", rows="100", cols="10")
+        df_disc_init = pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])
+        sheet_disciplina.update([df_disc_init.columns.values.tolist()])
+
+    try: sheet_config = spreadsheet.worksheet(f"{prefix}_Config")
+    except gspread.exceptions.WorksheetNotFound:
+        sheet_config = spreadsheet.add_worksheet(title=f"{prefix}_Config", rows="50", cols="5")
+        sheet_config.update([DATOS_INICIALES_CONFIG.columns.values.tolist()] + DATOS_INICIALES_CONFIG.values.tolist())
+        
+    return sheet_roster, sheet_asistencia, sheet_disciplina, sheet_config
 
 spreadsheet = conectar_google_sheets()
 
