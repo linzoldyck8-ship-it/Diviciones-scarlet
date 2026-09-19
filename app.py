@@ -178,23 +178,20 @@ DIVISIONES_DISPONIBLES = [
     "CS"
 ]
 
-# --- CONEXIÓN Y CREACIÓN AUTOMÁTICA EN SUPABASE (CORREGIDA CON POOLER Y SSL) ---
+# --- CONEXIÓN Y CREACIÓN AUTOMÁTICA EN SUPABASE ---
 @st.cache_resource
 def conectar_supabase():
     try:
         raw_url = st.secrets["SUPABASE_DB_URL"]
         
-        # Corrección automática de URL para asegurar driver psycopg2 y pooler estable
         if raw_url.startswith("postgresql://"):
             raw_url = raw_url.replace("postgresql://", "postgresql+psycopg2://", 1)
         elif not raw_url.startswith("postgresql+psycopg2://"):
             raw_url = f"postgresql+psycopg2://{raw_url}"
             
-        # Forzar el dominio pooler si el usuario pegó la URL directa antigua de Supabase
         if ".supabase.co" in raw_url and "pooler.supabase.com" not in raw_url:
             raw_url = raw_url.replace("db.", "").replace(".supabase.co", ".pooler.supabase.com:6543")
             
-        # Asegurar sslmode requerida por Supabase Cloud
         if "?sslmode=" not in raw_url:
             separator = "&" if "?" in raw_url else "?"
             raw_url = f"{raw_url}{separator}sslmode=require"
@@ -208,7 +205,6 @@ def conectar_supabase():
 engine = conectar_supabase()
 
 def cargar_o_crear_tabla(table_name, df_inicial):
-    """Verifica si existe la tabla, si no, la crea automáticamente con sus campos requeridos"""
     if engine is None: return df_inicial.copy()
     inspector = inspect(engine)
     if not inspector.has_table(table_name):
@@ -218,9 +214,9 @@ def cargar_o_crear_tabla(table_name, df_inicial):
         return pd.read_sql_table(table_name, engine)
 
 def obtener_tablas_division(division_nombre):
-    if engine is None: return None, None, None, None
+    if engine is None: return None, None, None, None, None
     prefix = division_nombre.replace(" ", "_").lower()
-    return f"{prefix}_roster", f"{prefix}_asistencia", f"{prefix}_disciplina", f"{prefix}_config"
+    return f"{prefix}_roster", f"{prefix}_asistencia", f"{prefix}_disciplina", f"{prefix}_config", f"{prefix}_admin_config"
 
 def obtener_tabla_blacklist(division_nombre):
     if engine is None: return None
@@ -235,7 +231,6 @@ def guardar_en_bd(table_name, df):
         except Exception as e:
             st.error(f"Error al sincronizar con Supabase: {e}")
 
-# Funciones sin caché para garantizar funcionamiento en TIEMPO REAL
 def cargar_roster_fresco(tb_roster):
     if tb_roster: return cargar_o_crear_tabla(tb_roster, DATOS_INICIALES_ROSTER)
     return DATOS_INICIALES_ROSTER.copy()
@@ -302,8 +297,31 @@ if st.session_state.division_activa is None:
 # ==========================================
 # CARGAR TABLAS Y DATOS DE LA DIVISIÓN ACTIVA SELECCIONADA
 # ==========================================
-tb_roster, tb_asistencia, tb_disciplina, tb_config = obtener_tablas_division(st.session_state.division_activa)
+tb_roster, tb_asistencia, tb_disciplina, tb_config, tb_admin_config = obtener_tablas_division(st.session_state.division_activa)
 tb_blacklist = obtener_tabla_blacklist(st.session_state.division_activa) 
+
+# ASEGURAR CLAVES PRIMARIAS (PRIMARY KEYS) EN SUPABASE PARA EVITAR EL ERROR DE EDICIÓN EN LA WEB
+if engine is not None:
+    try:
+        with engine.begin() as conn:
+            # Asegurar PK en tabla de configuración general
+            conn.execute(f"CREATE TABLE IF NOT EXISTS {tb_config} (id SERIAL PRIMARY KEY, \"Usuario\" TEXT, \"Contraseña\" TEXT, \"Rol\" TEXT, \"Nombre Real Vinculado\" TEXT);")
+            conn.execute(f"ALTER TABLE {tb_config} ADD COLUMN IF NOT EXISTS id SERIAL;")
+            try:
+                conn.execute(f"ALTER TABLE {tb_config} ADD PRIMARY KEY (id);")
+            except Exception:
+                pass
+
+            # Asegurar PK en tabla admin_config
+            conn.execute(f"CREATE TABLE IF NOT EXISTS {tb_admin_config} (id SERIAL PRIMARY KEY, clave TEXT, valor TEXT);")
+            conn.execute(f"ALTER TABLE {tb_admin_config} ADD COLUMN IF NOT EXISTS id SERIAL;")
+            try:
+                conn.execute(f"ALTER TABLE {tb_admin_config} ADD PRIMARY KEY (id);")
+            except Exception:
+                pass
+    except Exception as e:
+        print(f"Nota de esquema: {e}")
+
 df_config_live = cargar_configuracion_fresco(tb_config)
 
 # Extraer roles y rangos específicos del juego activo
@@ -347,7 +365,21 @@ if not st.session_state.autenticado:
                 match = df_config_live[(df_config_live["Usuario"].astype(str).str.lower() == user_admin.strip().lower()) & 
                                        (df_config_live["Contraseña"].astype(str) == pass_admin.strip()) & 
                                        (df_config_live["Rol"].astype(str).str.lower() == "admin")]
+                
+                # Respaldo de validación por admin_config seguro
+                pass_admin_valido = False
                 if not match.empty:
+                    pass_admin_valido = True
+                else:
+                    try:
+                        df_adm_cfg = pd.read_sql_table(tb_admin_config, engine)
+                        val_pass = df_adm_cfg[df_adm_cfg["clave"] == "password_admin"]["valor"].values
+                        if len(val_pass) > 0 and pass_admin.strip() == str(val_pass[0]) and user_admin.strip().lower() == "admin":
+                            pass_admin_valido = True
+                    except Exception:
+                        pass
+
+                if pass_admin_valido:
                     st.session_state.autenticado = True
                     st.session_state.rol_usuario = "admin"
                     st.session_state.nombre_usuario = "Administrador"
@@ -460,7 +492,6 @@ st.markdown("<hr style='border: 1px solid rgba(255, 70, 85, 0.4); margin: 15px 0
 key_roster_state = f"roster_{st.session_state.division_activa}"
 key_disciplina_state = f"disciplina_{st.session_state.division_activa}"
 
-# FORZAR EXTRACCIÓN DE DATOS EN TIEMPO REAL DIRECTO DE LA BASE DE DATOS
 st.session_state[key_roster_state] = cargar_roster_fresco(tb_roster)
 st.session_state[key_disciplina_state] = cargar_incidencias_fresco(tb_disciplina)
 df_config_actual = cargar_configuracion_fresco(tb_config)
@@ -655,6 +686,19 @@ elif st.session_state.menu_activo == "Tracker":
 elif st.session_state.menu_activo == "Config" and st.session_state.rol_usuario == "admin":
     st.title(f"Configuración de División — {st.session_state.division_activa}")
     
+    # Sección especial para respaldo seguro de contraseña vía admin_config con llave primaria
+    st.markdown("### Credenciales de Respaldo de Administrador")
+    try:
+        df_admin_sec = pd.read_sql_table(tb_admin_config, engine)
+        admin_sec_editado = st.data_editor(df_admin_sec, num_rows="dynamic", use_container_width=True, hide_index=True, key="editor_admin_sec")
+        if not admin_sec_editado.equals(df_admin_sec):
+            guardar_en_bd(tb_admin_config, admin_sec_editado)
+            st.success("Contraseña de respaldo actualizada en Supabase y app con éxito.")
+            st.rerun()
+    except Exception:
+        pass
+
+    st.markdown("### Usuarios y Credenciales Generales")
     config_editado = st.data_editor(df_config_actual, num_rows="dynamic", use_container_width=True, hide_index=True)
     if not config_editado.equals(df_config_actual):
         guardar_en_bd(tb_config, config_editado)
