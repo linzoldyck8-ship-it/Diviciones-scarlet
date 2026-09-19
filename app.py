@@ -336,7 +336,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 c_div_1, c_div_2, c_div_3 = st.columns([0.8, 2, 1])
-with c_div_1: st.image(URL_LOGO_EQUIPO, width=90)
+with c_div_1: st.image(URL_LOGO_EQUIPO, width=120)
 with c_div_3:
     if st.button("🏠 Volver al Inicio"):
         st.session_state.division_activa = None
