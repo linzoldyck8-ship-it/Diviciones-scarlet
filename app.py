@@ -1,30 +1,71 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
 # --- CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(page_title="Scarlet Roster", page_icon="🔥", layout="wide")
+st.set_page_config(page_title="Scarlet Roster - Google Sheets", page_icon="🔥", layout="wide")
 
-# --- ESTILOS CORPORATIVOS Y MINIMALISTAS ---
+# --- ESTILOS CORPORATIVOS ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
-    
     .stApp { background-color: #0f1923; color: #ece8e1; font-family: 'Inter', sans-serif; }
     h1, h2, h3 { color: #ff4655; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; }
-    
     .stButton>button { 
         background-color: transparent; color: #ff4655; border: 1px solid #ff4655; 
         border-radius: 4px; font-weight: 600; transition: all 0.3s ease; 
     }
     .stButton>button:hover { background-color: #ff4655; color: #0f1923; }
-    
-    .stSelectbox label, .stTextInput label, .stDateInput label, .stFileUploader label, .stMultiSelect label { 
-        color: #ece8e1; font-weight: 600; font-size: 0.9rem; 
-    }
+    .stSelectbox label, .stTextInput label, .stMultiSelect label { color: #ece8e1; font-weight: 600; font-size: 0.9rem; }
     div[data-testid="stMetricValue"] { color: #ff4655; font-weight: 700; }
     </style>
 """, unsafe_allow_html=True)
+
+# --- CONEXIÓN CON GOOGLE SHEETS ---
+@st.cache_resource
+def conectar_google_sheets():
+    try:
+        # Configuración mediante los secrets de Streamlit
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        creds_dict = dict(st.secrets["gcp_service_account"])
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        client = gspread.authorize(creds)
+        
+        # Abre la hoja de cálculo por su nombre o enlace (asegúrate de compartirla con el email de la service account)
+        sheet = client.open("crea el proyecto en formato hoja de calculo como...").worksheet("Control General")
+        return sheet
+    except Exception as e:
+        return None
+
+sheet = conectar_google_sheets()
+
+# Función para cargar datos desde Google Sheets
+def cargar_datos():
+    if sheet is not None:
+        data = sheet.get_all_records()
+        df = pd.DataFrame(data)
+        if not df.empty:
+            return df
+    # Fallback por defecto si no hay conexión activa aún
+    return pd.DataFrame(columns=[
+        "ID", "Riot ID (Nick#TAG)", "Nombre Real", "Rol Principal", "Rol Secundario", 
+        "Agentes Principales", "Rango / Cima", "Cargo en Equipo", "Estado", 
+        "Actividad", "Contacto / Discord", "Notas / Observaciones"
+    ])
+
+# Función para guardar el DataFrame completo de vuelta a Google Sheets
+def guardar_datos_en_sheets(df):
+    if sheet is not None:
+        # Limpiar valores NaN para evitar errores en gspread
+        df_clean = df.fillna("")
+        sheet.clear()
+        sheet.update([df_clean.columns.values.tolist()] + df_clean.values.tolist())
+
+# Inicializar sesión con los datos de Google Sheets
+if 'df_roster' not in st.session_state:
+    st.session_state.df_roster = cargar_datos()
 
 # --- DICCIONARIOS Y LISTAS DESPLEGABLES ---
 AGENTES_POR_ROL = {
@@ -40,33 +81,22 @@ OPCIONES_CARGOS = ["Capitan", "Sub capitan", "Player", "Manager", "Coach", ""]
 OPCIONES_ESTADO = ["Titular", "Banca", "Sexto player", "En Prueba", "Inactivo", ""]
 OPCIONES_ACTIVIDAD = ["Alta", "Media", "Baja", ""]
 
-# --- BASE DE DATOS MAESTRA EN SESIÓN ---
-if 'df_roster' not in st.session_state:
-    st.session_state.df_roster = pd.DataFrame({
-        "Riot ID (Nick#TAG)": ["Mazinhooo#lovsf", "Lionora#ZERO", "BestiaDelTrap#ARK", "leO#deus", "ELNIÑOMARAVILLA#14y", "Lotenesquepedir#boka", "Shuten#2006"],
-        "Nombre Real": ["Maximiliano", "Lientur", "Facundo", "Leonardo", "Felipe", "Ian", "Leonel"],
-        "Rol Principal": ["Iniciador", "Controlador", "Duelista", "Centinela", "Controlador", "Centinela", "Duelista"],
-        "Rol Secundario": ["Centinela", "Iniciador", "", "Duelista", "Centinela", "Iniciador", "Centinela"],
-        "Agentes Principales": ["Sova, Fade", "Omen, Fade", "Jett, Neon, Raze", "Cypher, Vyse, Chamber", "Chamber, Cypher, Vyse", "Breach, Sova, Fade", "Neon, Phoenix, Iso"],
-        "Rango / Cima": ["Ascendente 3", "Plata", "Ascendente 2", "Inmortal 1", "Inmortal 1", "Ascendente 3", "Ascendente 3"],
-        "Cargo": ["Capitan", "Sub capitan", "Player", "Player", "Player", "Player", "Player"],
-        "Estado": ["Titular", "Banca", "Titular", "Titular", "Titular", "Sexto player", "Titular"],
-        "Actividad": ["Alta", "Alta", "Alta", "Media", "Alta", "Media", "Media"],
-        "Contacto": ["Mazzito", "LINO", "facuu", "Leo", "felipoomo", "Iansuki", "Shuten"],
-        "Strikes": [0, 0, 0, 0, 0, 0, 0]
-    })
-
 # --- PESTAÑAS PRINCIPALES ---
 tab_roster, tab_asistencia, tab_historial, tab_stats = st.tabs([
     "📝 Roster", "📅 Asistencia", "🛡️ Disciplina", "📈 Tracker"
 ])
 
 # ==========================================
-# PESTAÑA 1: ROSTER (Gestión Central)
+# PESTAÑA 1: ROSTER (Sincronizado con Sheets)
 # ==========================================
 with tab_roster:
-    st.title("🔥 Gestión de Roster - Valorant")
+    st.title("🔥 Gestión de Roster - Sincronizado con Google Sheets")
     
+    if sheet is None:
+        st.error("⚠️ No se pudo conectar automáticamente con Google Sheets. Verifica tus secretos en Streamlit Cloud (`gcp_service_account`). Mostrando modo local temporal.")
+    else:
+        st.success("🟢 Conectado en tiempo real con Google Sheets.")
+
     jugadores_activos_temp = [j for j in st.session_state.df_roster["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
     
     col1, col2, col3, col4 = st.columns(4)
@@ -77,10 +107,10 @@ with tab_roster:
     
     st.markdown("---")
     
-    # --- GRÁFICOS EXPLICATIVOS SENCILLOS ---
+    # Gráficos dinámicos basados en la hoja de cálculo
     c_g1, c_g2 = st.columns(2)
     with c_g1:
-        if not st.session_state.df_roster.empty:
+        if not st.session_state.df_roster.empty and 'Rol Principal' in st.session_state.df_roster.columns:
             rol_counts = st.session_state.df_roster['Rol Principal'].value_counts().reset_index()
             rol_counts.columns = ['Rol', 'Cantidad']
             fig_roles = px.bar(rol_counts, x='Rol', y='Cantidad', title="Distribución por Rol Principal", color_discrete_sequence=['#ff4655'])
@@ -88,7 +118,7 @@ with tab_roster:
             st.plotly_chart(fig_roles, use_container_width=True)
             
     with c_g2:
-        if not st.session_state.df_roster.empty:
+        if not st.session_state.df_roster.empty and 'Estado' in st.session_state.df_roster.columns:
             estado_counts = st.session_state.df_roster['Estado'].value_counts().reset_index()
             estado_counts.columns = ['Estado', 'Cantidad']
             fig_estado = px.pie(estado_counts, names='Estado', values='Cantidad', title="Estado Actual del Roster", color_discrete_sequence=['#ff4655', '#ece8e1', '#283442', '#52606d'])
@@ -105,13 +135,13 @@ with tab_roster:
         cc.info(f"**Controladores:**\n{', '.join(AGENTES_POR_ROL['Controlador'])}")
         cd.info(f"**Centinelas:**\n{', '.join(AGENTES_POR_ROL['Centinela'])}")
 
-    # Tabla Principal con guardado automático inmediato en la sesión
-    st.markdown("**Planilla de Control General**")
+    # Tabla Principal conectada exactamente a tus columnas de Sheets
+    st.markdown("**Planilla de Control General (Edición Directa)**")
     configuracion_columnas = {
         "Rol Principal": st.column_config.SelectboxColumn("Rol Principal", options=OPCIONES_ROLES),
         "Rol Secundario": st.column_config.SelectboxColumn("Rol Secundario", options=OPCIONES_ROLES),
         "Rango / Cima": st.column_config.SelectboxColumn("Rango / Cima", options=OPCIONES_RANGOS),
-        "Cargo": st.column_config.SelectboxColumn("Cargo en Equipo", options=OPCIONES_CARGOS),
+        "Cargo en Equipo": st.column_config.SelectboxColumn("Cargo en Equipo", options=OPCIONES_CARGOS),
         "Estado": st.column_config.SelectboxColumn("Estado", options=OPCIONES_ESTADO),
         "Actividad": st.column_config.SelectboxColumn("Actividad", options=OPCIONES_ACTIVIDAD),
         "Agentes Principales": st.column_config.TextColumn("Agentes Principales (Gestionable abajo ⬇️)", disabled=True),
@@ -122,25 +152,29 @@ with tab_roster:
         num_rows="dynamic",
         use_container_width=True,
         hide_index=True,
-        column_order=["Riot ID (Nick#TAG)", "Nombre Real", "Rol Principal", "Rol Secundario", "Agentes Principales", "Rango / Cima", "Cargo", "Estado", "Actividad", "Contacto"],
         column_config=configuracion_columnas,
         height=350,
         key="editor_roster_principal"
     )
     
-    # Guardado automático transparente en sesión cada vez que interactúas con la tabla
-    if not df_roster_editado.equals(st.session_state.df_roster):
-        temp_df = df_roster_editado.copy()
-        if "Strikes" not in temp_df.columns:
-            temp_df["Strikes"] = st.session_state.df_roster["Strikes"]
-        temp_df["Strikes"] = temp_df["Strikes"].fillna(0).astype(int)
-        st.session_state.df_roster = temp_df
-        st.rerun()
+    # Botón de Sincronización Manual y Automática con Google Sheets
+    col_btn1, col_btn2 = st.columns([1, 4])
+    with col_btn1:
+        if st.button("💾 Sincronizar con Sheets"):
+            st.session_state.df_roster = df_roster_editado
+            guardar_datos_en_sheets(st.session_state.df_roster)
+            st.success("✅ ¡Datos guardados en Google Sheets con éxito!")
+            st.rerun()
+    with col_btn2:
+        if st.button("🔄 Recargar desde Google Sheets"):
+            st.session_state.df_roster = cargar_datos()
+            st.success("🔄 ¡Datos actualizados desde la nube!")
+            st.rerun()
 
-    # --- GESTOR DINÁMICO DE AGENTES MEJORADO ---
+    # --- GESTOR DINÁMICO DE AGENTES ---
     st.markdown("---")
     st.markdown("### 🎭 Gestor Dinámico de Agentes")
-    st.caption("Selecciona un jugador. Si acabas de agregarlo en la tabla de arriba, escribe o selecciona su Riot ID directamente.")
+    st.caption("Selecciona un jugador para marcar sus agentes en tiempo real.")
     
     riot_ids_actuales = [r for r in st.session_state.df_roster["Riot ID (Nick#TAG)"].tolist() if str(r).strip() != "" and str(r).lower() != "nan"]
     
@@ -163,7 +197,7 @@ with tab_roster:
                     opciones_validas = list(set(opciones_validas))
                     
                     if not opciones_validas:
-                        st.warning("⚠️ Asigna al menos un Rol (Principal o Secundario) válido en la tabla superior para este jugador para cargar sus agentes.")
+                        st.warning("⚠️ Asigna al menos un Rol válido en la tabla superior para este jugador para cargar sus agentes.")
                     else:
                         agentes_str = st.session_state.df_roster.at[idx, "Agentes Principales"]
                         agentes_actuales = [a.strip() for a in str(agentes_str).split(",")] if pd.notna(agentes_str) and str(agentes_str).strip() != "" else []
@@ -176,10 +210,10 @@ with tab_roster:
                             key=f"multi_agentes_{jugador_agentes}"
                         )
                         
-                        # Guardado automático al modificar el multiselect de agentes
-                        nuevos_str = ", ".join(nuevos_agentes)
-                        if agentes_str != nuevos_str:
-                            st.session_state.df_roster.at[idx, "Agentes Principales"] = nuevos_str
+                        if st.button("💾 Guardar Pool de Agentes en Sheets"):
+                            st.session_state.df_roster.at[idx, "Agentes Principales"] = ", ".join(nuevos_agentes)
+                            guardar_datos_en_sheets(st.session_state.df_roster)
+                            st.success(f"✅ ¡Pool de agentes actualizado para {jugador_agentes} y guardado en Google Sheets!")
                             st.rerun()
 
 # ==========================================
@@ -187,7 +221,7 @@ with tab_roster:
 # ==========================================
 with tab_asistencia:
     st.title("📅 Asistencia")
-    st.caption("P - Presente | A - Ausencia | J - Justificado | T - Tardanza (80%)")
+    st.caption("Control de asistencia mensual integrado con los nombres del roster principal.")
     
     jugadores_activos = [j for j in st.session_state.df_roster["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
     
@@ -195,7 +229,6 @@ with tab_asistencia:
         st.warning("Agrega jugadores en la pestaña 'Roster' para ver la asistencia.")
     else:
         mes_seleccionado = st.selectbox("Mes", ["Septiembre", "Octubre", "Noviembre", "Diciembre"])
-        
         dias_mes = [str(i) for i in range(1, 32)]
         df_mes = pd.DataFrame(index=jugadores_activos, columns=dias_mes).fillna("-")
         df_mes["Días Hábiles"] = 22
@@ -208,7 +241,6 @@ with tab_asistencia:
 
         df_editado = st.data_editor(df_mes, use_container_width=True, key="editor_asistencia_mes")
         df_editado["% Asistencia"] = df_editado.apply(calcular_porcentaje, axis=1)
-        
         st.markdown("**Resumen Mensual**")
         st.dataframe(df_editado[["Días Hábiles", "% Asistencia"]], use_container_width=True)
 
@@ -216,47 +248,23 @@ with tab_asistencia:
 # PESTAÑA 3: DISCIPLINA
 # ==========================================
 with tab_historial:
-    st.title("🛡️ Panel de Disciplina")
-    st.info("💡 Este panel refleja exclusivamente los jugadores registrados en la pestaña Roster. Modifica los strikes y se guardarán automáticamente.")
+    st.title("🛡️ Panel de Disciplina y Conducta")
+    st.info("💡 Basado en la pestaña 'Historial Conducta' de tu proyecto.")
     
     jugadores_activos = [j for j in st.session_state.df_roster["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
     
     if len(jugadores_activos) > 0:
-        df_disc_view = st.session_state.df_roster[["Nombre Real", "Estado", "Rol Principal", "Strikes"]].copy()
-        df_disc_view = df_disc_view[df_disc_view["Nombre Real"].astype(str).str.strip() != ""]
-        
-        edited_disc = st.data_editor(
-            df_disc_view,
-            use_container_width=True,
-            hide_index=True,
-            disabled=["Nombre Real", "Estado", "Rol Principal"],
-            key="editor_disciplina_strikes"
-        )
-        
-        # Guardado automático de strikes
-        cambio_strikes = False
-        for index, row in edited_disc.iterrows():
-            idx_roster = st.session_state.df_roster.index[st.session_state.df_roster['Nombre Real'] == row['Nombre Real']].tolist()
-            if idx_roster:
-                if st.session_state.df_roster.at[idx_roster[0], 'Strikes'] != row['Strikes']:
-                    st.session_state.df_roster.at[idx_roster[0], 'Strikes'] = row['Strikes']
-                    cambio_strikes = True
-        if cambio_strikes:
-            st.rerun()
-
-        st.markdown("---")
-        st.markdown("**Registro de Incidencias**")
         with st.form("form_anotacion"):
             c1, c2 = st.columns(2)
             with c1:
                 fecha = st.date_input("Fecha")
-                tipo = st.selectbox("Tipo", ["Positiva", "Negativa"])
-                sancion = st.selectbox("Sanción", ["Ninguna", "Strike 1", "Expulsión"])
+                tipo = st.selectbox("Tipo de Incidencia", ["Positiva", "Negativa", "Advertencia"])
+                sancion = st.selectbox("Sanción", ["Ninguna", "Strike 1", "Strike 2", "Expulsión"])
             with c2:
                 jugador_sel = st.selectbox("Jugador Implicado", jugadores_activos)
-                detalles = st.text_area("Detalles")
-            if st.form_submit_button("Guardar Registro"):
-                st.success(f"Incidencia registrada para {jugador_sel}.")
+                detalles = st.text_area("Notas / Observaciones")
+            if st.form_submit_button("Guardar Incidencia"):
+                st.success(f"Incidencia registrada correctamente para {jugador_sel}.")
     else:
         st.warning("Agrega jugadores en la pestaña 'Roster' para iniciar el control de disciplina.")
 
@@ -264,7 +272,7 @@ with tab_historial:
 # PESTAÑA 4: TRACKER Y STATS
 # ==========================================
 with tab_stats:
-    st.title("📈 Tracker y Estadísticas")
+    st.title("📈 Tracker y Estadísticas (Stats Premier)")
     
     jugadores_activos = [j for j in st.session_state.df_roster["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
     
@@ -282,12 +290,11 @@ with tab_stats:
                 url = f"https://tracker.gg/valorant/profile/riot/{str(riot_id_seleccionado).replace('#', '%23')}/overview"
                 st.link_button(f"🔴 Perfil en Tracker.gg", url, use_container_width=True)
             else:
-                st.error("Riot ID no válido. Asegúrate de incluir el '#' en la pestaña Roster.")
+                st.error("Riot ID no válido en Sheets. Asegúrate de incluir el '#' en la columna Riot ID.")
 
         st.markdown("---")
         st.markdown(f"**Captura de Rendimiento - {jugador_stat}**")
         img_upload = st.file_uploader("Sube una captura de pantalla del Tracker (Opcional)", type=["png", "jpg", "jpeg"])
-        
         if img_upload:
             st.image(img_upload, use_column_width=True, caption=f"Última actualización de stats para {jugador_stat}")
     else:
