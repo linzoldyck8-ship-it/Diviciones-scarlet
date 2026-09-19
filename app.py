@@ -111,12 +111,14 @@ def obtener_hojas_division(division_nombre):
     if spreadsheet is None: return None, None, None, None
     prefix = division_nombre.replace(" ", "_")
     
+    # Asegurar hoja Roster
     try:
         sheet_roster = spreadsheet.worksheet(f"{prefix}_Roster")
     except gspread.exceptions.WorksheetNotFound:
         sheet_roster = spreadsheet.add_worksheet(title=f"{prefix}_Roster", rows="100", cols="15")
         sheet_roster.update([DATOS_INICIALES_ROSTER.columns.values.tolist()] + DATOS_INICIALES_ROSTER.values.tolist())
 
+    # Asegurar hoja Asistencia
     try:
         sheet_asistencia = spreadsheet.worksheet(f"{prefix}_Asistencia")
     except gspread.exceptions.WorksheetNotFound:
@@ -124,6 +126,7 @@ def obtener_hojas_division(division_nombre):
         df_asistencia_init = pd.DataFrame(columns=["Nombre Real", "Mes", "Días Hábiles"] + [str(i) for i in range(1, 32)])
         sheet_asistencia.update([df_asistencia_init.columns.values.tolist()])
 
+    # Asegurar hoja Disciplina
     try:
         sheet_disciplina = spreadsheet.worksheet(f"{prefix}_Disciplina")
     except gspread.exceptions.WorksheetNotFound:
@@ -131,6 +134,7 @@ def obtener_hojas_division(division_nombre):
         df_disc_init = pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])
         sheet_disciplina.update([df_disc_init.columns.values.tolist()])
 
+    # Asegurar hoja Config
     try:
         sheet_config = spreadsheet.worksheet(f"{prefix}_Config")
     except gspread.exceptions.WorksheetNotFound:
@@ -181,7 +185,6 @@ def cargar_configuracion_fresco(sheet_config):
                 guardar_en_sheet(sheet_config, DATOS_INICIALES_CONFIG)
                 return DATOS_INICIALES_CONFIG.copy()
             
-            # Garantizar que superadmin exista en la base de datos de esta división
             df["Usuario_lower"] = df["Usuario"].astype(str).str.lower().str.strip()
             if not (df["Usuario_lower"] == SUPER_USER_DEF).any():
                 nueva_fila = pd.DataFrame([{
@@ -199,14 +202,12 @@ def cargar_configuracion_fresco(sheet_config):
             return DATOS_INICIALES_CONFIG.copy()
     return DATOS_INICIALES_CONFIG.copy()
 
-# Estados globales de sesión
 if 'autenticado' not in st.session_state: st.session_state.autenticado = False
 if 'rol_usuario' not in st.session_state: st.session_state.rol_usuario = None
 if 'nombre_usuario' not in st.session_state: st.session_state.nombre_usuario = None
 if 'menu_activo' not in st.session_state: st.session_state.menu_activo = "Roster"
 if 'division_activa' not in st.session_state: st.session_state.division_activa = None
 
-# Si no hay división activa, mostrar portada
 if st.session_state.division_activa is None:
     st.markdown(f"""
         <div class="hero-container" style="background: linear-gradient(rgba(11, 16, 23, 0.88), rgba(17, 26, 36, 0.92)), url('{URL_LOGO_EQUIPO}'); background-size: cover; background-position: center;">
@@ -238,7 +239,6 @@ if st.session_state.division_activa is None:
 sheet_roster, sheet_asistencia, sheet_disciplina, sheet_config = obtener_hojas_division(st.session_state.division_activa)
 df_config_live = cargar_configuracion_fresco(sheet_config)
 
-# --- BARRA SUPERIOR (SELECTOR DE DIVISIONES PERSISTENTE PARA SUPER ADMIN) ---
 st.markdown("""
     <div style="background-color: #0b1017; border-bottom: 2px solid #ff4655; padding: 12px 0px 8px 0px; margin-bottom: 15px;">
     </div>
@@ -249,12 +249,11 @@ with c_div_1:
     st.image(URL_LOGO_EQUIPO, width=45)
 
 with c_div_2:
-    # Si es super_admin, se permite cambiar de división directamente SIN requerir contraseña de nuevo
     if st.session_state.autenticado and st.session_state.rol_usuario == "super_admin":
         nueva_div = st.selectbox("Cambiar División Activa", DIVISIONES_DISPONIBLES, index=DIVISIONES_DISPONIBLES.index(st.session_state.division_activa))
         if nueva_div != st.session_state.division_activa:
             st.session_state.division_activa = nueva_div
-            st.rerun() # Recarga manteniendo la sesión de super_admin intacta
+            st.rerun()
     else:
         st.markdown(f"<h4 style='color: #ff4655; padding-top: 8px;'>División: {st.session_state.division_activa}</h4>", unsafe_allow_html=True)
 
@@ -266,7 +265,6 @@ with c_div_3:
         st.session_state.nombre_usuario = None
         st.rerun()
 
-# Pantalla de Login (Si no está autenticado)
 if not st.session_state.autenticado:
     st.title(f"SCARLET ROSTER — {st.session_state.division_activa.upper()}")
     st.markdown(f"Base de datos y credenciales para **{st.session_state.division_activa}**.")
@@ -348,7 +346,6 @@ if not st.session_state.autenticado:
                     st.success("Registrado correctamente. Ya puedes iniciar sesión.")
     st.stop()
 
-# --- APLICACIÓN PRINCIPAL ---
 if st.session_state.rol_usuario in ["admin", "super_admin"]:
     st.sidebar.markdown(f"👤 **Usuario:** `{st.session_state.nombre_usuario}`")
     st.sidebar.markdown(f"🏷️ **Credencial:** `{st.session_state.rol_usuario.upper()}`")
