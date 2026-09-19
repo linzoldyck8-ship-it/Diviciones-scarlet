@@ -178,12 +178,28 @@ DIVISIONES_DISPONIBLES = [
     "CS"
 ]
 
-# --- CONEXIÓN Y CREACIÓN AUTOMÁTICA EN SUPABASE ---
+# --- CONEXIÓN Y CREACIÓN AUTOMÁTICA EN SUPABASE (CORREGIDA CON POOLER Y SSL) ---
 @st.cache_resource
 def conectar_supabase():
     try:
-        # Se conecta a Supabase mediante SQLAlchemy utilizando la URL de conexión de Postgres
-        engine = create_engine(st.secrets["SUPABASE_DB_URL"])
+        raw_url = st.secrets["SUPABASE_DB_URL"]
+        
+        # Corrección automática de URL para asegurar driver psycopg2 y pooler estable
+        if raw_url.startswith("postgresql://"):
+            raw_url = raw_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+        elif not raw_url.startswith("postgresql+psycopg2://"):
+            raw_url = f"postgresql+psycopg2://{raw_url}"
+            
+        # Forzar el dominio pooler si el usuario pegó la URL directa antigua de Supabase
+        if ".supabase.co" in raw_url and "pooler.supabase.com" not in raw_url:
+            raw_url = raw_url.replace("db.", "").replace(".supabase.co", ".pooler.supabase.com:6543")
+            
+        # Asegurar sslmode requerida por Supabase Cloud
+        if "?sslmode=" not in raw_url:
+            separator = "&" if "?" in raw_url else "?"
+            raw_url = f"{raw_url}{separator}sslmode=require"
+
+        engine = create_engine(raw_url)
         return engine
     except Exception as e:
         st.error(f"Error crítico conectando a Supabase: {e}")
@@ -196,7 +212,6 @@ def cargar_o_crear_tabla(table_name, df_inicial):
     if engine is None: return df_inicial.copy()
     inspector = inspect(engine)
     if not inspector.has_table(table_name):
-        # Genera automáticamente la estructura de la base de datos basándose en el DataFrame
         df_inicial.to_sql(table_name, engine, if_exists='replace', index=False)
         return df_inicial.copy()
     else:
