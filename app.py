@@ -77,13 +77,13 @@ with tab_roster:
     
     st.markdown("---")
     
-    # Diccionario de Agentes 
+    # Diccionario de Agentes (CORREGIDO)
     with st.expander("📚 Diccionario de Agentes por Rol (Referencia)"):
         ca, cb, cc, cd = st.columns(4)
         ca.info(f"**Duelistas:**\n{', '.join(AGENTES_POR_ROL['Duelista'])}")
         cb.info(f"**Iniciadores:**\n{', '.join(AGENTES_POR_ROL['Iniciador'])}")
         cc.info(f"**Controladores:**\n{', '.join(AGENTES_POR_ROL['Controlador'])}")
-        cd.info(f"**Centinelas:**\n{', '.join(AGENTES_POR_ROL['Centinelas'])}")
+        cd.info(f"**Centinelas:**\n{', '.join(AGENTES_POR_ROL['Centinela'])}")
 
     # Tabla Principal
     st.markdown("**Planilla de Control General**")
