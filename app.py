@@ -15,7 +15,7 @@ st.markdown("""
     .stApp { 
         background: linear-gradient(135deg, #0b1017 0%, #111a24 100%); 
         color: #e2e8f0; 
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif; 
+        font-family: 'Inter', sans-serif; 
     }
     
     h1, h2, h3 { 
@@ -86,10 +86,9 @@ st.markdown("""
         box-shadow: 0 0 0 2px rgba(255, 70, 85, 0.2) !important;
     }
     
-    /* Estilos del Sidebar Ejecutivo */
+    /* Ocultar barra lateral nativa por completo */
     section[data-testid="stSidebar"] {
-        background-color: #0b1017;
-        border-right: 1px solid #1c2836;
+        display: none;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -209,25 +208,26 @@ def cargar_configuracion_fresco():
 if 'autenticado' not in st.session_state: st.session_state.autenticado = False
 if 'rol_usuario' not in st.session_state: st.session_state.rol_usuario = None
 if 'nombre_usuario' not in st.session_state: st.session_state.nombre_usuario = None
+if 'menu_activo' not in st.session_state: st.session_state.menu_activo = "Roster"
 
 
 # ==========================================
 # PANTALLA DE LOGIN / REGISTRO / SELECCIÓN
 # ==========================================
 if not st.session_state.autenticado:
-    st.title("🔥 SCARLET ROSTER — ACCESO EJECUTIVO")
+    st.title("SCARLET ROSTER — ACCESO EJECUTIVO")
     st.markdown("Autenticación institucional de la organización. Inicie sesión o regístrese.")
     
     df_config_live = cargar_configuracion_fresco()
     
-    tab_login_admin, tab_login_player, tab_reg_player = st.tabs(["🛡️ Administrador", "🎮 Inicio de Sesión (Jugador)", "✨ Nuevo Registro"])
+    tab_login_admin, tab_login_player, tab_reg_player = st.tabs(["Administrador", "Inicio de Sesión (Jugador)", "Nuevo Registro"])
     
     with tab_login_admin:
         st.markdown("### Credenciales de Administrador")
         with st.form("form_login_admin"):
             user_admin = st.text_input("Usuario Administrador", key="input_admin_user")
             pass_admin = st.text_input("Contraseña de Acceso", type="password", key="input_admin_pass")
-            submit_admin = st.form_submit_button("🛡️ AUTORIZAR ACCESO ADMIN")
+            submit_admin = st.form_submit_button("AUTORIZAR ACCESO ADMIN")
             
             if submit_admin:
                 match = df_config_live[(df_config_live["Usuario"].astype(str).str.lower() == user_admin.strip().lower()) & 
@@ -237,17 +237,17 @@ if not st.session_state.autenticado:
                     st.session_state.autenticado = True
                     st.session_state.rol_usuario = "admin"
                     st.session_state.nombre_usuario = "Administrador"
-                    st.success("✅ Acceso autorizado. Redirigiendo...")
+                    st.success("Acceso autorizado. Redirigiendo...")
                     st.rerun()
                 else:
-                    st.error("❌ Credenciales inválidas o sin privilegios de administrador.")
+                    st.error("Credenciales inválidas o sin privilegios de administrador.")
 
     with tab_login_player:
         st.markdown("### Credenciales de Jugador")
         with st.form("form_login_jugador"):
             user_player = st.text_input("Usuario", key="input_player_user")
             pass_player = st.text_input("Contraseña", type="password", key="input_player_pass")
-            submit_player = st.form_submit_button("🎮 INICIAR SESIÓN")
+            submit_player = st.form_submit_button("INICIAR SESIÓN")
             
             if submit_player:
                 match = df_config_live[(df_config_live["Usuario"].astype(str).str.lower() == user_player.strip().lower()) & 
@@ -257,10 +257,10 @@ if not st.session_state.autenticado:
                     st.session_state.autenticado = True
                     st.session_state.rol_usuario = "jugador"
                     st.session_state.nombre_usuario = row_match["Nombre Real Vinculado"]
-                    st.success(f"✅ Bienvenido, {st.session_state.nombre_usuario}.")
+                    st.success(f"Bienvenido, {st.session_state.nombre_usuario}.")
                     st.rerun()
                 else:
-                    st.error("❌ Usuario o contraseña incorrectos.")
+                    st.error("Usuario o contraseña incorrectos.")
 
     with tab_reg_player:
         st.markdown("### Formulario de Alta para Nuevo Integrante")
@@ -284,21 +284,21 @@ if not st.session_state.autenticado:
                 reg_pass = st.text_input("Contraseña de Acceso", type="password", key="input_reg_pass")
                 reg_pass_conf = st.text_input("Confirmar Contraseña", type="password", key="input_reg_pass_conf")
             
-            submit_nuevo_jugador = st.form_submit_button("✨ REGISTRAR INTEGRANTE")
+            submit_nuevo_jugador = st.form_submit_button("REGISTRAR INTEGRANTE")
             
             if submit_nuevo_jugador:
                 if not reg_nombre_real.strip() or not reg_riot_id.strip() or not reg_usuario.strip() or not reg_pass.strip():
-                    st.error("❌ Todos los campos principales son obligatorios.")
+                    st.error("Todos los campos principales son obligatorios.")
                 elif reg_pass != reg_pass_conf:
-                    st.error("❌ Las contraseñas no coinciden.")
+                    st.error("Las contraseñas no coinciden.")
                 else:
                     df_c_check = cargar_configuracion_fresco()
                     df_r_check = cargar_roster_fresco()
                     
                     if not df_c_check[df_c_check["Usuario"].astype(str).str.lower() == reg_usuario.strip().lower()].empty:
-                        st.error("❌ El nombre de usuario ya está registrado.")
+                        st.error("El nombre de usuario ya está registrado.")
                     elif not df_r_check[df_r_check["Nombre Real"].astype(str).str.lower() == reg_nombre_real.strip().lower()].empty:
-                        st.error("❌ Ya existe un registro con este nombre real.")
+                        st.error("Ya existe un registro con este nombre real.")
                     else:
                         try:
                             max_id = int(df_r_check["ID"].max()) if not df_r_check.empty and "ID" in df_r_check.columns else 0
@@ -332,37 +332,56 @@ if not st.session_state.autenticado:
                         df_config_updated = pd.concat([df_c_check, nueva_fila_config], ignore_index=True)
                         guardar_en_sheet(sheet_config, df_config_updated)
 
-                        st.success("✅ Registro completado con éxito. Ya puede iniciar sesión.")
+                        st.success("Registro completado con éxito. Ya puede iniciar sesión.")
     
     st.stop()
 
 
 # ==========================================
-# APLICACIÓN PRINCIPAL (POST-LOGIN CON SIDEBAR EJECUTIVA)
+# APLICACIÓN PRINCIPAL (CON BARRA DE MENÚ SUPERIOR ESTILO EMPRESARIAL)
 # ==========================================
-st.sidebar.markdown("### 🔥 SCARLET ROSTER")
-st.sidebar.markdown(f"👤 **Usuario:** `{st.session_state.nombre_usuario}`")
-st.sidebar.markdown(f"🏷️ **Credencial:** `{st.session_state.rol_usuario.upper()}`")
-st.sidebar.markdown("---")
 
-st.sidebar.markdown("#### 🧭 Menú de Navegación")
-
+# --- BARRA DE NAVEGACIÓN SUPERIOR ---
 if st.session_state.rol_usuario == "admin":
-    opciones_menu = ["📝 Roster", "📅 Asistencia", "🛡️ Disciplina", "📈 Tracker", "⚙️ Config / Borrados"]
+    cols_nav = st.columns([2, 2, 2, 2, 2, 1.5, 1.5])
+    with cols_nav[0]:
+        if st.button("Roster"): st.session_state.menu_activo = "Roster"
+    with cols_nav[1]:
+        if st.button("Asistencia"): st.session_state.menu_activo = "Asistencia"
+    with cols_nav[2]:
+        if st.button("Disciplina"): st.session_state.menu_activo = "Disciplina"
+    with cols_nav[3]:
+        if st.button("Tracker"): st.session_state.menu_activo = "Tracker"
+    with cols_nav[4]:
+        if st.button("Config"): st.session_state.menu_activo = "Config"
+    with cols_nav[5]:
+        if st.button("Recargar"): st.rerun()
+    with cols_nav[6]:
+        if st.button("Salir"):
+            st.session_state.autenticado = False
+            st.session_state.rol_usuario = None
+            st.session_state.nombre_usuario = None
+            st.rerun()
 else:
-    opciones_menu = ["📝 Roster", "📅 Asistencia", "🛡️ Mis Sanciones", "📈 Tracker"]
+    cols_nav = st.columns([2, 2, 2, 2, 1.5, 1.5])
+    with cols_nav[0]:
+        if st.button("Roster"): st.session_state.menu_activo = "Roster"
+    with cols_nav[1]:
+        if st.button("Asistencia"): st.session_state.menu_activo = "Asistencia"
+    with cols_nav[2]:
+        if st.button("Mis Sanciones"): st.session_state.menu_activo = "Disciplina"
+    with cols_nav[3]:
+        if st.button("Tracker"): st.session_state.menu_activo = "Tracker"
+    with cols_nav[4]:
+        if st.button("Recargar"): st.rerun()
+    with cols_nav[5]:
+        if st.button("Salir"):
+            st.session_state.autenticado = False
+            st.session_state.rol_usuario = None
+            st.session_state.nombre_usuario = None
+            st.rerun()
 
-menu_seleccionado = st.sidebar.radio("Seleccione sección", opciones_menu, label_visibility="collapsed")
-
-st.sidebar.markdown("---")
-if st.sidebar.button("🔄 Recargar Datos"):
-    st.rerun()
-
-if st.sidebar.button("🚪 Cerrar Sesión"):
-    st.session_state.autenticado = False
-    st.session_state.rol_usuario = None
-    st.session_state.nombre_usuario = None
-    st.rerun()
+st.markdown("<hr style='border: 1px solid rgba(255, 70, 85, 0.4); margin: 15px 0;'>", unsafe_allow_html=True)
 
 df_roster_actual = cargar_roster_fresco()
 df_incidencias_actual = cargar_incidencias_fresco()
@@ -385,8 +404,8 @@ OPCIONES_ACTIVIDAD = ["Alta", "Media", "Baja", ""]
 # ==========================================
 # SECCIÓN 1: ROSTER
 # ==========================================
-if menu_seleccionado == "📝 Roster":
-    st.title("🔥 Gestión de Roster")
+if st.session_state.menu_activo == "Roster":
+    st.title("Gestión de Roster")
     
     jugadores_activos_temp = [j for j in df_roster_actual["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
     
@@ -421,12 +440,12 @@ if menu_seleccionado == "📝 Roster":
         
         if not df_roster_editado.equals(df_roster_actual):
             guardar_en_sheet(sheet_roster, df_roster_editado)
-            st.success("✅ Roster actualizado y sincronizado.")
+            st.success("Roster actualizado y sincronizado.")
             st.rerun()
 
         # --- GRÁFICOS ANALÍTICOS DE ROSTER ---
         st.markdown("---")
-        st.markdown("### 📊 Analítica Ejecutiva del Plantel")
+        st.markdown("### Analítica Ejecutiva del Plantel")
         
         df_validos_graf = df_roster_actual[df_roster_actual["Nombre Real"].astype(str).str.strip() != ""].copy()
         
@@ -455,7 +474,7 @@ if menu_seleccionado == "📝 Roster":
                 st.plotly_chart(fig_rangos, use_container_width=True)
 
         st.markdown("---")
-        st.markdown("### 🎭 Gestor Dinámico de Agentes")
+        st.markdown("### Gestor Dinámico de Agentes")
         riot_ids_actuales = [r for r in df_roster_actual["Riot ID (Nick#TAG)"].tolist() if str(r).strip() != "" and str(r).lower() != "nan"]
         
         if len(riot_ids_actuales) > 0:
@@ -477,7 +496,7 @@ if menu_seleccionado == "📝 Roster":
                         opciones_validas = list(set(opciones_validas))
                         
                         if not opciones_validas:
-                            st.warning("⚠️ Asigne un Rol válido en la tabla superior.")
+                            st.warning("Asigne un Rol válido en la tabla superior.")
                         else:
                             agentes_str = df_roster_actual.at[idx, "Agentes Principales"]
                             agentes_actuales = [a.strip() for a in str(agentes_str).split(",")] if pd.notna(agentes_str) and str(agentes_str).strip() != "" else []
@@ -496,15 +515,15 @@ if menu_seleccionado == "📝 Roster":
                                 guardar_en_sheet(sheet_roster, df_roster_actual)
                                 st.rerun()
     else:
-        st.info("👁️ Modo Visualización.")
+        st.info("Modo Visualización.")
         st.dataframe(df_roster_actual, use_container_width=True, hide_index=True)
 
 
 # ==========================================
 # SECCIÓN 2: ASISTENCIA 
 # ==========================================
-elif menu_seleccionado == "📅 Asistencia":
-    st.title("📅 Control de Asistencia y Puntualidad")
+elif st.session_state.menu_activo == "Asistencia":
+    st.title("Control de Asistencia y Puntualidad")
     jugadores_activos = [j for j in df_roster_actual["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
     
     if len(jugadores_activos) == 0:
@@ -551,7 +570,7 @@ elif menu_seleccionado == "📅 Asistencia":
             df_editado["% Asistencia"] = df_editado.apply(calcular_porcentaje, axis=1)
             st.dataframe(df_editado[["Mes", "Días Hábiles", "% Asistencia"]], use_container_width=True)
 
-            if st.button("💾 GUARDAR ASISTENCIA EN SHEETS"):
+            if st.button("GUARDAR ASISTENCIA EN SHEETS"):
                 df_para_guardar = df_editado.reset_index()
                 if not df_asistencia_guardada.empty:
                     otros_meses = df_asistencia_guardada[df_asistencia_guardada["Mes"] != mes_seleccionado]
@@ -559,7 +578,7 @@ elif menu_seleccionado == "📅 Asistencia":
                 else:
                     df_final_asis = df_para_guardar
                 guardar_en_sheet(sheet_asistencia, df_final_asis)
-                st.success("✅ Asistencia sincronizada correctamente.")
+                st.success("Asistencia sincronizada correctamente.")
         else:
             df_mes["% Asistencia"] = df_mes.apply(calcular_porcentaje, axis=1)
             if st.session_state.nombre_usuario in df_mes.index:
@@ -573,12 +592,12 @@ elif menu_seleccionado == "📅 Asistencia":
 # ==========================================
 # SECCIÓN 3: DISCIPLINA / MIS SANCIONES
 # ==========================================
-elif menu_seleccionado in ["🛡️ Disciplina", "🛡️ Mis Sanciones"]:
+elif st.session_state.menu_activo == "Disciplina":
     if st.session_state.rol_usuario == "admin":
-        st.title("🛡️ Panel de Control Disciplinario")
+        st.title("Panel de Control Disciplinario")
         jugadores_activos = [j for j in df_roster_actual["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
         
-        sub_gen, sub_ind = st.tabs(["📋 Registro General", "👤 Expediente por Jugador"])
+        sub_gen, sub_ind = st.tabs(["Registro General", "Expediente por Jugador"])
         
         with sub_gen:
             st.markdown("### Registrar Nueva Incidencia")
@@ -592,7 +611,7 @@ elif menu_seleccionado in ["🛡️ Disciplina", "🛡️ Mis Sanciones"]:
                     jugador_sel = st.selectbox("Jugador Implicado", jugadores_activos)
                     detalles = st.text_area("Notas / Observaciones detalladas")
                 
-                if st.form_submit_button("🛡️ REGISTRAR Y SINCRONIZAR"):
+                if st.form_submit_button("REGISTRAR Y SINCRONIZAR"):
                     nueva_fila = pd.DataFrame([{
                         "Fecha": str(fecha),
                         "Jugador": jugador_sel,
@@ -602,7 +621,7 @@ elif menu_seleccionado in ["🛡️ Disciplina", "🛡️ Mis Sanciones"]:
                     }])
                     df_disc_actualizado = pd.concat([df_incidencias_actual, nueva_fila], ignore_index=True)
                     guardar_en_sheet(sheet_disciplina, df_disc_actualizado)
-                    st.success(f"✅ Incidencia registrada para {jugador_sel}.")
+                    st.success(f"Incidencia registrada para {jugador_sel}.")
                     st.rerun()
             
             st.markdown("---")
@@ -628,7 +647,7 @@ elif menu_seleccionado in ["🛡️ Disciplina", "🛡️ Mis Sanciones"]:
             else:
                 st.info("Sin registros.")
     else:
-        st.title("🛡️ Expediente Personal y Sanciones")
+        st.title("Expediente Personal y Sanciones")
         mi_nombre = st.session_state.nombre_usuario
         
         if not df_incidencias_actual.empty and mi_nombre:
@@ -642,7 +661,7 @@ elif menu_seleccionado in ["🛡️ Disciplina", "🛡️ Mis Sanciones"]:
             if not df_mis_inc.empty:
                 st.dataframe(df_mis_inc[["Fecha", "Tipo", "Sanción", "Detalles"]], use_container_width=True, hide_index=True)
             else:
-                st.success("✨ Expediente impecable. Sin sanciones ni advertencias registradas.")
+                st.success("Expediente impecable. Sin sanciones ni advertencias registradas.")
         else:
             st.info("Sin registros en el sistema.")
 
@@ -650,8 +669,8 @@ elif menu_seleccionado in ["🛡️ Disciplina", "🛡️ Mis Sanciones"]:
 # ==========================================
 # SECCIÓN 4: TRACKER Y STATS
 # ==========================================
-elif menu_seleccionado == "📈 Tracker":
-    st.title("📈 Tracker y Estadísticas Premier")
+elif st.session_state.menu_activo == "Tracker":
+    st.title("Tracker y Estadísticas Premier")
     
     df_validos_tracker = df_roster_actual[
         (df_roster_actual["Riot ID (Nick#TAG)"].astype(str).str.strip() != "") & 
@@ -677,7 +696,7 @@ elif menu_seleccionado == "📈 Tracker":
             st.markdown("<br>", unsafe_allow_html=True)
             if pd.notna(riot_id_seleccionado) and "#" in str(riot_id_seleccionado):
                 url = f"https://tracker.gg/valorant/profile/riot/{str(riot_id_seleccionado).replace('#', '%23')}/overview"
-                st.link_button("🔴 PERFIL TRACKER.GG", url, use_container_width=True)
+                st.link_button("PERFIL TRACKER.GG", url, use_container_width=True)
             else:
                 st.error("Riot ID no válido.")
 
@@ -693,11 +712,11 @@ elif menu_seleccionado == "📈 Tracker":
 # ==========================================
 # SECCIÓN 5: CONFIGURACIÓN Y BORRADOS (SOLO ADMIN)
 # ==========================================
-elif menu_seleccionado == "⚙️ Config / Borrados" and st.session_state.rol_usuario == "admin":
-    st.title("⚙️ Configuración y Panel de Borrado Avanzado")
+elif st.session_state.menu_activo == "Config" and st.session_state.rol_usuario == "admin":
+    st.title("Configuración y Panel de Borrado Avanzado")
     st.markdown("Gestión de credenciales de la hoja **Configuracion** y herramientas de limpieza de datos.")
     
-    st.markdown("### 🔑 Credenciales de Acceso")
+    st.markdown("### Credenciales de Acceso")
     config_editado = st.data_editor(
         df_config_actual,
         num_rows="dynamic",
@@ -708,12 +727,12 @@ elif menu_seleccionado == "⚙️ Config / Borrados" and st.session_state.rol_us
     
     if not config_editado.equals(df_config_actual):
         guardar_en_sheet(sheet_config, config_editado)
-        st.success("✅ Credenciales actualizadas y sincronizadas.")
+        st.success("Credenciales actualizadas y sincronizadas.")
         st.rerun()
 
     st.markdown("---")
-    st.markdown("### 🗑️ Panel de Eliminación Específica")
-    st.warning("⚠️ Las acciones eliminan permanentemente los datos seleccionados de Google Sheets.")
+    st.markdown("### Panel de Eliminación Específica")
+    st.warning("Las acciones eliminan permanentemente los datos seleccionados de Google Sheets.")
     
     col_b1, col_b2, col_b3 = st.columns(3)
     
@@ -723,12 +742,12 @@ elif menu_seleccionado == "⚙️ Config / Borrados" and st.session_state.rol_us
             opciones_sanciones = [f"[{row['Fecha']}] {row['Jugador']} - {row['Sanción']} ({row['Detalles'][:20]}...)" for idx, row in df_incidencias_actual.iterrows()]
             sancion_a_borrar = st.selectbox("Seleccionar sanción", [""] + opciones_sanciones, key="sel_borrar_sancion")
             
-            if st.button("🗑️ ELIMINAR SANCIÓN"):
+            if st.button("ELIMINAR SANCIÓN"):
                 if sancion_a_borrar != "":
                     idx_seleccionado = opciones_sanciones.index(sancion_a_borrar)
                     df_disc_nuevo = df_incidencias_actual.drop(df_incidencias_actual.index[idx_seleccionado]).reset_index(drop=True)
                     guardar_en_sheet(sheet_disciplina, df_disc_nuevo)
-                    st.success("✅ Sanción eliminada con éxito.")
+                    st.success("Sanción eliminada con éxito.")
                     st.rerun()
         else:
             st.info("Sin sanciones para eliminar.")
@@ -739,7 +758,7 @@ elif menu_seleccionado == "⚙️ Config / Borrados" and st.session_state.rol_us
         if len(jugadores_para_borrar) > 0:
             jugador_a_eliminar = st.selectbox("Seleccionar jugador", [""] + jugadores_para_borrar, key="sel_borrar_jugador")
             
-            if st.button("🗑️ ELIMINAR INTEGRANTE"):
+            if st.button("ELIMINAR INTEGRANTE"):
                 if jugador_a_eliminar != "":
                     df_roster_nuevo = df_roster_actual[df_roster_actual["Nombre Real"] != jugador_a_eliminar].reset_index(drop=True)
                     guardar_en_sheet(sheet_roster, df_roster_nuevo)
@@ -748,7 +767,7 @@ elif menu_seleccionado == "⚙️ Config / Borrados" and st.session_state.rol_us
                     df_config_nuevo = df_config_live_b[df_config_live_b["Nombre Real Vinculado"].str.lower() != jugador_a_eliminar.lower()].reset_index(drop=True)
                     guardar_en_sheet(sheet_config, df_config_nuevo)
                     
-                    st.success(f"✅ Integrante {jugador_a_eliminar} dado de baja.")
+                    st.success(f"Integrante {jugador_a_eliminar} dado de baja.")
                     st.rerun()
         else:
             st.info("Roster vacío.")
@@ -757,14 +776,14 @@ elif menu_seleccionado == "⚙️ Config / Borrados" and st.session_state.rol_us
         st.markdown("#### Limpiar Asistencia")
         if sheet_asistencia is not None:
             mes_a_limpiar = st.selectbox("Mes a limpiar", ["Septiembre", "Octubre", "Noviembre", "Diciembre"], key="sel_limpiar_mes")
-            if st.button("🗑️ RESETEAR MES"):
+            if st.button("RESETEAR MES"):
                 try:
                     data_asis_all = sheet_asistencia.get_all_records()
                     if data_asis_all:
                         df_asis_all = pd.DataFrame(data_asis_all)
                         df_asis_filtrado = df_asis_all[df_asis_all["Mes"] != mes_a_limpiar]
                         guardar_en_sheet(sheet_asistencia, df_asis_filtrado)
-                        st.success(f"✅ Registros de {mes_a_limpiar} limpiados.")
+                        st.success(f"Registros de {mes_a_limpiar} limpiados.")
                         st.rerun()
                     else:
                         st.info("Hoja de asistencia vacía.")
@@ -772,22 +791,22 @@ elif menu_seleccionado == "⚙️ Config / Borrados" and st.session_state.rol_us
                     st.error(f"Error: {e}")
 
     st.markdown("---")
-    st.markdown("### 🚨 ZONA DE EMERGENCIA — RESET TOTAL")
-    st.error("⚠️ Restablece toda la base de datos de Google Sheets a valores iniciales de fábrica.")
+    st.markdown("### ZONA DE EMERGENCIA — RESET TOTAL")
+    st.warning("Restablece toda la base de datos de Google Sheets a valores iniciales de fábrica.")
     
     with st.form("form_emergencia_reset", clear_on_submit=True):
         st.markdown("Ingrese contraseña de administrador para autorizar:")
         pass_confirmacion_emergencia = st.text_input("Contraseña de Admin", type="password", key="input_emergencia_pass")
-        btn_ejecutar_emergencia = st.form_submit_button("🔥 VACIAR Y REINICIAR SISTEMA")
+        btn_ejecutar_emergencia = st.form_submit_button("VACIAR Y REINICIAR SISTEMA")
         
         if btn_ejecutar_emergencia:
             if not pass_confirmacion_emergencia.strip():
-                st.error("❌ Ingrese la contraseña.")
+                st.error("Ingrese la contraseña.")
             else:
                 match_admin = df_config_actual[(df_config_actual["Contraseña"].astype(str) == pass_confirmacion_emergencia.strip()) & 
                                                (df_config_actual["Rol"].astype(str).str.lower() == "admin")]
                 if match_admin.empty:
-                    st.error("❌ Contraseña incorrecta. Operación cancelada.")
+                    st.error("Contraseña incorrecta. Operación cancelada.")
                 else:
                     try:
                         guardar_en_sheet(sheet_roster, DATOS_INICIALES_ROSTER)
@@ -800,8 +819,8 @@ elif menu_seleccionado == "⚙️ Config / Borrados" and st.session_state.rol_us
                         
                         guardar_en_sheet(sheet_config, DATOS_INICIALES_CONFIG)
                         
-                        st.success("✅ ¡Sistema reiniciado a valores de fábrica!")
+                        st.success("¡Sistema reiniciado a valores de fábrica!")
                         st.balloons()
                         st.rerun()
                     except Exception as e:
-                        st.error(f"❌ Error crítico: {e}")
+                        st.error(f"Error crítico: {e}")
