@@ -85,11 +85,6 @@ st.markdown("""
         border-color: #ff4655 !important;
         box-shadow: 0 0 0 2px rgba(255, 70, 85, 0.2) !important;
     }
-    
-    /* Ocultar barra lateral nativa por completo */
-    section[data-testid="stSidebar"] {
-        display: none;
-    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -338,12 +333,33 @@ if not st.session_state.autenticado:
 
 
 # ==========================================
-# APLICACIÓN PRINCIPAL (CON BARRA DE MENÚ SUPERIOR ESTILO EMPRESARIAL)
+# APLICACIÓN PRINCIPAL (POST-LOGIN)
 # ==========================================
 
-# --- BARRA DE NAVEGACIÓN SUPERIOR ---
+# --- BARRA LATERAL SOLO PARA ADMINISTRADORES ---
 if st.session_state.rol_usuario == "admin":
-    cols_nav = st.columns([2, 2, 2, 2, 2, 1.5, 1.5])
+    st.sidebar.markdown(f"👤 **Usuario:** `{st.session_state.nombre_usuario}`")
+    st.sidebar.markdown(f"🏷️ **Credencial:** `ADMIN`")
+    st.sidebar.markdown("---")
+    if st.sidebar.button("🔄 Recargar Datos"):
+        st.rerun()
+
+    if st.sidebar.button("🚪 Cerrar Sesión"):
+        st.session_state.autenticado = False
+        st.session_state.rol_usuario = None
+        st.session_state.nombre_usuario = None
+        st.rerun()
+else:
+    # Ocultar barra lateral para jugadores normales
+    st.markdown("""
+        <style>
+        section[data-testid="stSidebar"] { display: none; }
+        </style>
+    """, unsafe_allow_html=True)
+
+# --- BOTONES DE NAVEGACIÓN SUPERIORES ---
+if st.session_state.rol_usuario == "admin":
+    cols_nav = st.columns(5)
     with cols_nav[0]:
         if st.button("Roster"): st.session_state.menu_activo = "Roster"
     with cols_nav[1]:
@@ -354,16 +370,8 @@ if st.session_state.rol_usuario == "admin":
         if st.button("Tracker"): st.session_state.menu_activo = "Tracker"
     with cols_nav[4]:
         if st.button("Config"): st.session_state.menu_activo = "Config"
-    with cols_nav[5]:
-        if st.button("Recargar"): st.rerun()
-    with cols_nav[6]:
-        if st.button("Salir"):
-            st.session_state.autenticado = False
-            st.session_state.rol_usuario = None
-            st.session_state.nombre_usuario = None
-            st.rerun()
 else:
-    cols_nav = st.columns([2, 2, 2, 2, 1.5, 1.5])
+    cols_nav = st.columns(4)
     with cols_nav[0]:
         if st.button("Roster"): st.session_state.menu_activo = "Roster"
     with cols_nav[1]:
@@ -372,14 +380,6 @@ else:
         if st.button("Mis Sanciones"): st.session_state.menu_activo = "Disciplina"
     with cols_nav[3]:
         if st.button("Tracker"): st.session_state.menu_activo = "Tracker"
-    with cols_nav[4]:
-        if st.button("Recargar"): st.rerun()
-    with cols_nav[5]:
-        if st.button("Salir"):
-            st.session_state.autenticado = False
-            st.session_state.rol_usuario = None
-            st.session_state.nombre_usuario = None
-            st.rerun()
 
 st.markdown("<hr style='border: 1px solid rgba(255, 70, 85, 0.4); margin: 15px 0;'>", unsafe_allow_html=True)
 
