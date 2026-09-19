@@ -51,27 +51,24 @@ st.markdown("""
         font-weight: 700; 
     }
 
-    /* Botones de Acción Funcionales Grandes y Dinámicos */
+    /* Botones de Barra Superior Estilo Navbar Corporativo */
     .stButton>button { 
         width: 100%;
-        background: linear-gradient(135deg, #1b2631 0%, #0f1923 100%) !important;
-        color: #ffffff !important; 
-        border: 1px solid rgba(255, 70, 85, 0.6) !important; 
-        border-radius: 8px; 
+        background: transparent !important;
+        color: #cbd5e1 !important; 
+        border: none !important; 
         font-weight: 600; 
-        font-size: 1.05rem;
-        padding: 14px 24px;
-        letter-spacing: 0.5px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+        font-size: 0.95rem;
+        padding: 8px 12px;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        transition: all 0.2s ease; 
     }
     
     .stButton>button:hover { 
-        background: linear-gradient(135deg, #ff4655 0%, #c92a3b 100%) !important;
-        color: #ffffff !important;
-        border-color: #ff4655 !important;
-        box-shadow: 0 6px 22px rgba(255, 70, 85, 0.5);
-        transform: translateY(-2px);
+        color: #ff4655 !important;
+        background: rgba(255, 70, 85, 0.1) !important;
+        border-radius: 4px;
     }
 
     .stTextInput input, .stSelectbox select, .stDateInput input {
@@ -350,38 +347,48 @@ if st.session_state.rol_usuario == "admin":
         st.session_state.nombre_usuario = None
         st.rerun()
 else:
-    # Ocultar barra lateral para jugadores normales
     st.markdown("""
         <style>
         section[data-testid="stSidebar"] { display: none; }
         </style>
     """, unsafe_allow_html=True)
 
-# --- BOTONES DE NAVEGACIÓN SUPERIORES ---
+# --- CONFIGURACIÓN DE URL DE LOGO DEL EQUIPO ---
+# Puedes cambiar esta URL por la imagen oficial del logo de tu organización
+URL_LOGO_EQUIPO = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60"
+
+# --- BARRA DE NAVEGACIÓN SUPERIOR ESTILO NAVBAR CORPORATIVO ---
+st.markdown("""
+    <div style="background-color: #0b1017; border-bottom: 2px solid #ff4655; padding: 10px 0px 5px 0px; margin-bottom: 20px;">
+    </div>
+""", unsafe_allow_html=True)
+
 if st.session_state.rol_usuario == "admin":
-    cols_nav = st.columns(5)
+    cols_nav = st.columns([1.2, 2, 2, 2, 2, 2])
     with cols_nav[0]:
-        if st.button("Roster"): st.session_state.menu_activo = "Roster"
+        st.image(URL_LOGO_EQUIPO, width=45)
     with cols_nav[1]:
-        if st.button("Asistencia"): st.session_state.menu_activo = "Asistencia"
+        if st.button("Roster"): st.session_state.menu_activo = "Roster"
     with cols_nav[2]:
-        if st.button("Disciplina"): st.session_state.menu_activo = "Disciplina"
+        if st.button("Asistencia"): st.session_state.menu_activo = "Asistencia"
     with cols_nav[3]:
-        if st.button("Tracker"): st.session_state.menu_activo = "Tracker"
+        if st.button("Disciplina"): st.session_state.menu_activo = "Disciplina"
     with cols_nav[4]:
+        if st.button("Tracker"): st.session_state.menu_activo = "Tracker"
+    with cols_nav[5]:
         if st.button("Config"): st.session_state.menu_activo = "Config"
 else:
-    cols_nav = st.columns(4)
+    cols_nav = st.columns([1.2, 2.2, 2.2, 2.2, 2.2])
     with cols_nav[0]:
-        if st.button("Roster"): st.session_state.menu_activo = "Roster"
+        st.image(URL_LOGO_EQUIPO, width=45)
     with cols_nav[1]:
-        if st.button("Asistencia"): st.session_state.menu_activo = "Asistencia"
+        if st.button("Roster"): st.session_state.menu_activo = "Roster"
     with cols_nav[2]:
-        if st.button("Mis Sanciones"): st.session_state.menu_activo = "Disciplina"
+        if st.button("Asistencia"): st.session_state.menu_activo = "Asistencia"
     with cols_nav[3]:
+        if st.button("Mis Sanciones"): st.session_state.menu_activo = "Disciplina"
+    with cols_nav[4]:
         if st.button("Tracker"): st.session_state.menu_activo = "Tracker"
-
-st.markdown("<hr style='border: 1px solid rgba(255, 70, 85, 0.4); margin: 15px 0;'>", unsafe_allow_html=True)
 
 df_roster_actual = cargar_roster_fresco()
 df_incidencias_actual = cargar_incidencias_fresco()
