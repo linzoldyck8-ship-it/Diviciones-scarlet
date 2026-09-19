@@ -7,8 +7,19 @@ from oauth2client.service_account import ServiceAccountCredentials
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Scarlet Multi-Divisiones", page_icon="🔥", layout="wide")
 
-# URL OFICIAL DEL LOGO PROPORCIONADA
+# URL OFICIAL DEL LOGO GENERAL DEL EQUIPO
 URL_LOGO_EQUIPO = "https://cdn.discordapp.com/attachments/1272709315039592469/1275623434063314984/SCARLET.png?ex=6aaf32e6&is=6aade166&hm=4889e788d8f71a5e470db02c4c8f42b95fb19fcdce9be96f7fabab8b6fec25e4&"
+
+# URLs DE LOS LOGOS DE CADA JUEGO (Puedes modificarlas aquí libremente)
+LOGOS_DIVISIONES = {
+    "Valorant A": "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=500&auto=format&fit=crop&q=60",
+    "Valorant B": "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=500&auto=format&fit=crop&q=60",
+    "Valorant C": "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=500&auto=format&fit=crop&q=60",
+    "Valorant Femenino": "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=500&auto=format&fit=crop&q=60",
+    "Overwatch A": "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=500&auto=format&fit=crop&q=60",
+    "Overwatch B": "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=500&auto=format&fit=crop&q=60",
+    "CS": "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=500&auto=format&fit=crop&q=60"
+}
 
 # --- ESTILOS EMPRESARIALES MINIMALISTAS & SCARLET THEME ---
 st.markdown("""
@@ -21,11 +32,11 @@ st.markdown("""
         font-family: 'Inter', sans-serif; 
     }
     
-    /* Estilo de la portada de bienvenida con fondo de imagen */
+    /* Estilo de la portada de bienvenida principal */
     .hero-container {
         position: relative;
         width: 100%;
-        min-height: 85vh;
+        min-height: 50vh;
         background: linear-gradient(rgba(11, 16, 23, 0.85), rgba(17, 26, 36, 0.90));
         background-size: cover;
         background-position: center;
@@ -35,10 +46,10 @@ st.markdown("""
         align-items: center;
         justify-content: center;
         text-align: center;
-        padding: 40px;
+        padding: 30px;
         border: 1px solid rgba(255, 70, 85, 0.3);
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
-        margin-top: 20px;
+        margin-bottom: 25px;
     }
     
     h1, h2, h3 { 
@@ -51,10 +62,10 @@ st.markdown("""
         background: linear-gradient(90deg, #ffffff 0%, #ff4655 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        font-size: 2.5rem;
+        font-size: 2.3rem;
         border-bottom: 2px solid rgba(255, 70, 85, 0.3);
         padding-bottom: 10px;
-        margin-bottom: 25px;
+        margin-bottom: 20px;
     }
 
     div[data-testid="stMetric"] {
@@ -74,7 +85,7 @@ st.markdown("""
         font-weight: 700; 
     }
 
-    /* Botones de Barra Superior y Estilo General */
+    /* Botones corporativos generales */
     .stButton>button { 
         width: 100%;
         background: transparent !important;
@@ -92,6 +103,24 @@ st.markdown("""
         color: #ff4655 !important;
         background: rgba(255, 70, 85, 0.1) !important;
         border-radius: 4px;
+    }
+
+    /* Tarjetas estilizadas de divisiones en la portada */
+    .division-card {
+        background-size: cover;
+        background-position: center;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 70, 85, 0.4);
+        padding: 20px 10px;
+        text-align: center;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+        transition: all 0.3s ease;
+        margin-bottom: 15px;
+    }
+    .division-card:hover {
+        transform: translateY(-5px);
+        border-color: #ff4655;
+        box-shadow: 0 10px 30px rgba(255, 70, 85, 0.4);
     }
 
     .stTextInput input, .stSelectbox select, .stDateInput input {
@@ -244,27 +273,39 @@ if 'division_autenticada' not in st.session_state: st.session_state.division_aut
 
 
 # ==========================================
-# PORTADA DE BIENVENIDA (LANDING PAGE) SI NO HAY DIVISIÓN SELECCIONADA
+# PORTADA DE BIENVENIDA CON TARJETAS ESTILIZADAS Y LOGOS DE FONDO
 # ==========================================
 if st.session_state.division_activa is None:
     st.markdown(f"""
-        <div class="hero-container" style="background: linear-gradient(rgba(11, 16, 23, 0.85), rgba(17, 26, 36, 0.90)), url('{URL_LOGO_EQUIPO}'); background-size: cover; background-position: center;">
-            <img src="{URL_LOGO_EQUIPO}" width="120" style="margin-bottom: 20px; border-radius: 50%; box-shadow: 0 0 20px rgba(255, 70, 85, 0.5);">
+        <div class="hero-container" style="background: linear-gradient(rgba(11, 16, 23, 0.88), rgba(17, 26, 36, 0.92)), url('{URL_LOGO_EQUIPO}'); background-size: cover; background-position: center;">
+            <img src="{URL_LOGO_EQUIPO}" width="120" style="margin-bottom: 20px; border-radius: 50%; box-shadow: 0 0 25px rgba(255, 70, 85, 0.6);">
             <h1 style="border: none; margin-bottom: 10px;">SCARLET ESPORTS ORGANIZATION</h1>
-            <p style="font-size: 1.2rem; color: #94a3b8; max-width: 600px; margin-bottom: 30px;">
-                Sistema integral de gestión de planteles, control de asistencia, seguimiento disciplinario y analítica por división.
+            <p style="font-size: 1.2rem; color: #94a3b8; max-width: 650px; margin-bottom: 20px;">
+                Plataforma institucional de gestión de planteles, control de asistencia, seguimiento disciplinario y analítica por división.
             </p>
         </div>
     """, unsafe_allow_html=True)
     
-    st.markdown("<h3 style='text-align: center; margin-top: 30px;'>Selecciona la División a la que deseas ingresar:</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center; margin: 30px 0 20px 0;'>Selecciona la División a la que deseas ingresar:</h3>", unsafe_allow_html=True)
     
-    cols_divs = st.columns(len(DIVISIONES_DISPONIBLES))
+    # Mostrar las divisiones en filas de tarjetas elegantes con fondo del logo del juego y minilogo al lado del texto
+    cols = st.columns(3)
     for idx, div_nombre in enumerate(DIVISIONES_DISPONIBLES):
-        with cols_divs[idx]:
-            if st.button(div_nombre, key=f"btn_div_{idx}"):
+        col_target = cols[idx % 3]
+        logo_url = LOGOS_DIVISIONES.get(div_nombre, URL_LOGO_EQUIPO)
+        
+        with col_target:
+            st.markdown(f"""
+                <div class="division-card" style="background: linear-gradient(rgba(11, 16, 23, 0.85), rgba(17, 26, 36, 0.90)), url('{logo_url}'); background-size: cover; background-position: center;">
+                    <img src="{logo_url}" width="35" style="border-radius: 50%; margin-bottom: 8px; border: 1px solid #ff4655;">
+                    <h4 style="color: #ffffff; margin-bottom: 15px; font-weight: 600; letter-spacing: 0.5px;">{div_nombre}</h4>
+                </div>
+            """, unsafe_allow_html=True)
+            if st.button(f"Entrar a {div_nombre}", key=f"btn_card_{idx}"):
                 st.session_state.division_activa = div_nombre
                 st.rerun()
+            st.markdown("<br>", unsafe_allow_html=True)
+            
     st.stop()
 
 
