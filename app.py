@@ -138,20 +138,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- DATOS INICIALES PREDETERMINADOS ---
-DATOS_INICIALES_ROSTER = pd.DataFrame({
-    "ID": [1, 2, 3, 4, 5],
-    "Nick / ID": ["Player1#TAG", "Player2#TAG", "Player3#TAG", "Player4#TAG", "Player5#TAG"],
-    "Nombre Real": ["Juan", "Carlos", "Mateo", "Lucas", "Gabriel"],
-    "Rol Principal": ["Duelista", "Iniciador", "Controlador", "Centinela", "Flex"],
-    "Rol Secundario": ["Flex", "Duelista", "Iniciador", "Controlador", "Centinela"],
-    "Personajes / Agentes": ["Jett, Reyna", "Sova, Fade", "Omen, Viper", "Cypher, Killjoy", "Breach, Astra"],
-    "Rango / Cima": ["Inmortal 1", "Ascendente 3", "Diamante 2", "Inmortal 2", "Radiante"],
-    "Cargo en Equipo": ["Capitan", "Player", "Player", "Player", "Sub capitan"],
-    "Estado": ["Titular", "Titular", "Titular", "Titular", "Banca"],
-    "Actividad": ["Alta", "Alta", "Media", "Alta", "Alta"],
-    "Contacto / Discord": ["discord1", "discord2", "discord3", "discord4", "discord5"],
-    "Notas / Observaciones": ["", "", "", "", ""]
-})
+DATOS_INICIALES_ROSTER = pd.DataFrame(columns=[
+    "ID", "Nick / ID", "Nombre Real", "Rol Principal", "Rol Secundario",
+    "Personajes / Agentes", "Rango / Cima", "Cargo en Equipo", "Estado",
+    "Actividad", "Contacto / Discord", "Notas / Observaciones"
+])
 
 DATOS_INICIALES_CONFIG = pd.DataFrame({
     "Usuario": ["admin"],
@@ -328,13 +319,7 @@ c_div_1, c_div_2, c_div_3 = st.columns([0.8, 2, 1])
 with c_div_1:
     st.image(URL_LOGO_EQUIPO, width=45)
 with c_div_2:
-    nueva_div = st.selectbox("Cambiar División Activa", DIVISIONES_DISPONIBLES, index=DIVISIONES_DISPONIBLES.index(st.session_state.division_activa))
-    if nueva_div != st.session_state.division_activa:
-        st.session_state.division_activa = nueva_div
-        st.session_state.autenticado = False
-        st.session_state.rol_usuario = None
-        st.session_state.nombre_usuario = None
-        st.rerun()
+    pass # Selector de Cambio de División eliminado
 with c_div_3:
     if st.button("🏠 Volver al Inicio"):
         st.session_state.division_activa = None
@@ -543,9 +528,9 @@ if st.session_state.menu_activo == "Roster":
     
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("TOTAL JUGADORES", len(jugadores_activos_temp))
-    col2.metric("TITULARES", len(df_roster_actual[df_roster_actual['Estado'] == 'Titular']))
-    col3.metric("SEXTO PLAYER", len(df_roster_actual[df_roster_actual['Estado'] == 'Sexto player']))
-    col4.metric("BANCA", len(df_roster_actual[df_roster_actual['Estado'] == 'Banca']))
+    col2.metric("TITULARES", len(df_roster_actual[df_roster_actual['Estado'] == 'Titular']) if not df_roster_actual.empty else 0)
+    col3.metric("SEXTO PLAYER", len(df_roster_actual[df_roster_actual['Estado'] == 'Sexto player']) if not df_roster_actual.empty else 0)
+    col4.metric("BANCA", len(df_roster_actual[df_roster_actual['Estado'] == 'Banca']) if not df_roster_actual.empty else 0)
     
     st.markdown("---")
     
@@ -578,31 +563,36 @@ if st.session_state.menu_activo == "Roster":
         st.markdown("---")
         st.markdown("### Analítica Ejecutiva del Plantel")
         
-        df_validos_graf = df_roster_actual[df_roster_actual["Nombre Real"].astype(str).str.strip() != ""].copy()
-        
-        if not df_validos_graf.empty:
-            g_col1, g_col2, g_col3 = st.columns(3)
+        if not df_roster_actual.empty:
+            df_validos_graf = df_roster_actual[df_roster_actual["Nombre Real"].astype(str).str.strip() != ""].copy()
             
-            with g_col1:
-                df_roles = df_validos_graf["Rol Principal"].value_counts().reset_index()
-                df_roles.columns = ["Rol", "Cantidad"]
-                fig_roles = px.pie(df_roles, names="Rol", values="Cantidad", title="Distribución por Rol", hole=0.5, color_discrete_sequence=px.colors.sequential.Reds)
-                fig_roles.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#e2e8f0")
-                st.plotly_chart(fig_roles, use_container_width=True)
+            if not df_validos_graf.empty:
+                g_col1, g_col2, g_col3 = st.columns(3)
                 
-            with g_col2:
-                df_estados = df_validos_graf["Estado"].value_counts().reset_index()
-                df_estados.columns = ["Estado", "Cantidad"]
-                fig_estados = px.bar(df_estados, x="Estado", y="Cantidad", title="Estado Actual", color="Estado", color_discrete_sequence=px.colors.sequential.Burg)
-                fig_estados.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#e2e8f0")
-                st.plotly_chart(fig_estados, use_container_width=True)
-                
-            with g_col3:
-                df_rangos = df_validos_graf["Rango / Cima"].value_counts().reset_index()
-                df_rangos.columns = ["Rango", "Cantidad"]
-                fig_rangos = px.bar(df_rangos, x="Rango", y="Cantidad", title="Desglose por Rango", color="Rango", color_discrete_sequence=px.colors.sequential.Sunsetdark)
-                fig_rangos.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#e2e8f0")
-                st.plotly_chart(fig_rangos, use_container_width=True)
+                with g_col1:
+                    df_roles = df_validos_graf["Rol Principal"].value_counts().reset_index()
+                    df_roles.columns = ["Rol", "Cantidad"]
+                    fig_roles = px.pie(df_roles, names="Rol", values="Cantidad", title="Distribución por Rol", hole=0.5, color_discrete_sequence=px.colors.sequential.Reds)
+                    fig_roles.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#e2e8f0")
+                    st.plotly_chart(fig_roles, use_container_width=True)
+                    
+                with g_col2:
+                    df_estados = df_validos_graf["Estado"].value_counts().reset_index()
+                    df_estados.columns = ["Estado", "Cantidad"]
+                    fig_estados = px.bar(df_estados, x="Estado", y="Cantidad", title="Estado Actual", color="Estado", color_discrete_sequence=px.colors.sequential.Burg)
+                    fig_estados.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#e2e8f0")
+                    st.plotly_chart(fig_estados, use_container_width=True)
+                    
+                with g_col3:
+                    df_rangos = df_validos_graf["Rango / Cima"].value_counts().reset_index()
+                    df_rangos.columns = ["Rango", "Cantidad"]
+                    fig_rangos = px.bar(df_rangos, x="Rango", y="Cantidad", title="Desglose por Rango", color="Rango", color_discrete_sequence=px.colors.sequential.Sunsetdark)
+                    fig_rangos.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#e2e8f0")
+                    st.plotly_chart(fig_rangos, use_container_width=True)
+            else:
+                st.info("No hay datos suficientes para generar gráficos. Agrega jugadores al roster para visualizar la analítica.")
+        else:
+             st.info("No hay datos suficientes para generar gráficos. Agrega jugadores al roster para visualizar la analítica.")
     else:
         st.info("Modo Visualización.")
         st.dataframe(df_roster_actual, use_container_width=True, hide_index=True)
@@ -613,7 +603,11 @@ if st.session_state.menu_activo == "Roster":
 # ==========================================
 elif st.session_state.menu_activo == "Asistencia":
     st.title(f"Control de Asistencia — {st.session_state.division_activa}")
-    jugadores_activos = [j for j in df_roster_actual["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
+    
+    if df_roster_actual.empty:
+        jugadores_activos = []
+    else:
+        jugadores_activos = [j for j in df_roster_actual["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
     
     if len(jugadores_activos) == 0:
         st.warning("No hay jugadores registrados en esta división.")
@@ -684,7 +678,10 @@ elif st.session_state.menu_activo == "Asistencia":
 elif st.session_state.menu_activo == "Disciplina":
     if st.session_state.rol_usuario == "admin":
         st.title(f"Panel Disciplinario — {st.session_state.division_activa}")
-        jugadores_activos = [j for j in df_roster_actual["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
+        if df_roster_actual.empty:
+            jugadores_activos = []
+        else:
+            jugadores_activos = [j for j in df_roster_actual["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
         
         sub_gen, sub_ind = st.tabs(["Registro General", "Expediente por Jugador"])
         
@@ -697,21 +694,24 @@ elif st.session_state.menu_activo == "Disciplina":
                     tipo = st.selectbox("Tipo de Incidencia", ["Positiva", "Negativa", "Advertencia"])
                     sancion = st.selectbox("Sanción", ["Ninguna", "Strike 1", "Strike 2", "Expulsión"])
                 with c2:
-                    jugador_sel = st.selectbox("Jugador Implicado", jugadores_activos)
+                    jugador_sel = st.selectbox("Jugador Implicado", jugadores_activos if len(jugadores_activos)>0 else ["Sin jugadores"])
                     detalles = st.text_area("Notas / Observaciones detalladas")
                 
                 if st.form_submit_button("REGISTRAR Y SINCRONIZAR"):
-                    nueva_fila = pd.DataFrame([{
-                        "Fecha": str(fecha),
-                        "Jugador": jugador_sel,
-                        "Tipo": tipo,
-                        "Sanción": sancion,
-                        "Detalles": detalles
-                    }])
-                    df_disc_actualizado = pd.concat([df_incidencias_actual, nueva_fila], ignore_index=True)
-                    guardar_en_sheet(sheet_disciplina, df_disc_actualizado)
-                    st.success(f"Incidencia registrada para {jugador_sel}.")
-                    st.rerun()
+                    if jugador_sel != "Sin jugadores":
+                        nueva_fila = pd.DataFrame([{
+                            "Fecha": str(fecha),
+                            "Jugador": jugador_sel,
+                            "Tipo": tipo,
+                            "Sanción": sancion,
+                            "Detalles": detalles
+                        }])
+                        df_disc_actualizado = pd.concat([df_incidencias_actual, nueva_fila], ignore_index=True)
+                        guardar_en_sheet(sheet_disciplina, df_disc_actualizado)
+                        st.success(f"Incidencia registrada para {jugador_sel}.")
+                        st.rerun()
+                    else:
+                        st.error("No hay jugadores registrados en la división.")
             
             st.markdown("---")
             st.markdown("### Historial General de Incidencias")
@@ -722,19 +722,22 @@ elif st.session_state.menu_activo == "Disciplina":
 
         with sub_ind:
             st.markdown("### Expediente Individual")
-            jugador_individual = st.selectbox("Seleccionar Jugador:", jugadores_activos, key="select_jugador_ind")
-            if not df_incidencias_actual.empty:
-                df_filtrado = df_incidencias_actual[df_incidencias_actual["Jugador"] == jugador_individual]
-                col_i1, col_i2 = st.columns(2)
-                col_i1.metric("TOTAL ANOTACIONES", len(df_filtrado))
-                col_i2.metric("SANCIONES ACTIVAS", len(df_filtrado[df_filtrado["Sanción"] != "Ninguna"]))
-                st.markdown("---")
-                if not df_filtrado.empty:
-                    st.dataframe(df_filtrado[["Fecha", "Tipo", "Sanción", "Detalles"]], use_container_width=True, hide_index=True)
+            if len(jugadores_activos) > 0:
+                jugador_individual = st.selectbox("Seleccionar Jugador:", jugadores_activos, key="select_jugador_ind")
+                if not df_incidencias_actual.empty:
+                    df_filtrado = df_incidencias_actual[df_incidencias_actual["Jugador"] == jugador_individual]
+                    col_i1, col_i2 = st.columns(2)
+                    col_i1.metric("TOTAL ANOTACIONES", len(df_filtrado))
+                    col_i2.metric("SANCIONES ACTIVAS", len(df_filtrado[df_filtrado["Sanción"] != "Ninguna"]))
+                    st.markdown("---")
+                    if not df_filtrado.empty:
+                        st.dataframe(df_filtrado[["Fecha", "Tipo", "Sanción", "Detalles"]], use_container_width=True, hide_index=True)
+                    else:
+                        st.info("El jugador no registra incidencias.")
                 else:
-                    st.info("El jugador no registra incidencias.")
+                    st.info("Sin registros.")
             else:
-                st.info("Sin registros.")
+                st.info("No hay jugadores registrados.")
     else:
         st.title("Expediente Personal y Sanciones")
         mi_nombre = st.session_state.nombre_usuario
@@ -761,12 +764,14 @@ elif st.session_state.menu_activo == "Disciplina":
 elif st.session_state.menu_activo == "Tracker":
     st.title(f"Tracker y Estadísticas — {st.session_state.division_activa}")
     
-    df_validos_tracker = df_roster_actual[
-        (df_roster_actual["Nick / ID"].astype(str).str.strip() != "") & 
-        (df_roster_actual["Nick / ID"].astype(str).str.lower() != "nan")
-    ]
-    
-    nicks_lista = df_validos_tracker["Nick / ID"].tolist()
+    if not df_roster_actual.empty:
+        df_validos_tracker = df_roster_actual[
+            (df_roster_actual["Nick / ID"].astype(str).str.strip() != "") & 
+            (df_roster_actual["Nick / ID"].astype(str).str.lower() != "nan")
+        ]
+        nicks_lista = df_validos_tracker["Nick / ID"].tolist()
+    else:
+        nicks_lista = []
     
     if len(nicks_lista) > 0:
         c_sel, c_btn = st.columns([2, 1])
@@ -833,7 +838,7 @@ elif st.session_state.menu_activo == "Config" and st.session_state.rol_usuario =
             
             if st.button("ELIMINAR SANCIÓN"):
                 if sancion_a_borrar != "":
-                    idx_seleccionado = opciones_sanciones.index(sancion_a_borrar)
+                    idx_seleccionado = opciones_sanciones.index(sancion_a_borrar) - 1
                     df_disc_nuevo = df_incidencias_actual.drop(df_incidencias_actual.index[idx_seleccionado]).reset_index(drop=True)
                     guardar_en_sheet(sheet_disciplina, df_disc_nuevo)
                     st.success("Sanción eliminada con éxito.")
@@ -843,7 +848,11 @@ elif st.session_state.menu_activo == "Config" and st.session_state.rol_usuario =
 
     with col_b2:
         st.markdown("#### Eliminar Jugador del Roster")
-        jugadores_para_borrar = [j for j in df_roster_actual["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
+        if not df_roster_actual.empty:
+            jugadores_para_borrar = [j for j in df_roster_actual["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
+        else:
+            jugadores_para_borrar = []
+            
         if len(jugadores_para_borrar) > 0:
             jugador_a_eliminar = st.selectbox("Seleccionar jugador", [""] + jugadores_para_borrar, key="sel_borrar_jugador")
             
@@ -908,7 +917,7 @@ elif st.session_state.menu_activo == "Config" and st.session_state.rol_usuario =
                         
                         guardar_en_sheet(sheet_config, DATOS_INICIALES_CONFIG)
                         
-                        st.success(f"¡División {st.session_state.division_activa} reiniciada a valores de fábrica!")
+                        st.success(f"¡División {st.session_state.division_activa} reiniciada a valores de fábrica (vacía)!")
                         st.balloons()
                         st.rerun()
                     except Exception as e:
