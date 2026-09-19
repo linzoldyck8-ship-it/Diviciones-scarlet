@@ -227,7 +227,6 @@ if not st.session_state.autenticado:
                 elif nueva_pass != nueva_pass_confirm:
                     st.error("❌ Las contraseñas no coinciden.")
                 else:
-                    # Validar de nuevo directo de Sheets
                     df_c_check = cargar_configuracion_fresco()
                     if not df_c_check[df_c_check["Usuario"].astype(str).str.lower() == nuevo_usuario.strip().lower()].empty:
                         st.error("❌ Este nombre de usuario ya está en uso. Elige otro.")
@@ -264,7 +263,6 @@ if st.sidebar.button("🚪 Cerrar Sesión"):
 
 st.sidebar.markdown("---")
 
-# Carga fresca en cada ejecución de página para garantizar tiempo real instantáneo
 df_roster_actual = cargar_roster_fresco()
 df_incidencias_actual = cargar_incidencias_fresco()
 df_config_actual = cargar_configuracion_fresco()
@@ -335,7 +333,6 @@ with tab_roster:
             st.success("✅ Roster actualizado y sincronizado en tiempo real.")
             st.rerun()
 
-        # --- GESTOR DINÁMICO DE AGENTES (SOLO ADMIN) ---
         st.markdown("---")
         st.markdown("### 🎭 Gestor Dinámico de Agentes")
         riot_ids_actuales = [r for r in df_roster_actual["Riot ID (Nick#TAG)"].tolist() if str(r).strip() != "" and str(r).lower() != "nan"]
@@ -568,7 +565,7 @@ with tab_stats:
 
 
 # ==========================================
-# PESTAÑA 5: CONFIGURACIÓN Y BOTONES DE BORRADO ESPECÍFICOS (SOLO ADMIN)
+# PESTAÑA 5: CONFIGURACIÓN Y BORRADOS (SOLO ADMIN)
 # ==========================================
 if st.session_state.rol_usuario == "admin":
     with tab_config:
@@ -625,7 +622,6 @@ if st.session_state.rol_usuario == "admin":
                         df_roster_nuevo = df_roster_actual[df_roster_actual["Nombre Real"] != jugador_a_eliminar].reset_index(drop=True)
                         guardar_en_sheet(sheet_roster, df_roster_nuevo)
                         
-                        # También limpiar su usuario asociado en config si existe
                         df_config_live_b = cargar_configuracion_fresco()
                         df_config_nuevo = df_config_live_b[df_config_live_b["Nombre Real Vinculado"].str.lower() != jugador_a_eliminar.lower()].reset_index(drop=True)
                         guardar_en_sheet(sheet_config, df_config_nuevo)
@@ -653,3 +649,46 @@ if st.session_state.rol_usuario == "admin":
                             st.info("La hoja de asistencia está vacía.")
                     except Exception as e:
                         st.error(f"Error al limpiar asistencia: {e}")
+
+        # ==========================================
+        # SECCIÓN DE EMERGENCIA: VACIAR TODA LA BASE DE DATOS
+        # ==========================================
+        st.markdown("---")
+        st.markdown("### 🚨 ZONA DE EMERGENCIA - RESET TOTAL")
+        st.error("⚠️ **ADVERTENCIA CRÍTICA:** Esto borrará absolutamente **toda** la información de Google Sheets (Roster, Asistencia, Disciplina y Credenciales) y la restablecerá a los valores iniciales de fábrica.")
+        
+        with st.form("form_emergencia_reset"):
+            st.markdown("Para autorizar este vaciado total, ingresa tu **contraseña de administrador** actual:")
+            pass_confirmacion_emergencia = st.text_input("Contraseña de Administrador de Confirmación", type="password")
+            btn_ejecutar_emergencia = st.form_submit_button("🔥 VACIAR Y REINICIAR TODA LA BASE DE DATOS")
+            
+            if btn_ejecutar_emergencia:
+                if not pass_confirmacion_emergencia.strip():
+                    st.error("❌ Debes ingresar la contraseña de administrador.")
+                else:
+                    # Validar contraseña activa contra la hoja de configuración
+                    match_admin = df_config_actual[(df_config_actual["Contraseña"].astype(str) == pass_confirmacion_emergencia.strip()) & 
+                                                   (df_config_actual["Rol"].astype(str).str.lower() == "admin")]
+                    if match_admin.empty:
+                        st.error("❌ Contraseña incorrecta. Operación cancelada por seguridad.")
+                    else:
+                        try:
+                            # 1. Reset Roster
+                            guardar_en_sheet(sheet_roster, DATOS_INICIALES_ROSTER)
+                            
+                            # 2. Reset Asistencia (Hoja vacía con estructura base)
+                            df_asistencia_init = pd.DataFrame(columns=["Nombre Real", "Mes", "Días Hábiles"] + [str(i) for i in range(1, 32)])
+                            guardar_en_sheet(sheet_asistencia, df_asistencia_init)
+                            
+                            # 3. Reset Disciplina (Hoja vacía)
+                            df_disc_init = pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])
+                            guardar_en_sheet(sheet_disciplina, df_disc_init)
+                            
+                            # 4. Reset Configuración (Solo dejar admin predeterminado)
+                            guardar_en_sheet(sheet_config, DATOS_INICIALES_CONFIG)
+                            
+                            st.success("✅ ¡Base de datos completamente vaciada y reiniciada a fábrica con éxito!")
+                            st.balloons()
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Error crítico durante el reseteo de emergencia: {e}")
