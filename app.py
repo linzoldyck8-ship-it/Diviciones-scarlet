@@ -657,7 +657,7 @@ if st.session_state.rol_usuario == "admin":
         st.markdown("### 🚨 ZONA DE EMERGENCIA - RESET TOTAL")
         st.error("⚠️ **ADVERTENCIA CRÍTICA:** Esto borrará absolutamente **toda** la información de Google Sheets (Roster, Asistencia, Disciplina y Credenciales) y la restablecerá a los valores iniciales de fábrica.")
         
-        with st.form("form_emergencia_reset"):
+        with st.form("form_emergencia_reset", clear_on_submit=True):
             st.markdown("Para autorizar este vaciado total, ingresa tu **contraseña de administrador** actual:")
             pass_confirmacion_emergencia = st.text_input("Contraseña de Administrador de Confirmación", type="password")
             btn_ejecutar_emergencia = st.form_submit_button("🔥 VACIAR Y REINICIAR TODA LA BASE DE DATOS")
@@ -666,7 +666,6 @@ if st.session_state.rol_usuario == "admin":
                 if not pass_confirmacion_emergencia.strip():
                     st.error("❌ Debes ingresar la contraseña de administrador.")
                 else:
-                    # Validar contraseña activa contra la hoja de configuración
                     match_admin = df_config_actual[(df_config_actual["Contraseña"].astype(str) == pass_confirmacion_emergencia.strip()) & 
                                                    (df_config_actual["Rol"].astype(str).str.lower() == "admin")]
                     if match_admin.empty:
@@ -676,15 +675,15 @@ if st.session_state.rol_usuario == "admin":
                             # 1. Reset Roster
                             guardar_en_sheet(sheet_roster, DATOS_INICIALES_ROSTER)
                             
-                            # 2. Reset Asistencia (Hoja vacía con estructura base)
+                            # 2. Reset Asistencia
                             df_asistencia_init = pd.DataFrame(columns=["Nombre Real", "Mes", "Días Hábiles"] + [str(i) for i in range(1, 32)])
                             guardar_en_sheet(sheet_asistencia, df_asistencia_init)
                             
-                            # 3. Reset Disciplina (Hoja vacía)
+                            # 3. Reset Disciplina
                             df_disc_init = pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])
                             guardar_en_sheet(sheet_disciplina, df_disc_init)
                             
-                            # 4. Reset Configuración (Solo dejar admin predeterminado)
+                            # 4. Reset Configuración
                             guardar_en_sheet(sheet_config, DATOS_INICIALES_CONFIG)
                             
                             st.success("✅ ¡Base de datos completamente vaciada y reiniciada a fábrica con éxito!")
