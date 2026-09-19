@@ -104,7 +104,6 @@ def guardar_en_sheet(sheet_obj, df):
         except Exception as e:
             st.error(f"Error al sincronizar con Google Sheets: {e}")
 
-# Funciones de carga directa (sin caché para garantizar tiempo real absoluto con Google Sheets)
 def cargar_roster_fresco():
     if sheet_roster is not None:
         try:
@@ -157,11 +156,11 @@ if 'nombre_usuario' not in st.session_state:
 # ==========================================
 if not st.session_state.autenticado:
     st.title("🔥 Scarlet Roster - Control de Acceso")
-    st.markdown("Inicia sesión o crea tu cuenta de jugador por primera vez.")
+    st.markdown("Inicia sesión o regístrate por primera vez si fuiste aceptado en la división.")
     
     df_config_live = cargar_configuracion_fresco()
     
-    tab_login_admin, tab_login_player, tab_reg_player = st.tabs(["🛡️ Admin", "🎮 Iniciar Sesión (Jugador)", "✨ Registrarse por 1era vez"])
+    tab_login_admin, tab_login_player, tab_reg_player = st.tabs(["🛡️ Admin", "🎮 Iniciar Sesión (Jugador)", "✨ Registro de Nuevo Jugador"])
     
     # 1. Pestaña Admin
     with tab_login_admin:
@@ -188,7 +187,7 @@ if not st.session_state.autenticado:
     with tab_login_player:
         st.markdown("### Iniciar Sesión (Jugadores)")
         with st.form("form_login_jugador"):
-            user_player = st.text_input("Tu Usuario creado", key="input_player_user")
+            user_player = st.text_input("Tu Usuario", key="input_player_user")
             pass_player = st.text_input("Tu Contraseña", type="password", key="input_player_pass")
             submit_player = st.form_submit_button("Iniciar Sesión")
             
@@ -205,43 +204,83 @@ if not st.session_state.autenticado:
                 else:
                     st.error("❌ Usuario o contraseña incorrectos.")
 
-    # 3. Pestaña Registro por Primera Vez (Jugador)
+    # 3. Pestaña Registro de Nuevo Jugador (Crea en Roster y en Config)
     with tab_reg_player:
-        st.markdown("### Registro Inicial de Jugador")
-        st.markdown("Si estás en el Roster oficial, crea aquí tu usuario y contraseña por primera vez.")
+        st.markdown("### ✨ Registro de Ingreso para Nuevo Jugador")
+        st.markdown("Si fuiste aceptado en la división, completa tus datos base. Esto te agregará automáticamente al Roster y creará tu cuenta.")
         
-        df_roster_live_reg = cargar_roster_fresco()
-        jugadores_roster = [j for j in df_roster_live_reg["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
+        OPCIONES_ROLES = ["Duelista", "Iniciador", "Controlador", "Centinela", "Flex"]
+        OPCIONES_RANGOS = ["Hierro", "Bronce", "Plata", "Oro", "Platino", "Diamante", "Ascendente 1", "Ascendente 2", "Ascendente 3", "Inmortal 1", "Inmortal 2", "Inmortal 3", "Radiante"]
+        OPCIONES_ESTADO = ["Titular", "Banca", "Sexto player", "En Prueba"]
         
-        with st.form("form_registro_jugador"):
-            nombre_seleccionado = st.selectbox("Selecciona tu Nombre Real (del Roster)", jugadores_roster)
-            nuevo_usuario = st.text_input("Elige tu Nombre de Usuario (para entrar)")
-            nueva_pass = st.text_input("Elige tu Contraseña", type="password")
-            nueva_pass_confirm = st.text_input("Confirma tu Contraseña", type="password")
+        with st.form("form_registro_nuevo_jugador"):
+            c_reg1, c_reg2 = st.columns(2)
+            with c_reg1:
+                reg_nombre_real = st.text_input("Tu Nombre Real")
+                reg_riot_id = st.text_input("Riot ID (Ej: Nick#TAG)")
+                reg_rol_princ = st.selectbox("Rol Principal", OPCIONES_ROLES)
+                reg_rol_sec = st.selectbox("Rol Secundario", [""] + OPCIONES_ROLES)
+                reg_rango = st.selectbox("Rango / Cima Actual", OPCIONES_RANGOS)
+            with c_reg2:
+                reg_estado = st.selectbox("Estado Asignado", OPCIONES_ESTADO)
+                reg_discord = st.text_input("Usuario de Discord / Contacto")
+                reg_usuario = st.text_input("Elige tu Nombre de Usuario nuevo")
+                reg_pass = st.text_input("Elige tu Contraseña", type="password")
+                reg_pass_conf = st.text_input("Confirma tu Contraseña", type="password")
             
-            submit_registro = st.form_submit_button("Registrarme")
+            submit_nuevo_jugador = st.form_submit_button("Completar Registro y Entrar al Roster")
             
-            if submit_registro:
-                if not nuevo_usuario.strip() or not nueva_pass.strip():
-                    st.error("❌ El usuario y la contraseña no pueden estar vacíos.")
-                elif nueva_pass != nueva_pass_confirm:
+            if submit_nuevo_jugador:
+                if not reg_nombre_real.strip() or not reg_riot_id.strip() or not reg_usuario.strip() or not reg_pass.strip():
+                    st.error("❌ Los campos Nombre Real, Riot ID, Usuario y Contraseña son obligatorios.")
+                elif reg_pass != reg_pass_conf:
                     st.error("❌ Las contraseñas no coinciden.")
                 else:
                     df_c_check = cargar_configuracion_fresco()
-                    if not df_c_check[df_c_check["Usuario"].astype(str).str.lower() == nuevo_usuario.strip().lower()].empty:
+                    df_r_check = cargar_roster_fresco()
+                    
+                    # Validaciones de duplicados
+                    if not df_c_check[df_c_check["Usuario"].astype(str).str.lower() == reg_usuario.strip().lower()].empty:
                         st.error("❌ Este nombre de usuario ya está en uso. Elige otro.")
-                    elif not df_c_check[df_c_check["Nombre Real Vinculado"].astype(str).str.lower() == nombre_seleccionado.strip().lower()].empty:
-                        st.error("❌ Este jugador del Roster ya tiene una cuenta registrada. Inicia sesión o contacta al Admin.")
+                    elif not df_r_check[df_r_check["Nombre Real"].astype(str).str.lower() == reg_nombre_real.strip().lower()].empty:
+                        st.error("❌ Ya existe un jugador registrado con este Nombre Real en el Roster.")
                     else:
-                        nueva_fila_config = pd.DataFrame([{
-                            "Usuario": nuevo_usuario.strip(),
-                            "Contraseña": nueva_pass.strip(),
-                            "Rol": "jugador",
-                            "Nombre Real Vinculado": nombre_seleccionado.strip()
+                        # 1. Calcular nuevo ID consecutivo
+                        try:
+                            max_id = int(df_r_check["ID"].max()) if not df_r_check.empty and "ID" in df_r_check.columns else 0
+                        except:
+                            max_id = len(df_r_check)
+                        nuevo_id = max_id + 1
+
+                        # 2. Agregar nueva fila al Roster
+                        nueva_fila_roster = pd.DataFrame([{
+                            "ID": nuevo_id,
+                            "Riot ID (Nick#TAG)": reg_riot_id.strip(),
+                            "Nombre Real": reg_nombre_real.strip(),
+                            "Rol Principal": reg_rol_princ,
+                            "Rol Secundario": reg_rol_sec if reg_rol_sec != "" else "",
+                            "Agentes Principales": "",
+                            "Rango / Cima": reg_rango,
+                            "Cargo en Equipo": "Player",
+                            "Estado": reg_estado,
+                            "Actividad": "Alta",
+                            "Contacto / Discord": reg_discord.strip(),
+                            "Notas / Observaciones": ""
                         }])
-                        df_updated = pd.concat([df_c_check, nueva_fila_config], ignore_index=True)
-                        guardar_en_sheet(sheet_config, df_updated)
-                        st.success("✅ ¡Registro exitoso! Ya puedes ir a la pestaña 'Iniciar Sesión (Jugador)' y entrar con tus datos.")
+                        df_roster_updated = pd.concat([df_r_check, nueva_fila_roster], ignore_index=True)
+                        guardar_en_sheet(sheet_roster, df_roster_updated)
+
+                        # 3. Agregar credenciales a Configuración
+                        nueva_fila_config = pd.DataFrame([{
+                            "Usuario": reg_usuario.strip(),
+                            "Contraseña": reg_pass.strip(),
+                            "Rol": "jugador",
+                            "Nombre Real Vinculado": reg_nombre_real.strip()
+                        }])
+                        df_config_updated = pd.concat([df_c_check, nueva_fila_config], ignore_index=True)
+                        guardar_en_sheet(sheet_config, df_config_updated)
+
+                        st.success("✅ ¡Registro completado con éxito! Ya formas parte del Roster y puedes iniciar sesión en la pestaña anterior.")
     
     st.stop()
 
@@ -462,7 +501,7 @@ with tab_historial:
         
         with sub_gen:
             st.markdown("### Registrar Nueva Incidencia o Anotación")
-            with st.form("form_anotacion"):
+            with st.form("form_anotacion", clear_on_submit=True):
                 c1, c2 = st.columns(2)
                 with c1:
                     fecha = st.date_input("Fecha")
