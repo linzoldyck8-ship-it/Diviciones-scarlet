@@ -9,6 +9,9 @@ st.set_page_config(page_title="Scarlet Multi-Divisiones", page_icon="⛩️", la
 # URL OFICIAL DEL LOGO GENERAL DEL EQUIPO
 URL_LOGO_EQUIPO = "https://cdn.discordapp.com/attachments/1272709315039592469/1275623434063314984/SCARLET.png?ex=6aaf32e6&is=6aade166&hm=4889e788d8f71a5e470db02c4c8f42b95fb19fcdce9be96f7fabab8b6fec25e4&"
 
+# --- URL DE FONDO PARA EL LOBBY (MODIFICA AQUÍ TU URL) ---
+URL_FONDO_LOBBY = "https://www.chromethemer.com/wallpapers/images/960/valorant-wallpaper-4k.jpg"
+
 # URLS DE LOS LOGOS DE CADA JUEGO 
 LOGOS_DIVISIONES = {
     "Valorant A": "https://images.seeklogo.com/logo-png/37/1/valorant-logo-png_seeklogo-379976.png",
@@ -274,7 +277,7 @@ if 'division_autenticada' not in st.session_state: st.session_state.division_aut
 # ==========================================
 if st.session_state.division_activa is None:
     st.markdown(f"""
-        <div class="hero-container" style="background: linear-gradient(rgba(11, 16, 23, 0.88), rgba(17, 26, 36, 0.92)), url('{URL_LOGO_EQUIPO}'); background-size: cover; background-position: center;">
+        <div class="hero-container" style="background: linear-gradient(rgba(11, 16, 23, 0.88), rgba(17, 26, 36, 0.92)), url('{URL_FONDO_LOBBY}'); background-size: cover; background-position: center;">
             <img src="{URL_LOGO_EQUIPO}" width="120" style="margin-bottom: 20px; border-radius: 50%; box-shadow: 0 0 25px rgba(255, 70, 85, 0.6);">
             <h1 style="border: none; margin-bottom: 10px;">SCARLET ESPORTS ORGANIZATION</h1>
             <p style="font-size: 1.2rem; color: #94a3b8; max-width: 650px; margin-bottom: 20px;">
