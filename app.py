@@ -106,7 +106,7 @@ with tab_roster:
         cc.info(f"**Controladores:**\n{', '.join(AGENTES_POR_ROL['Controlador'])}")
         cd.info(f"**Centinelas:**\n{', '.join(AGENTES_POR_ROL['Centinela'])}")
 
-    # Tabla Principal (Con agentes bloqueados para edición directa)
+    # Tabla Principal (Con agentes bloqueados y guardado seguro)
     st.markdown("**Planilla de Control General**")
     configuracion_columnas = {
         "Rol Principal": st.column_config.SelectboxColumn("Rol Principal", options=OPCIONES_ROLES),
@@ -125,13 +125,17 @@ with tab_roster:
         hide_index=True,
         column_order=["Riot ID (Nick#TAG)", "Nombre Real", "Rol Principal", "Rol Secundario", "Agentes Principales", "Rango / Cima", "Cargo", "Estado", "Actividad", "Contacto"],
         column_config=configuracion_columnas,
-        height=350
+        height=350,
+        key="editor_roster_principal"
     )
     
-    if "Strikes" not in df_roster_editado.columns:
-        df_roster_editado["Strikes"] = st.session_state.df_roster["Strikes"]
-    df_roster_editado["Strikes"] = df_roster_editado["Strikes"].fillna(0).astype(int)
-    st.session_state.df_roster = df_roster_editado
+    if st.button("💾 Guardar Cambios de la Tabla"):
+        if "Strikes" not in df_roster_editado.columns:
+            df_roster_editado["Strikes"] = st.session_state.df_roster["Strikes"]
+        df_roster_editado["Strikes"] = df_roster_editado["Strikes"].fillna(0).astype(int)
+        st.session_state.df_roster = df_roster_editado
+        st.success("✅ ¡Cambios guardados exitosamente en la base de datos de la sesión!")
+        st.rerun()
 
     # --- GESTOR INTELIGENTE DE AGENTES ---
     st.markdown("---")
@@ -164,11 +168,13 @@ with tab_roster:
                     nuevos_agentes = st.multiselect(
                         f"2. Agentes disponibles para los roles de {jugador_agentes} ({rol_1} / {rol_2}):",
                         options=opciones_validas,
-                        default=agentes_actuales
+                        default=agentes_actuales,
+                        key=f"multi_agentes_{jugador_agentes}"
                     )
                     
                     if st.button("💾 Guardar Pool de Agentes"):
                         st.session_state.df_roster.at[idx, "Agentes Principales"] = ", ".join(nuevos_agentes)
+                        st.success(f"¡Agentes actualizados para {jugador_agentes}!")
                         st.rerun()
 
 # ==========================================
@@ -193,7 +199,7 @@ with tab_asistencia:
             asistencia = sum(row[dias_mes] == "P") + sum(row[dias_mes] == "J") + (sum(row[dias_mes] == "T") * 0.8)
             return f"{min((asistencia / dias) * 100, 100):.0f}%"
 
-        df_editado = st.data_editor(df_mes, use_container_width=True)
+        df_editado = st.data_editor(df_mes, use_container_width=True, key="editor_asistencia_mes")
         df_editado["% Asistencia"] = df_editado.apply(calcular_porcentaje, axis=1)
         
         st.markdown("**Resumen Mensual**")
@@ -214,13 +220,17 @@ with tab_historial:
             df_disc_view,
             use_container_width=True,
             hide_index=True,
-            disabled=["Nombre Real", "Estado", "Rol Principal"]
+            disabled=["Nombre Real", "Estado", "Rol Principal"],
+            key="editor_disciplina_strikes"
         )
         
-        for index, row in edited_disc.iterrows():
-            idx_roster = st.session_state.df_roster.index[st.session_state.df_roster['Nombre Real'] == row['Nombre Real']].tolist()
-            if idx_roster:
-                st.session_state.df_roster.at[idx_roster[0], 'Strikes'] = row['Strikes']
+        if st.button("💾 Guardar Cambios de Strikes"):
+            for index, row in edited_disc.iterrows():
+                idx_roster = st.session_state.df_roster.index[st.session_state.df_roster['Nombre Real'] == row['Nombre Real']].tolist()
+                if idx_roster:
+                    st.session_state.df_roster.at[idx_roster[0], 'Strikes'] = row['Strikes']
+            st.success("✅ ¡Strikes actualizados correctamente!")
+            st.rerun()
 
         st.markdown("---")
         st.markdown("**Registro de Incidencias**")
@@ -249,7 +259,7 @@ with tab_stats:
         with c_sel: 
             nombres_roster = st.session_state.df_roster[st.session_state.df_roster["Nombre Real"].astype(str).str.strip() != ""]
             dic_nombres_riot = dict(zip(nombres_roster["Nombre Real"], nombres_roster["Riot ID (Nick#TAG)"]))
-            jugador_stat = st.selectbox("Seleccionar Jugador", list(dic_nombres_riot.keys()))
+            jugador_stat = st.selectbox("Seleccionar Jugador", list(dic_nombres_riot.keys()), key="select_stats_jugador")
             
         with c_btn:
             st.markdown("<br>", unsafe_allow_html=True)
