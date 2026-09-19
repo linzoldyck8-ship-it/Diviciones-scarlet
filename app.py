@@ -23,9 +23,17 @@ LOGOS_DIVISIONES = {
     "CS": "https://images.seeklogo.com/logo-png/62/1/counter-strike-logo-png_seeklogo-622731.png"
 }
 
+# --- LISTAS Y CONFIGURACIONES ESPECÍFICAS POR JUEGO ---
 AGENTES_VALORANT = ["Jett", "Reyna", "Raze", "Neon", "Iso", "Yoru", "Sova", "Fade", "Breach", "Skye", "Gekko", "KAY/O", "Omen", "Viper", "Astra", "Harbor", "Clove", "Cypher", "Killjoy", "Deadlock", "Chamber", "Vyse"]
-HEROES_OVERWATCH = ["Reinhardt", "Winston", "D.Va", "Sigma", "Orisa", "Roadhog", "Zarya", "Junker Queen", "Mauga", "Ramattra", "Tracer", "Genji", "Reaper", "Mei", "Pharah", "Echo", "Sombra", "Soldier: 76", "Cassidy", "Ashe", "Hanzo", "Mercy", "Ana", "Kiriko", "Juno", "Lucio", "Zenyatta", "Baptiste"]
+RANGOS_VALORANT = ["Hierro", "Bronce", "Plata", "Oro", "Platino", "Diamante", "Ascendente 1", "Ascendente 2", "Ascendente 3", "Inmortal 1", "Inmortal 2", "Inmortal 3", "Radiante", ""]
+ROLES_VALORANT = ["Duelista", "Iniciador", "Controlador", "Centinela", "Flex", ""]
+
+HEROES_OVERWATCH = ["Reinhardt", "Winston", "D.Va", "Sigma", "Orisa", "Roadhog", "Zarya", "Junker Queen", "Mauga", "Ramattra", "Tracer", "Genji", "Reaper", "Mei", "Pharah", "Echo", "Sombra", "Soldier: 76", "Cassidy", "Ashe", "Hanzo", "Mercy", "Ana", "Kiriko", "Juno", "Lucio", "Zenyatta", "Baptiste", "Illari", "Lifeweaver", "Moira", "Brigitte"]
+RANGOS_OVERWATCH = ["Bronce", "Plata", "Oro", "Platino", "Diamante", "Maestro", "Gran Maestro", "Top 500", ""]
+ROLES_OVERWATCH = ["Tanque", "Daño (DPS)", "Soporte", "Flex", ""]
+
 ROLES_CS = ["IGL (In-Game Leader)", "AWPer", "Entry Fragger", "Support", "Lurker", "Fragger", "Rifler", "Capitán de Mapa"]
+RANGOS_CS = ["Plata", "Nova de Oro", "Maestro Guardian", "Águila Laureada", "Supremo", "Global Elite", "Premier 5k-10k", "Premier 10k-15k", "Premier 15k-20k", "Premier 20k+", ""]
 
 st.markdown("""
     <style>
@@ -111,14 +119,12 @@ def obtener_hojas_division(division_nombre):
     if spreadsheet is None: return None, None, None, None
     prefix = division_nombre.replace(" ", "_")
     
-    # Asegurar hoja Roster
     try:
         sheet_roster = spreadsheet.worksheet(f"{prefix}_Roster")
     except gspread.exceptions.WorksheetNotFound:
         sheet_roster = spreadsheet.add_worksheet(title=f"{prefix}_Roster", rows="100", cols="15")
         sheet_roster.update([DATOS_INICIALES_ROSTER.columns.values.tolist()] + DATOS_INICIALES_ROSTER.values.tolist())
 
-    # Asegurar hoja Asistencia
     try:
         sheet_asistencia = spreadsheet.worksheet(f"{prefix}_Asistencia")
     except gspread.exceptions.WorksheetNotFound:
@@ -126,7 +132,6 @@ def obtener_hojas_division(division_nombre):
         df_asistencia_init = pd.DataFrame(columns=["Nombre Real", "Mes", "Días Hábiles"] + [str(i) for i in range(1, 32)])
         sheet_asistencia.update([df_asistencia_init.columns.values.tolist()])
 
-    # Asegurar hoja Disciplina
     try:
         sheet_disciplina = spreadsheet.worksheet(f"{prefix}_Disciplina")
     except gspread.exceptions.WorksheetNotFound:
@@ -134,7 +139,6 @@ def obtener_hojas_division(division_nombre):
         df_disc_init = pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])
         sheet_disciplina.update([df_disc_init.columns.values.tolist()])
 
-    # Asegurar hoja Config
     try:
         sheet_config = spreadsheet.worksheet(f"{prefix}_Config")
     except gspread.exceptions.WorksheetNotFound:
@@ -239,6 +243,7 @@ if st.session_state.division_activa is None:
 sheet_roster, sheet_asistencia, sheet_disciplina, sheet_config = obtener_hojas_division(st.session_state.division_activa)
 df_config_live = cargar_configuracion_fresco(sheet_config)
 
+# --- BARRA SUPERIOR (SELECTOR DE DIVISIONES PERSISTENTE PARA SUPER ADMIN) ---
 st.markdown("""
     <div style="background-color: #0b1017; border-bottom: 2px solid #ff4655; padding: 12px 0px 8px 0px; margin-bottom: 15px;">
     </div>
@@ -315,14 +320,16 @@ if not st.session_state.autenticado:
                     st.error("Usuario o contraseña incorrectos.")
 
     with tab_reg_player:
-        OPCIONES_ROLES = ["Duelista", "Iniciador", "Controlador", "Centinela", "Flex"]
-        OPCIONES_RANGOS = ["Hierro", "Bronce", "Plata", "Oro", "Platino", "Diamante", "Ascendente 1", "Ascendente 2", "Ascendente 3", "Inmortal 1", "Inmortal 2", "Inmortal 3", "Radiante"]
+        div_reg = st.session_state.division_activa.lower()
+        opciones_roles_reg = ROLES_VALORANT if "valorant" in div_reg else (ROLES_OVERWATCH if "overwatch" in div_reg else ROLES_CS)
+        opciones_rangos_reg = RANGOS_VALORANT if "valorant" in div_reg else (RANGOS_OVERWATCH if "overwatch" in div_reg else RANGOS_CS)
+        
         OPCIONES_ESTADO = ["Titular", "Banca", "Sexto player", "En Prueba"]
         with st.form("form_registro_nuevo_jugador"):
             reg_nombre_real = st.text_input("Nombre Real")
-            reg_nick = st.text_input("Nick / ID (Ej: Player#TAG)")
-            reg_rol_princ = st.selectbox("Rol Principal", OPCIONES_ROLES)
-            reg_rango = st.selectbox("Rango / Cima Actual", OPCIONES_RANGOS)
+            reg_nick = st.text_input("Nick / ID")
+            reg_rol_princ = st.selectbox("Rol Principal", opciones_roles_reg)
+            reg_rango = st.selectbox("Rango / Cima Actual", opciones_rangos_reg)
             reg_estado = st.selectbox("Estado Asignado", OPCIONES_ESTADO)
             reg_discord = st.text_input("Contacto / Discord")
             reg_usuario = st.text_input("Nuevo Nombre de Usuario")
@@ -390,16 +397,46 @@ df_config_actual = cargar_configuracion_fresco(sheet_config)
 
 if st.session_state.menu_activo == "Roster":
     st.title(f"Gestión de Roster — {st.session_state.division_activa}")
-    div_actual = st.session_state.division_activa.lower()
-    opciones_juego = AGENTES_VALORANT if "valorant" in div_actual else (HEROES_OVERWATCH if "overwatch" in div_actual else ROLES_CS)
     
+    # Detección dinámica de opciones según la división activa
+    div_actual = st.session_state.division_activa.lower()
+    if "valorant" in div_actual:
+        opciones_juego = AGENTES_VALORANT
+        opciones_roles = ROLES_VALORANT
+        opciones_rangos = RANGOS_VALORANT
+        label_agentes = "Agentes principales (Valorant)"
+    elif "overwatch" in div_actual:
+        opciones_juego = HEROES_OVERWATCH
+        opciones_roles = ROLES_OVERWATCH
+        opciones_rangos = RANGOS_OVERWATCH
+        label_agentes = "Héroes principales (Overwatch)"
+    else:  # CS
+        opciones_juego = ROLES_CS
+        opciones_roles = ROLES_CS
+        opciones_rangos = RANGOS_CS
+        label_agentes = "Roles tácticos / Armas (CS)"
+
     if st.session_state.rol_usuario in ["admin", "super_admin"]:
-        df_roster_editado = st.data_editor(df_roster_actual, num_rows="dynamic", use_container_width=True, hide_index=True, key="editor_roster_principal")
+        configuracion_columnas = {
+            "Rol Principal": st.column_config.SelectboxColumn("Rol Principal", options=opciones_roles),
+            "Rol Secundario": st.column_config.SelectboxColumn("Rol Secundario", options=opciones_roles),
+            "Rango / Cima": st.column_config.SelectboxColumn("Rango / Cima", options=opciones_rangos),
+        }
+        
+        df_roster_editado = st.data_editor(
+            df_roster_actual, 
+            num_rows="dynamic", 
+            use_container_width=True, 
+            hide_index=True, 
+            column_config=configuracion_columnas,
+            key="editor_roster_principal"
+        )
         if not df_roster_editado.equals(df_roster_actual):
             guardar_en_sheet(sheet_roster, df_roster_editado)
             st.rerun()
 
         st.markdown("---")
+        st.markdown(f"### Selección Dinámica de {label_agentes}")
         jugadores_disponibles = [j for j in df_roster_actual["Nombre Real"].dropna().tolist() if str(j).strip() != ""]
         if jugadores_disponibles:
             c1, c2 = st.columns(2)
@@ -407,8 +444,8 @@ if st.session_state.menu_activo == "Roster":
             fila_j = df_roster_actual[df_roster_actual["Nombre Real"] == j_sel]
             actuales = [a.strip() for a in str(fila_j.iloc[0]["Personajes / Agentes"]).split(",") if a.strip() in opciones_juego]
             
-            nuevos = c2.multiselect("Seleccionar Agentes/Roles", options=opciones_juego, default=actuales, key=f"multi_{j_sel}")
-            if st.button("Guardar Agentes"):
+            nuevos = c2.multiselect(f"Seleccionar para {j_sel}", options=opciones_juego, default=actuales, key=f"multi_{j_sel}")
+            if st.button("Guardar Selección"):
                 df_roster_actual.loc[df_roster_actual["Nombre Real"] == j_sel, "Personajes / Agentes"] = ", ".join(nuevos)
                 guardar_en_sheet(sheet_roster, df_roster_actual)
                 st.success("Guardado con éxito.")
