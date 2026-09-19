@@ -10,7 +10,7 @@ st.set_page_config(page_title="Scarlet Multi-Divisiones", page_icon="🔥", layo
 # URL OFICIAL DEL LOGO GENERAL DEL EQUIPO
 URL_LOGO_EQUIPO = "https://cdn.discordapp.com/attachments/1272709315039592469/1275623434063314984/SCARLET.png?ex=6aaf32e6&is=6aade166&hm=4889e788d8f71a5e470db02c4c8f42b95fb19fcdce9be96f7fabab8b6fec25e4&"
 
-# URLs DE LOS LOGOS DE CADA JUEGO (Puedes modificarlas aquí libremente)
+# URLs DE LOS LOGOS DE CADA JUEGO
 LOGOS_DIVISIONES = {
     "Valorant A": "https://images.seeklogo.com/logo-png/37/1/valorant-logo-png_seeklogo-379976.png",
     "Valorant B": "https://images.seeklogo.com/logo-png/37/1/valorant-logo-png_seeklogo-379976.png",
@@ -32,7 +32,6 @@ st.markdown("""
         font-family: 'Inter', sans-serif; 
     }
     
-    /* Estilo de la portada de bienvenida principal */
     .hero-container {
         position: relative;
         width: 100%;
@@ -74,53 +73,30 @@ st.markdown("""
         padding: 15px;
         border-radius: 8px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-        transition: all 0.3s ease;
-    }
-    div[data-testid="stMetric"]:hover {
-        border-color: #ff4655;
-        box-shadow: 0 6px 25px rgba(255, 70, 85, 0.3);
     }
     div[data-testid="stMetricValue"] { 
         color: #ff4655 !important; 
         font-weight: 700; 
     }
 
-    /* Botones corporativos generales */
     .stButton>button { 
         width: 100%;
-        background: transparent !important;
-        color: #cbd5e1 !important; 
-        border: none !important; 
+        background: rgba(255, 70, 85, 0.1) !important;
+        color: #ffffff !important; 
+        border: 1px solid rgba(255, 70, 85, 0.4) !important; 
         font-weight: 600; 
         font-size: 0.95rem;
-        padding: 8px 12px;
+        padding: 10px 12px;
         letter-spacing: 0.8px;
         text-transform: uppercase;
+        border-radius: 6px;
         transition: all 0.2s ease; 
     }
     
     .stButton>button:hover { 
-        color: #ff4655 !important;
-        background: rgba(255, 70, 85, 0.1) !important;
-        border-radius: 4px;
-    }
-
-    /* Tarjetas estilizadas de divisiones en la portada */
-    .division-card {
-        background-size: cover;
-        background-position: center;
-        border-radius: 12px;
-        border: 1px solid rgba(255, 70, 85, 0.4);
-        padding: 20px 10px;
-        text-align: center;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.5);
-        transition: all 0.3s ease;
-        margin-bottom: 15px;
-    }
-    .division-card:hover {
-        transform: translateY(-5px);
-        border-color: #ff4655;
-        box-shadow: 0 10px 30px rgba(255, 70, 85, 0.4);
+        color: #ffffff !important;
+        background: rgba(255, 70, 85, 0.3) !important;
+        border-color: #ff4655 !important;
     }
 
     .stTextInput input, .stSelectbox select, .stDateInput input {
@@ -129,10 +105,6 @@ st.markdown("""
         border: 1px solid #233242 !important;
         border-radius: 6px !important;
         padding: 10px !important;
-    }
-    .stTextInput input:focus, .stSelectbox select:focus {
-        border-color: #ff4655 !important;
-        box-shadow: 0 0 0 2px rgba(255, 70, 85, 0.2) !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -170,7 +142,7 @@ DIVISIONES_DISPONIBLES = [
     "CS"
 ]
 
-# --- CONEXIÓN Y CREACIÓN AUTOMÁTICA DE MULTI-HOJAS POR DIVISIÓN ---
+# --- CONEXIÓN A GOOGLE SHEETS ---
 @st.cache_resource
 def conectar_google_sheets():
     try:
@@ -273,7 +245,7 @@ if 'division_autenticada' not in st.session_state: st.session_state.division_aut
 
 
 # ==========================================
-# PORTADA DE BIENVENIDA CON TARJETAS ESTILIZADAS Y LOGOS DE FONDO
+# PORTADA DE BIENVENIDA 
 # ==========================================
 if st.session_state.division_activa is None:
     st.markdown(f"""
@@ -288,7 +260,6 @@ if st.session_state.division_activa is None:
     
     st.markdown("<h3 style='text-align: center; margin: 30px 0 20px 0;'>Selecciona la División a la que deseas ingresar:</h3>", unsafe_allow_html=True)
     
-    # Mostrar las divisiones en filas de tarjetas elegantes con fondo del logo del juego y minilogo al lado del texto
     cols = st.columns(3)
     for idx, div_nombre in enumerate(DIVISIONES_DISPONIBLES):
         col_target = cols[idx % 3]
@@ -296,11 +267,12 @@ if st.session_state.division_activa is None:
         
         with col_target:
             st.markdown(f"""
-                <div class="division-card" style="background: linear-gradient(rgba(11, 16, 23, 0.85), rgba(17, 26, 36, 0.90)), url('{logo_url}'); background-size: cover; background-position: center;">
+                <div style="background: linear-gradient(rgba(11, 16, 23, 0.85), rgba(17, 26, 36, 0.90)), url('{logo_url}'); background-size: cover; background-position: center; border-radius: 12px; border: 1px solid rgba(255, 70, 85, 0.4); padding: 20px 10px; text-align: center; margin-bottom: 10px;">
                     <img src="{logo_url}" width="35" style="border-radius: 50%; margin-bottom: 8px; border: 1px solid #ff4655;">
-                    <h4 style="color: #ffffff; margin-bottom: 15px; font-weight: 600; letter-spacing: 0.5px;">{div_nombre}</h4>
+                    <h4 style="color: #ffffff; margin-bottom: 5px; font-weight: 600;">{div_nombre}</h4>
                 </div>
             """, unsafe_allow_html=True)
+            
             if st.button(f"Entrar a {div_nombre}", key=f"btn_card_{idx}"):
                 st.session_state.division_activa = div_nombre
                 st.rerun()
@@ -310,20 +282,15 @@ if st.session_state.division_activa is None:
 
 
 # ==========================================
-# CARGAR HOJAS DE LA DIVISIÓN ACTIVA SELECCIONADA
+# CARGAR HOJAS DE LA DIVISIÓN ACTIVA
 # ==========================================
 sheet_roster, sheet_asistencia, sheet_disciplina, sheet_config = obtener_hojas_division(st.session_state.division_activa)
 df_config_live = cargar_configuracion_fresco(sheet_config)
 
 
 # ==========================================
-# BARRA SUPERIOR CON CAMBIO DE DIVISIÓN Y LOGO
+# BARRA SUPERIOR
 # ==========================================
-st.markdown("""
-    <div style="background-color: #0b1017; border-bottom: 2px solid #ff4655; padding: 12px 0px 8px 0px; margin-bottom: 15px;">
-    </div>
-""", unsafe_allow_html=True)
-
 c_div_1, c_div_2, c_div_3 = st.columns([0.8, 2, 1])
 with c_div_1:
     st.image(URL_LOGO_EQUIPO, width=45)
@@ -345,7 +312,7 @@ with c_div_3:
 
 
 # ==========================================
-# PANTALLA DE LOGIN / REGISTRO INDEPENDIENTE POR DIVISIÓN
+# LOGIN / REGISTRO
 # ==========================================
 if not st.session_state.autenticado:
     st.title(f"SCARLET ROSTER — {st.session_state.division_activa.upper()}")
@@ -473,8 +440,6 @@ if not st.session_state.autenticado:
 # ==========================================
 # APLICACIÓN PRINCIPAL (POST-LOGIN)
 # ==========================================
-
-# --- BARRA LATERAL EXCLUSIVA PARA ADMINISTRADORES ---
 if st.session_state.rol_usuario == "admin":
     st.sidebar.markdown(f"👤 **Usuario:** `{st.session_state.nombre_usuario}`")
     st.sidebar.markdown(f"🏷️ **Credencial:** `ADMIN`")
@@ -496,7 +461,7 @@ else:
         </style>
     """, unsafe_allow_html=True)
 
-# --- BOTONES DE NAVEGACIÓN SUPERIORES ---
+# Navegación principal
 if st.session_state.rol_usuario == "admin":
     cols_nav = st.columns(5)
     with cols_nav[0]:
@@ -574,7 +539,6 @@ if st.session_state.menu_activo == "Roster":
             st.success("Roster actualizado y sincronizado.")
             st.rerun()
 
-        # --- GRÁFICOS ANALÍTICOS DE ROSTER ---
         st.markdown("---")
         st.markdown("### Analítica Ejecutiva del Plantel")
         
@@ -679,7 +643,7 @@ elif st.session_state.menu_activo == "Asistencia":
 
 
 # ==========================================
-# SECCIÓN 3: DISCIPLINA / MIS SANCIONES
+# SECCIÓN 3: DISCIPLINA
 # ==========================================
 elif st.session_state.menu_activo == "Disciplina":
     if st.session_state.rol_usuario == "admin":
@@ -756,7 +720,7 @@ elif st.session_state.menu_activo == "Disciplina":
 
 
 # ==========================================
-# SECCIÓN 4: TRACKER Y STATS
+# SECCIÓN 4: TRACKER
 # ==========================================
 elif st.session_state.menu_activo == "Tracker":
     st.title(f"Tracker y Estadísticas — {st.session_state.division_activa}")
@@ -799,7 +763,7 @@ elif st.session_state.menu_activo == "Tracker":
 
 
 # ==========================================
-# SECCIÓN 5: CONFIGURACIÓN Y BORRADOS (SOLO ADMIN)
+# SECCIÓN 5: CONFIGURACIÓN
 # ==========================================
 elif st.session_state.menu_activo == "Config" and st.session_state.rol_usuario == "admin":
     st.title(f"Configuración de División — {st.session_state.division_activa}")
