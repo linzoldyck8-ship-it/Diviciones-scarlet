@@ -618,8 +618,10 @@ elif st.session_state.menu_activo == "Tracker":
             nick_seleccionado = st.selectbox("Seleccionar Integrante", nicks_lista, index=default_idx)
         with c_btn:
             st.markdown("<br>", unsafe_allow_html=True)
-            st.link_button("VER PERFIL EXTERNO", f"https://tracker.gg/valorant/profile/riot/{str(nick_seleccionado).replace('#', '%23')}/overview", use_container_width=True) if pd.notna(nick_seleccionado) and "#" in str(nick_seleccionado) else st.info("ID configurado.")
-        
+            if pd.notna(nick_seleccionado) and "#" in str(nick_seleccionado):
+                st.link_button("VER PERFIL EXTERNO", f"https://tracker.gg/valorant/profile/riot/{str(nick_seleccionado).replace('#', '%23')}/overview", use_container_width=True)
+            else:
+                st.info("ID no configurado correctamente.")
         st.markdown(f"**Captura de Rendimiento — {nick_seleccionado}**")
         img_upload = st.file_uploader("Cargar captura", type=["png", "jpg", "jpeg"])
         if img_upload: st.image(img_upload, use_column_width=True, caption=f"Registro analítico para {nick_seleccionado}")
