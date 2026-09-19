@@ -35,8 +35,7 @@ st.markdown("""
     .hero-container {
         position: relative;
         width: 100%;
-        min-height: 50vh;
-        background: linear-gradient(rgba(11, 16, 23, 0.85), rgba(17, 26, 36, 0.90));
+        min-height: 45vh;
         background-size: cover;
         background-position: center;
         border-radius: 12px;
@@ -73,30 +72,62 @@ st.markdown("""
         padding: 15px;
         border-radius: 8px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        transition: all 0.3s ease;
+    }
+    div[data-testid="stMetric"]:hover {
+        border-color: #ff4655;
+        box-shadow: 0 6px 25px rgba(255, 70, 85, 0.3);
     }
     div[data-testid="stMetricValue"] { 
         color: #ff4655 !important; 
         font-weight: 700; 
     }
 
+    /* Botones corporativos generales */
     .stButton>button { 
         width: 100%;
-        background: rgba(255, 70, 85, 0.1) !important;
-        color: #ffffff !important; 
-        border: 1px solid rgba(255, 70, 85, 0.4) !important; 
+        background: transparent !important;
+        color: #cbd5e1 !important; 
+        border: none !important; 
         font-weight: 600; 
         font-size: 0.95rem;
-        padding: 10px 12px;
+        padding: 8px 12px;
         letter-spacing: 0.8px;
         text-transform: uppercase;
-        border-radius: 6px;
         transition: all 0.2s ease; 
     }
     
     .stButton>button:hover { 
-        color: #ffffff !important;
-        background: rgba(255, 70, 85, 0.3) !important;
-        border-color: #ff4655 !important;
+        color: #ff4655 !important;
+        background: rgba(255, 70, 85, 0.1) !important;
+        border-radius: 4px;
+    }
+
+    /* Tarjetas estilizadas de divisiones en la portada (Flexbox para centrado perfecto) */
+    .division-card-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        margin-bottom: 15px;
+    }
+    
+    .division-card {
+        width: 100%;
+        background-size: cover;
+        background-position: center;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 70, 85, 0.4);
+        padding: 25px 10px;
+        text-align: center;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+        transition: all 0.3s ease;
+    }
+    .division-card:hover {
+        transform: translateY(-5px);
+        border-color: #ff4655;
+        box-shadow: 0 10px 30px rgba(255, 70, 85, 0.4);
     }
 
     .stTextInput input, .stSelectbox select, .stDateInput input {
@@ -105,6 +136,10 @@ st.markdown("""
         border: 1px solid #233242 !important;
         border-radius: 6px !important;
         padding: 10px !important;
+    }
+    .stTextInput input:focus, .stSelectbox select:focus {
+        border-color: #ff4655 !important;
+        box-shadow: 0 0 0 2px rgba(255, 70, 85, 0.2) !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -142,7 +177,7 @@ DIVISIONES_DISPONIBLES = [
     "CS"
 ]
 
-# --- CONEXIÓN A GOOGLE SHEETS ---
+# --- CONEXIÓN Y CREACIÓN AUTOMÁTICA DE MULTI-HOJAS POR DIVISIÓN ---
 @st.cache_resource
 def conectar_google_sheets():
     try:
@@ -242,10 +277,11 @@ if 'nombre_usuario' not in st.session_state: st.session_state.nombre_usuario = N
 if 'menu_activo' not in st.session_state: st.session_state.menu_activo = "Roster"
 if 'division_activa' not in st.session_state: st.session_state.division_activa = None
 if 'division_autenticada' not in st.session_state: st.session_state.division_autenticada = None
+if 'es_super_admin' not in st.session_state: st.session_state.es_super_admin = False
 
 
 # ==========================================
-# PORTADA DE BIENVENIDA 
+# PORTADA DE BIENVENIDA / LOBBY
 # ==========================================
 if st.session_state.division_activa is None:
     st.markdown(f"""
@@ -258,8 +294,28 @@ if st.session_state.division_activa is None:
         </div>
     """, unsafe_allow_html=True)
     
+    # --- ACCESO MODO SUPER ADMINISTRADOR ---
+    with st.expander("🔑 Acceso Super Administrador Global"):
+        with st.form("form_login_super_admin"):
+            sa_user = st.text_input("Usuario Super Admin", value="superadmin")
+            sa_pass = st.text_input("Contraseña Super Admin", type="password")
+            sa_submit = st.form_submit_button("ACCEDER COMO SUPER ADMIN")
+            if sa_submit:
+                # Puedes cambiar o configurar las credenciales globales del Super Admin aquí
+                if sa_user.strip() == "superadmin" and sa_pass.strip() == "admin123":
+                    st.session_state.es_super_admin = True
+                    st.session_state.autenticado = True
+                    st.session_state.rol_usuario = "admin"
+                    st.session_state.nombre_usuario = "Super Administrador"
+                    st.session_state.division_activa = DIVISIONES_DISPONIBLES[0]
+                    st.success("¡Modo Super Administrador activado!")
+                    st.rerun()
+                else:
+                    st.error("Credenciales de Super Admin incorrectas.")
+
     st.markdown("<h3 style='text-align: center; margin: 30px 0 20px 0;'>Selecciona la División a la que deseas ingresar:</h3>", unsafe_allow_html=True)
     
+    # Tarjetas de divisiones con botones centrados perfectamente
     cols = st.columns(3)
     for idx, div_nombre in enumerate(DIVISIONES_DISPONIBLES):
         col_target = cols[idx % 3]
@@ -267,13 +323,14 @@ if st.session_state.division_activa is None:
         
         with col_target:
             st.markdown(f"""
-                <div style="background: linear-gradient(rgba(11, 16, 23, 0.85), rgba(17, 26, 36, 0.90)), url('{logo_url}'); background-size: cover; background-position: center; border-radius: 12px; border: 1px solid rgba(255, 70, 85, 0.4); padding: 20px 10px; text-align: center; margin-bottom: 10px;">
-                    <img src="{logo_url}" width="35" style="border-radius: 50%; margin-bottom: 8px; border: 1px solid #ff4655;">
-                    <h4 style="color: #ffffff; margin-bottom: 5px; font-weight: 600;">{div_nombre}</h4>
+                <div class="division-card-container">
+                    <div class="division-card" style="background: linear-gradient(rgba(11, 16, 23, 0.85), rgba(17, 26, 36, 0.90)), url('{logo_url}'); background-size: cover; background-position: center;">
+                        <img src="{logo_url}" width="35" style="border-radius: 50%; margin-bottom: 8px; border: 1px solid #ff4655;">
+                        <h4 style="color: #ffffff; margin-bottom: 5px; font-weight: 600; letter-spacing: 0.5px;">{div_nombre}</h4>
+                    </div>
                 </div>
             """, unsafe_allow_html=True)
-            
-            if st.button(f"Entrar a {div_nombre}", key=f"btn_card_{idx}"):
+            if st.button(f"Entrar a {div_nombre}", key=f"btn_card_{idx}", use_container_width=True):
                 st.session_state.division_activa = div_nombre
                 st.rerun()
             st.markdown("<br>", unsafe_allow_html=True)
@@ -282,37 +339,47 @@ if st.session_state.division_activa is None:
 
 
 # ==========================================
-# CARGAR HOJAS DE LA DIVISIÓN ACTIVA
+# CARGAR HOJAS DE LA DIVISIÓN ACTIVA SELECCIONADA
 # ==========================================
 sheet_roster, sheet_asistencia, sheet_disciplina, sheet_config = obtener_hojas_division(st.session_state.division_activa)
 df_config_live = cargar_configuracion_fresco(sheet_config)
 
 
 # ==========================================
-# BARRA SUPERIOR
+# BARRA SUPERIOR CON RESTRICCIÓN O SELECTOR SUPER ADMIN
 # ==========================================
+st.markdown("""
+    <div style="background-color: #0b1017; border-bottom: 2px solid #ff4655; padding: 12px 0px 8px 0px; margin-bottom: 15px;">
+    </div>
+""", unsafe_allow_html=True)
+
 c_div_1, c_div_2, c_div_3 = st.columns([0.8, 2, 1])
 with c_div_1:
     st.image(URL_LOGO_EQUIPO, width=45)
+
 with c_div_2:
-    nueva_div = st.selectbox("Cambiar División Activa", DIVISIONES_DISPONIBLES, index=DIVISIONES_DISPONIBLES.index(st.session_state.division_activa))
-    if nueva_div != st.session_state.division_activa:
-        st.session_state.division_activa = nueva_div
-        st.session_state.autenticado = False
-        st.session_state.rol_usuario = None
-        st.session_state.nombre_usuario = None
-        st.rerun()
+    # RESTRICCIÓN: Solo el Super Administrador tiene el selector directo de cambio rápido de división.
+    # Los usuarios normales y administradores de división deben volver al lobby para cambiar de sección.
+    if st.session_state.es_super_admin:
+        nueva_div = st.selectbox("Cambiar División Activa (Super Admin)", DIVISIONES_DISPONIBLES, index=DIVISIONES_DISPONIBLES.index(st.session_state.division_activa))
+        if nueva_div != st.session_state.division_activa:
+            st.session_state.division_activa = nueva_div
+            st.rerun()
+    else:
+        st.markdown(f"<h4 style='color: #ff4655; margin-top: 6px;'>División Activa: {st.session_state.division_activa}</h4>", unsafe_allow_html=True)
+
 with c_div_3:
-    if st.button("🏠 Volver al Inicio"):
+    if st.button("🏠 Volver al Lobby", use_container_width=True):
         st.session_state.division_activa = None
         st.session_state.autenticado = False
         st.session_state.rol_usuario = None
         st.session_state.nombre_usuario = None
+        st.session_state.es_super_admin = False
         st.rerun()
 
 
 # ==========================================
-# LOGIN / REGISTRO
+# PANTALLA DE LOGIN / REGISTRO INDEPENDIENTE POR DIVISIÓN
 # ==========================================
 if not st.session_state.autenticado:
     st.title(f"SCARLET ROSTER — {st.session_state.division_activa.upper()}")
@@ -440,9 +507,12 @@ if not st.session_state.autenticado:
 # ==========================================
 # APLICACIÓN PRINCIPAL (POST-LOGIN)
 # ==========================================
+
+# --- BARRA LATERAL EXCLUSIVA PARA ADMINISTRADORES ---
 if st.session_state.rol_usuario == "admin":
     st.sidebar.markdown(f"👤 **Usuario:** `{st.session_state.nombre_usuario}`")
-    st.sidebar.markdown(f"🏷️ **Credencial:** `ADMIN`")
+    rol_badge = "SUPER ADMIN" if st.session_state.es_super_admin else "ADMIN DIVISIÓN"
+    st.sidebar.markdown(f"🏷️ **Credencial:** `{rol_badge}`")
     st.sidebar.markdown(f"🎯 **División:** `{st.session_state.division_activa}`")
     st.sidebar.markdown("---")
     if st.sidebar.button("🔄 Recargar Datos"):
@@ -453,6 +523,7 @@ if st.session_state.rol_usuario == "admin":
         st.session_state.rol_usuario = None
         st.session_state.nombre_usuario = None
         st.session_state.division_autenticada = None
+        st.session_state.es_super_admin = False
         st.rerun()
 else:
     st.markdown("""
@@ -461,7 +532,7 @@ else:
         </style>
     """, unsafe_allow_html=True)
 
-# Navegación principal
+# --- BOTONES DE NAVEGACIÓN SUPERIORES ---
 if st.session_state.rol_usuario == "admin":
     cols_nav = st.columns(5)
     with cols_nav[0]:
@@ -643,7 +714,7 @@ elif st.session_state.menu_activo == "Asistencia":
 
 
 # ==========================================
-# SECCIÓN 3: DISCIPLINA
+# SECCIÓN 3: DISCIPLINA / MIS SANCIONES
 # ==========================================
 elif st.session_state.menu_activo == "Disciplina":
     if st.session_state.rol_usuario == "admin":
@@ -720,7 +791,7 @@ elif st.session_state.menu_activo == "Disciplina":
 
 
 # ==========================================
-# SECCIÓN 4: TRACKER
+# SECCIÓN 4: TRACKER Y STATS
 # ==========================================
 elif st.session_state.menu_activo == "Tracker":
     st.title(f"Tracker y Estadísticas — {st.session_state.division_activa}")
@@ -763,7 +834,7 @@ elif st.session_state.menu_activo == "Tracker":
 
 
 # ==========================================
-# SECCIÓN 5: CONFIGURACIÓN
+# SECCIÓN 5: CONFIGURACIÓN Y BORRADOS (SOLO ADMIN)
 # ==========================================
 elif st.session_state.menu_activo == "Config" and st.session_state.rol_usuario == "admin":
     st.title(f"Configuración de División — {st.session_state.division_activa}")
