@@ -133,7 +133,7 @@ GAME_DATA = {
     },
     "Overwatch": {
         "Roles": ["Tanque", "Daño (DPS)", "Apoyo (Support)", "Flex", ""],
-        "Rangos": ["Bronce", "Plata", "Oro", "Platino", "Diamante", "Maestro", "Gran Maestro", "Campeón", "Top 500", ""],
+        "Rangos": ["Bronce", "Plata", "Oro", "Platino", "Esmeralda", "Diamante", "Maestro", "Gran Maestro", "Campeón", "Top 500", ""],
         "Personajes": ["Reinhardt", "Winston", "D.Va", "Sigma", "Zarya", "Ramattra", "Tracer", "Genji", "Widowmaker", "Cassidy", "Pharah", "Sombra", "Sojourn", "Mercy", "Ana", "Lúcio", "Kiriko", "Zenyatta", "Baptiste", "Illari", "Ninguno"]
     },
     "CS": {
