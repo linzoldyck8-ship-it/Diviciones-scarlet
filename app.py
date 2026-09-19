@@ -9,7 +9,7 @@ st.set_page_config(page_title="Scarlet Multi-Divisiones", page_icon="🔥", layo
 
 URL_LOGO_EQUIPO = "https://cdn.discordapp.com/attachments/1272709315039592469/1275623434063314984/SCARLET.png?ex=6aaf32e6&is=6aade166&hm=4889e788d8f71a5e470db02c4c8f42b95fb19fcdce9be96f7fabab8b6fec25e4&"
 
-# CREDENCIALES FIJAS DE SUPER ADMINISTRADOR GLOBALES
+# CREDENCIALES FIJAS DE SUPER ADMINISTRADOR GLOBALES (OCULTAS)
 SUPER_USER_DEF = "superadmin"
 SUPER_PASS_DEF = "scarlet2026"
 
@@ -34,12 +34,9 @@ ROLES_OVERWATCH = ["Tanque", "Daño (DPS)", "Soporte", "Flex", ""]
 
 ROLES_CS = ["IGL (In-Game Leader)", "AWPer", "Entry Fragger", "Support", "Lurker", "Fragger", "Rifler", "Capitán de Mapa"]
 RANGOS_CS = [
-    # FACEIT
     "FACEIT Nivel 1", "FACEIT Nivel 2", "FACEIT Nivel 3", "FACEIT Nivel 4", "FACEIT Nivel 5", 
     "FACEIT Nivel 6", "FACEIT Nivel 7", "FACEIT Nivel 8", "FACEIT Nivel 9", "FACEIT Nivel 10",
-    # Gamers Club (GC)
     "GC Rookie", "GC Novato", "GC Main", "GC Intermediate", "GC Advanced", "GC Pro", "GC Elite",
-    # Clasicos / Premier
     "Plata", "Nova de Oro", "Maestro Guardian", "Águila Laureada", "Supremo", "Global Elite", "Premier 20k+", ""
 ]
 
@@ -137,14 +134,14 @@ def obtener_hojas_division(division_nombre):
         sheet_asistencia = spreadsheet.worksheet(f"{prefix}_Asistencia")
     except gspread.exceptions.WorksheetNotFound:
         sheet_asistencia = spreadsheet.add_worksheet(title=f"{prefix}_Asistencia", rows="100", cols="35")
-        df_asistencia_init = pd.DataFrame(columns=["Nombre Real", "Mes", "Días Hábiles"] + [str(i) for i in range(1, 32)])
+        df_asistencia_init = pd.DataFrame(columns=["Nombre Real", "Estado (Presente / Ausente / Tarde)", "Fecha", "Observaciones"])
         sheet_asistencia.update([df_asistencia_init.columns.values.tolist()])
 
     try:
         sheet_disciplina = spreadsheet.worksheet(f"{prefix}_Disciplina")
     except gspread.exceptions.WorksheetNotFound:
         sheet_disciplina = spreadsheet.add_worksheet(title=f"{prefix}_Disciplina", rows="100", cols="10")
-        df_disc_init = pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])
+        df_disc_init = pd.DataFrame(columns=["Fecha", "Jugador", "Tipo de Falta", "Sanción", "Detalles"])
         sheet_disciplina.update([df_disc_init.columns.values.tolist()])
 
     try:
@@ -176,17 +173,29 @@ def cargar_roster_fresco(sheet_roster):
             return DATOS_INICIALES_ROSTER.copy()
     return DATOS_INICIALES_ROSTER.copy()
 
+def cargar_asistencia_fresco(sheet_asistencia):
+    if sheet_asistencia is not None:
+        try:
+            data = sheet_asistencia.get_all_records()
+            df = pd.DataFrame(data)
+            if df.empty or "Nombre Real" not in df.columns:
+                return pd.DataFrame(columns=["Nombre Real", "Estado (Presente / Ausente / Tarde)", "Fecha", "Observaciones"])
+            return df
+        except:
+            return pd.DataFrame(columns=["Nombre Real", "Estado (Presente / Ausente / Tarde)", "Fecha", "Observaciones"])
+    return pd.DataFrame(columns=["Nombre Real", "Estado (Presente / Ausente / Tarde)", "Fecha", "Observaciones"])
+
 def cargar_incidencias_fresco(sheet_disciplina):
     if sheet_disciplina is not None:
         try:
             data = sheet_disciplina.get_all_records()
             df = pd.DataFrame(data)
             if df.empty or "Fecha" not in df.columns:
-                return pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])
+                return pd.DataFrame(columns=["Fecha", "Jugador", "Tipo de Falta", "Sanción", "Detalles"])
             return df
         except:
-            return pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])
-    return pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])
+            return pd.DataFrame(columns=["Fecha", "Jugador", "Tipo de Falta", "Sanción", "Detalles"])
+    return pd.DataFrame(columns=["Fecha", "Jugador", "Tipo de Falta", "Sanción", "Detalles"])
 
 def cargar_configuracion_fresco(sheet_config):
     if sheet_config is not None:
@@ -286,7 +295,6 @@ if not st.session_state.autenticado:
     
     with tab_login_admin:
         st.markdown(f"### Credenciales de Administrador o Super Administrador")
-        st.info(f"💡 **Credenciales por defecto:** Usuario: `{SUPER_USER_DEF}` | Contraseña: `{SUPER_PASS_DEF}`")
         with st.form("form_login_admin"):
             user_admin = st.text_input("Usuario Administrador / Super Admin", key="input_admin_user")
             pass_admin = st.text_input("Contraseña de Acceso", type="password", key="input_admin_pass")
@@ -400,6 +408,7 @@ else:
 st.markdown("<hr style='border: 1px solid rgba(255, 70, 85, 0.4); margin: 15px 0;'>", unsafe_allow_html=True)
 
 df_roster_actual = cargar_roster_fresco(sheet_roster)
+df_asistencia_actual = cargar_asistencia_fresco(sheet_asistencia)
 df_incidencias_actual = cargar_incidencias_fresco(sheet_disciplina)
 df_config_actual = cargar_configuracion_fresco(sheet_config)
 
@@ -462,14 +471,52 @@ if st.session_state.menu_activo == "Roster":
 
 elif st.session_state.menu_activo == "Asistencia":
     st.title(f"Control de Asistencia — {st.session_state.division_activa}")
-    st.info("Módulo de asistencia operativo sincronizado.")
+    st.markdown("Registro y control de asistencia diario para los integrantes del plantel.")
+    
+    if st.session_state.rol_usuario in ["admin", "super_admin"]:
+        config_asistencia = {
+            "Estado (Presente / Ausente / Tarde)": st.column_config.SelectboxColumn("Estado", options=["Presente", "Ausente", "Tarde", "Justificado"])
+        }
+        df_asistencia_editado = st.data_editor(
+            df_asistencia_actual, 
+            num_rows="dynamic", 
+            use_container_width=True, 
+            hide_index=True, 
+            column_config=config_asistencia,
+            key="editor_asistencia_sheets"
+        )
+        if not df_asistencia_editado.equals(df_asistencia_actual):
+            guardar_en_sheet(sheet_asistencia, df_asistencia_editado)
+            st.success("Asistencia actualizada en Google Sheets.")
+            st.rerun()
+    else:
+        st.dataframe(df_asistencia_actual, use_container_width=True, hide_index=True)
 
 elif st.session_state.menu_activo == "Disciplina":
-    st.title("Panel Disciplinario")
-    if not df_incidencias_actual.empty:
-        st.dataframe(df_incidencias_actual, use_container_width=True, hide_index=True)
+    st.title(f"Panel Disciplinario — {st.session_state.division_activa}")
+    st.markdown("Registro de amonestaciones, faltas y medidas disciplinarias.")
+    
+    if st.session_state.rol_usuario in ["admin", "super_admin"]:
+        config_disciplina = {
+            "Tipo de Falta": st.column_config.SelectboxColumn("Tipo de Falta", options=["Leve", "Grave", "Muy Grave", "Impuntualidad"])
+        }
+        df_disc_editado = st.data_editor(
+            df_incidencias_actual, 
+            num_rows="dynamic", 
+            use_container_width=True, 
+            hide_index=True, 
+            column_config=config_disciplina,
+            key="editor_disciplina_sheets"
+        )
+        if not df_disc_editado.equals(df_incidencias_actual):
+            guardar_en_sheet(sheet_disciplina, df_disc_editado)
+            st.success("Panel disciplinario actualizado en Google Sheets.")
+            st.rerun()
     else:
-        st.info("Sin incidencias.")
+        if not df_incidencias_actual.empty:
+            st.dataframe(df_incidencias_actual, use_container_width=True, hide_index=True)
+        else:
+            st.info("No hay registros disciplinarios activos.")
 
 elif st.session_state.menu_activo == "Tracker":
     st.title("Tracker")
