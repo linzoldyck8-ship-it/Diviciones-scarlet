@@ -168,6 +168,9 @@ DATOS_INICIALES_CONFIG = pd.DataFrame({
     "Nombre Real Vinculado": [""]
 })
 
+# NUEVO: DATOS INICIALES PARA LA LISTA NEGRA
+DATOS_INICIALES_BLACKLIST = pd.DataFrame(columns=["Nombre Real", "Motivo"])
+
 DIVISIONES_DISPONIBLES = [
     "Valorant A", 
     "Valorant B", 
@@ -227,6 +230,18 @@ def obtener_hojas_division(division_nombre):
         
     return sheet_roster, sheet_asistencia, sheet_disciplina, sheet_config
 
+# NUEVO: CREACIÓN DE HOJA PARA LA LISTA NEGRA
+@st.cache_resource
+def obtener_hoja_blacklist(division_nombre):
+    if spreadsheet is None: return None
+    prefix = division_nombre.replace(" ", "_")
+    try: 
+        sheet_bl = spreadsheet.worksheet(f"{prefix}_Blacklist")
+    except WorksheetNotFound:
+        sheet_bl = spreadsheet.add_worksheet(title=f"{prefix}_Blacklist", rows="50", cols="2")
+        sheet_bl.update([DATOS_INICIALES_BLACKLIST.columns.values.tolist()] + DATOS_INICIALES_BLACKLIST.values.tolist())
+    return sheet_bl
+
 def guardar_en_sheet(sheet_obj, df):
     if sheet_obj is not None:
         try:
@@ -270,6 +285,18 @@ def cargar_configuracion_fresco_cached(_sheet_config):
             return DATOS_INICIALES_CONFIG.copy() if df.empty else df
         except: return DATOS_INICIALES_CONFIG.copy()
     return DATOS_INICIALES_CONFIG.copy()
+
+# NUEVO: CARGAR DATOS DE LISTA NEGRA
+@st.cache_data
+def cargar_blacklist_fresco_cached(_sheet_blacklist):
+    if _sheet_blacklist is not None:
+        try:
+            data = _sheet_blacklist.get_all_records()
+            if not data: return DATOS_INICIALES_BLACKLIST.copy()
+            df = pd.DataFrame(data)
+            return DATOS_INICIALES_BLACKLIST.copy() if df.empty else df
+        except: return DATOS_INICIALES_BLACKLIST.copy()
+    return DATOS_INICIALES_BLACKLIST.copy()
 
 # --- ESTADOS DE LA SESIÓN ---
 if 'autenticado' not in st.session_state: st.session_state.autenticado = False
@@ -320,6 +347,7 @@ if st.session_state.division_activa is None:
 # CARGAR HOJAS Y DATOS DE LA DIVISIÓN ACTIVA SELECCIONADA
 # ==========================================
 sheet_roster, sheet_asistencia, sheet_disciplina, sheet_config = obtener_hojas_division(st.session_state.division_activa)
+sheet_blacklist = obtener_hoja_blacklist(st.session_state.division_activa) # NUEVO
 df_config_live = cargar_configuracion_fresco_cached(sheet_config)
 
 # Extraer roles y rangos específicos del juego activo
@@ -380,11 +408,17 @@ if not st.session_state.autenticado:
                 match = df_config_live[(df_config_live["Usuario"].astype(str).str.lower() == user_player.strip().lower()) & 
                                        (df_config_live["Contraseña"].astype(str) == pass_player.strip())]
                 if not match.empty:
-                    st.session_state.autenticado = True
-                    st.session_state.rol_usuario = "jugador"
-                    st.session_state.nombre_usuario = match.iloc[0]["Nombre Real Vinculado"]
-                    st.session_state.division_autenticada = st.session_state.division_activa
-                    st.rerun()
+                    # NUEVO: VERIFICACIÓN DE LISTA NEGRA EN INICIO DE SESIÓN
+                    nombre_real_vinculado = str(match.iloc[0]["Nombre Real Vinculado"]).strip()
+                    df_blacklist_check = cargar_blacklist_fresco_cached(sheet_blacklist)
+                    if not df_blacklist_check[df_blacklist_check["Nombre Real"].astype(str).str.lower() == nombre_real_vinculado.lower()].empty:
+                        st.error("ACCESO DENEGADO: Este jugador se encuentra en la Lista Negra.")
+                    else:
+                        st.session_state.autenticado = True
+                        st.session_state.rol_usuario = "jugador"
+                        st.session_state.nombre_usuario = match.iloc[0]["Nombre Real Vinculado"]
+                        st.session_state.division_autenticada = st.session_state.division_activa
+                        st.rerun()
                 else:
                     st.error("Usuario o contraseña incorrectos.")
 
@@ -415,8 +449,12 @@ if not st.session_state.autenticado:
                 else:
                     df_c_check = cargar_configuracion_fresco_cached(sheet_config)
                     df_r_check = cargar_roster_fresco_cached(sheet_roster)
+                    df_bl_check = cargar_blacklist_fresco_cached(sheet_blacklist) # NUEVO
                     
-                    if not df_c_check[df_c_check["Usuario"].astype(str).str.lower() == reg_usuario.strip().lower()].empty:
+                    # NUEVO: VERIFICACIÓN DE LISTA NEGRA EN REGISTRO
+                    if not df_bl_check[df_bl_check["Nombre Real"].astype(str).str.lower() == reg_nombre_real.strip().lower()].empty:
+                        st.error("REGISTRO DENEGADO: Este jugador se encuentra en la Lista Negra.")
+                    elif not df_c_check[df_c_check["Usuario"].astype(str).str.lower() == reg_usuario.strip().lower()].empty:
                         st.error("El nombre de usuario ya está registrado.")
                     elif not df_r_check[df_r_check["Nombre Real"].astype(str).str.lower() == reg_nombre_real.strip().lower()].empty:
                         st.error("Ya existe un registro con este nombre real.")
@@ -677,6 +715,17 @@ elif st.session_state.menu_activo == "Config" and st.session_state.rol_usuario =
         st.success("Credenciales actualizadas.")
         st.rerun()
 
+    # NUEVO: PANEL DE GESTIÓN DE LISTA NEGRA PARA EL ADMIN
+    st.markdown("### ⛔ Lista Negra (Blacklist)")
+    st.info("Escribe el 'Nombre Real' del jugador que deseas bloquear. No podrá registrarse de nuevo ni iniciar sesión en su cuenta.")
+    df_blacklist_actual = cargar_blacklist_fresco_cached(sheet_blacklist)
+    blacklist_editado = st.data_editor(df_blacklist_actual, num_rows="dynamic", use_container_width=True, hide_index=True, key="editor_bl")
+    if not blacklist_editado.equals(df_blacklist_actual):
+        guardar_en_sheet(sheet_blacklist, blacklist_editado)
+        st.cache_data.clear()
+        st.success("Lista Negra actualizada correctamente.")
+        st.rerun()
+
     df_roster_actual = st.session_state[key_roster_state]
     df_incidencias_actual = st.session_state[key_disciplina_state]
 
@@ -727,8 +776,11 @@ elif st.session_state.menu_activo == "Config" and st.session_state.rol_usuario =
                 guardar_en_sheet(sheet_asistencia, pd.DataFrame(columns=["Nombre Real", "Mes", "Días Hábiles"] + [str(i) for i in range(1, 32)]))
                 guardar_en_sheet(sheet_disciplina, pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"]))
                 guardar_en_sheet(sheet_config, DATOS_INICIALES_CONFIG)
+                # NUEVO: LIMPIAR LISTA NEGRA TAMBIÉN EN EL RESETEO TOTAL
+                guardar_en_sheet(sheet_blacklist, DATOS_INICIALES_BLACKLIST)
                 st.cache_data.clear()
                 st.success(f"¡División {st.session_state.division_activa} reiniciada a valores de fábrica!")
                 st.rerun()
             else:
                 st.error("Contraseña incorrecta.")
+                
