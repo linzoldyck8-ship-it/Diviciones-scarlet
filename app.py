@@ -578,40 +578,48 @@ with tab_historial:
 
 
 # ==========================================
-# PESTAÑA 4: TRACKER Y STATS
+# PESTAÑA 4: TRACKER Y STATS (CON RIOT ID)
 # ==========================================
 with tab_stats:
     st.title("📈 Tracker y Estadísticas (Stats Premier)")
-    jugadores_activos = [j for j in df_roster_actual["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
     
-    if len(jugadores_activos) > 0:
+    # Filtrar jugadores válidos con Riot ID
+    df_validos_tracker = df_roster_actual[
+        (df_roster_actual["Riot ID (Nick#TAG)"].astype(str).str.strip() != "") & 
+        (df_roster_actual["Riot ID (Nick#TAG)"].astype(str).str.lower() != "nan")
+    ]
+    
+    riot_ids_lista = df_validos_tracker["Riot ID (Nick#TAG)"].tolist()
+    
+    if len(riot_ids_lista) > 0:
         c_sel, c_btn = st.columns([2, 1])
         with c_sel: 
-            nombres_roster = df_roster_actual[df_roster_actual["Nombre Real"].astype(str).str.strip() != ""]
-            dic_nombres_riot = dict(zip(nombres_roster["Nombre Real"], nombres_roster["Riot ID (Nick#TAG)"]))
-            
             default_idx = 0
-            if st.session_state.rol_usuario == "jugador" and st.session_state.nombre_usuario in list(dic_nombres_riot.keys()):
-                default_idx = list(dic_nombres_riot.keys()).index(st.session_state.nombre_usuario)
+            # Si es jugador logueado, buscar su Riot ID correspondiente para seleccionarlo por defecto
+            if st.session_state.rol_usuario == "jugador" and st.session_state.nombre_usuario:
+                match_user = df_validos_tracker[df_validos_tracker["Nombre Real"].astype(str).str.lower() == st.session_state.nombre_usuario.lower()]
+                if not match_user.empty:
+                    target_riot = match_user.iloc[0]["Riot ID (Nick#TAG)"]
+                    if target_riot in riot_ids_lista:
+                        default_idx = riot_ids_lista.index(target_riot)
                 
-            jugador_stat = st.selectbox("Seleccionar Jugador", list(dic_nombres_riot.keys()), index=default_idx, key="select_stats_jugador")
+            riot_id_seleccionado = st.selectbox("Seleccionar Jugador (Riot ID)", riot_ids_lista, index=default_idx, key="select_stats_riot")
             
         with c_btn:
             st.markdown("<br>", unsafe_allow_html=True)
-            riot_id_seleccionado = dic_nombres_riot.get(jugador_stat, "")
             if pd.notna(riot_id_seleccionado) and "#" in str(riot_id_seleccionado):
                 url = f"https://tracker.gg/valorant/profile/riot/{str(riot_id_seleccionado).replace('#', '%23')}/overview"
                 st.link_button(f"🔴 Perfil en Tracker.gg", url, use_container_width=True)
             else:
-                st.error("Riot ID no válido en Sheets.")
+                st.error("Riot ID no válido.")
 
         st.markdown("---")
-        st.markdown(f"**Captura de Rendimiento - {jugador_stat}**")
+        st.markdown(f"**Captura de Rendimiento - {riot_id_seleccionado}**")
         img_upload = st.file_uploader("Sube una captura de pantalla del Tracker (Opcional)", type=["png", "jpg", "jpeg"])
         if img_upload:
-            st.image(img_upload, use_column_width=True, caption=f"Última actualización de stats para {jugador_stat}")
+            st.image(img_upload, use_column_width=True, caption=f"Última actualización de stats para {riot_id_seleccionado}")
     else:
-        st.warning("No hay jugadores en el Roster.")
+        st.warning("No hay Riot IDs registrados en el Roster.")
 
 
 # ==========================================
