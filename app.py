@@ -80,7 +80,7 @@ DIVISIONES_DISPONIBLES = [
     "Valorant Femenino", "Overwatch A", "Overwatch B", "CS"
 ]
 
-# --- CONEXIÓN Y CREACIÓN AUTOMÁTICA MASIVA EN GOOGLE SHEETS ---
+# --- CONEXIÓN A GOOGLE SHEETS ---
 @st.cache_resource
 def conectar_google_sheets():
     try:
@@ -89,33 +89,6 @@ def conectar_google_sheets():
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         client = gspread.authorize(creds)
         spreadsheet = client.open("crea el proyecto en formato hoja de calculo como...")
-        
-        # 1. Crear la hoja global para el Super Administrador
-        try:
-            spreadsheet.worksheet("SuperAdmin_Config")
-        except gspread.exceptions.WorksheetNotFound:
-            ws_sa = spreadsheet.add_worksheet(title="SuperAdmin_Config", rows="10", cols="5")
-            ws_sa.update([DATOS_SUPER_ADMIN_INIT.columns.values.tolist()] + DATOS_SUPER_ADMIN_INIT.values.tolist())
-
-        # 2. Inicializar automáticamente las pestañas para TODAS las divisiones
-        for div in DIVISIONES_DISPONIBLES:
-            prefix = div.replace(" ", "_")
-            for tipo, df_init in [
-                ("Roster", DATOS_INICIALES_ROSTER),
-                ("Asistencia", pd.DataFrame(columns=["Nombre Real", "Mes", "Días Hábiles"] + [str(i) for i in range(1, 32)])),
-                ("Disciplina", pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])),
-                ("Config", DATOS_INICIALES_CONFIG)
-            ]:
-                sheet_title = f"{prefix}_{tipo}"
-                try:
-                    spreadsheet.worksheet(sheet_title)
-                except gspread.exceptions.WorksheetNotFound:
-                    ws = spreadsheet.add_worksheet(title=sheet_title, rows="100", cols="20")
-                    if not df_init.empty:
-                        ws.update([df_init.columns.values.tolist()] + df_init.values.tolist())
-                    else:
-                        ws.update([df_init.columns.values.tolist()])
-                        
         return spreadsheet
     except Exception as e:
         st.error(f"Error conectando a Google Sheets: {e}")
@@ -123,14 +96,26 @@ def conectar_google_sheets():
 
 spreadsheet = conectar_google_sheets()
 
+# Función auxiliar robusta para obtener o crear hojas al vuelo sin errores de API
+def obtener_o_crear_hoja(nombre_hoja, df_init):
+    if spreadsheet is None: return None
+    try:
+        return spreadsheet.worksheet(nombre_hoja)
+    except:
+        ws = spreadsheet.add_worksheet(title=nombre_hoja, rows="100", cols="20")
+        if not df_init.empty:
+            ws.update([df_init.columns.values.tolist()] + df_init.values.tolist())
+        else:
+            ws.update([df_init.columns.values.tolist()])
+        return ws
+
 def obtener_hojas_division(division_nombre):
-    if spreadsheet is None: return None, None, None, None
     prefix = division_nombre.replace(" ", "_")
     return (
-        spreadsheet.worksheet(f"{prefix}_Roster"),
-        spreadsheet.worksheet(f"{prefix}_Asistencia"),
-        spreadsheet.worksheet(f"{prefix}_Disciplina"),
-        spreadsheet.worksheet(f"{prefix}_Config")
+        obtener_o_crear_hoja(f"{prefix}_Roster", DATOS_INICIALES_ROSTER),
+        obtener_o_crear_hoja(f"{prefix}_Asistencia", pd.DataFrame(columns=["Nombre Real", "Mes", "Días Hábiles"] + [str(i) for i in range(1, 32)])),
+        obtener_o_crear_hoja(f"{prefix}_Disciplina", pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])),
+        obtener_o_crear_hoja(f"{prefix}_Config", DATOS_INICIALES_CONFIG)
     )
 
 def guardar_en_sheet(sheet_obj, df):
@@ -179,7 +164,7 @@ if 'es_super_admin' not in st.session_state: st.session_state.es_super_admin = F
 # PORTADA DE BIENVENIDA / LOBBY
 # ==========================================
 if st.session_state.division_activa is None:
-    # Menú Super Admin pequeño, discreto y oculto en la esquina superior derecha
+    # Menú Super Admin oculto y pequeño en la esquina superior derecha
     col_top_l, col_top_r = st.columns([6, 1])
     with col_top_r:
         with st.expander("🔑 Admin"):
@@ -187,10 +172,9 @@ if st.session_state.division_activa is None:
                 sa_user = st.text_input("Usuario SA", value="superadmin")
                 sa_pass = st.text_input("Contraseña SA", type="password")
                 if st.form_submit_button("Entrar"):
-                    # Valida directamente desde la base de datos (hoja SuperAdmin_Config)
+                    ws_sa = obtener_o_crear_hoja("SuperAdmin_Config", DATOS_SUPER_ADMIN_INIT)
                     try:
-                        sheet_sa = spreadsheet.worksheet("SuperAdmin_Config")
-                        df_sa_live = pd.DataFrame(sheet_sa.get_all_records())
+                        df_sa_live = pd.DataFrame(ws_sa.get_all_records())
                     except:
                         df_sa_live = DATOS_SUPER_ADMIN_INIT
 
@@ -205,7 +189,7 @@ if st.session_state.division_activa is None:
                         st.success("¡Acceso de Super Admin concedido!")
                         st.rerun()
                     else:
-                        st.error("Credenciales de Base de Datos incorrectas.")
+                        st.error("Credenciales incorrectas en la hoja SuperAdmin_Config.")
 
     st.markdown(f"""
         <div class="hero-container" style="background: linear-gradient(rgba(11, 16, 23, 0.88), rgba(17, 26, 36, 0.92)), url('{URL_LOGO_EQUIPO}'); background-size: cover; background-position: center;">
@@ -219,7 +203,6 @@ if st.session_state.division_activa is None:
     
     st.markdown("<h3 style='text-align: center; margin: 20px 0;'>Selecciona una División:</h3>", unsafe_allow_html=True)
     
-    # Tarjetas interactivas con botones claros debajo
     cols = st.columns(3)
     for idx, div_nombre in enumerate(DIVISIONES_DISPONIBLES):
         col_target = cols[idx % 3]
