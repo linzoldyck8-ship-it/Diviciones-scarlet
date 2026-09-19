@@ -21,14 +21,14 @@ st.markdown("""
     .stSelectbox label, .stTextInput label, .stMultiSelect label { color: #ece8e1; font-weight: 600; font-size: 0.9rem; }
     div[data-testid="stMetricValue"] { color: #ff4655; font-weight: 700; }
 
-    /* CLASE CSS PARA SIMULAR CONTRASEÑA EVITANDO QUE LAS EXTENSIONES LA DETECTEN COMO INPUT DE LOGIN */
+    /* CLASE CSS PARA OCULTAR CARACTERES DE CONTRASEÑA EN MODO SEGURO SIN ACTIVAR EXTENSIONES */
     input.fake-password {
         -webkit-text-security: disc !important;
         text-security: disc !important;
     }
     </style>
 
-    <!-- SCRIPT DE JAVASCRIPT PARA MATAR EL AUTOCOMPLETADO Y RESTRICCIONES DE EXTENSIONES -->
+    <!-- SCRIPT DE JAVASCRIPT PARA BLOQUEAR AUTOCOMPLETADO Y GESTORES DE CORREO -->
     <script>
     function desactivarAutocompletado() {
         const inputs = document.querySelectorAll('input');
@@ -37,8 +37,8 @@ st.markdown("""
             input.setAttribute('autocorrect', 'off');
             input.setAttribute('autocapitalize', 'off');
             input.setAttribute('spellcheck', 'false');
-            input.setAttribute('data-lpignore', 'true'); // Ignorar por LastPass / Dashlane
-            input.setAttribute('data-form-type', 'other'); // Despistar extensiones de correo
+            input.setAttribute('data-lpignore', 'true');
+            input.setAttribute('data-form-type', 'other');
         });
     }
     window.addEventListener('DOMContentLoaded', desactivarAutocompletado);
@@ -181,10 +181,9 @@ if not st.session_state.autenticado:
         with st.form("form_login_admin"):
             user_admin = st.text_input("Usuario Administrador", key="input_admin_user")
             
-            # Campo de contraseña blindado contra extensiones mediante HTML personalizado
             st.markdown("Contraseña", unsafe_allow_html=True)
             pass_admin = st.text_input("ContraseñaAdminOculta", label_visibility="collapsed", key="input_admin_pass_custom")
-            st.markdown('<script>document.querySelector(\'input[aria-label="ContraseñaAdminOculta"]\').type = "text"; document.querySelector(\'input[aria-label="ContraseñaAdminOculta"]\').classList.add("fake-password");</script>', unsafe_allow_html=True)
+            st.markdown('<script>document.querySelector(\'input[aria-label="ContraseñaAdminOculta"]\').classList.add("fake-password");</script>', unsafe_allow_html=True)
             
             submit_admin = st.form_submit_button("Entrar como Admin")
             
@@ -209,7 +208,7 @@ if not st.session_state.autenticado:
             
             st.markdown("Tu Contraseña", unsafe_allow_html=True)
             pass_player = st.text_input("TuContrasenaPlayerOculta", label_visibility="collapsed", key="input_player_pass_custom")
-            st.markdown('<script>document.querySelector(\'input[aria-label="TuContrasenaPlayerOculta"]\').type = "text"; document.querySelector(\'input[aria-label="TuContrasenaPlayerOculta"]\').classList.add("fake-password");</script>', unsafe_allow_html=True)
+            st.markdown('<script>document.querySelector(\'input[aria-label="TuContrasenaPlayerOculta"]\').classList.add("fake-password");</script>', unsafe_allow_html=True)
             
             submit_player = st.form_submit_button("Iniciar Sesión")
             
@@ -249,11 +248,11 @@ if not st.session_state.autenticado:
                 
                 st.markdown("Elige tu Contraseña", unsafe_allow_html=True)
                 reg_pass = st.text_input("RegPassOculta", label_visibility="collapsed", key="input_reg_pass_custom")
-                st.markdown('<script>document.querySelector(\'input[aria-label="RegPassOculta"]\').type = "text"; document.querySelector(\'input[aria-label="RegPassOculta"]\').classList.add("fake-password");</script>', unsafe_allow_html=True)
+                st.markdown('<script>document.querySelector(\'input[aria-label="RegPassOculta"]\').classList.add("fake-password");</script>', unsafe_allow_html=True)
                 
                 st.markdown("Confirma tu Contraseña", unsafe_allow_html=True)
                 reg_pass_conf = st.text_input("RegPassConfOculta", label_visibility="collapsed", key="input_reg_pass_conf_custom")
-                st.markdown('<script>document.querySelector(\'input[aria-label="RegPassConfOculta"]\').type = "text"; document.querySelector(\'input[aria-label="RegPassConfOculta"]\').classList.add("fake-password");</script>', unsafe_allow_html=True)
+                st.markdown('<script>document.querySelector(\'input[aria-label="RegPassConfOculta"]\').classList.add("fake-password");</script>', unsafe_allow_html=True)
             
             submit_nuevo_jugador = st.form_submit_button("Completar Registro y Entrar al Roster")
             
@@ -352,7 +351,7 @@ else:
     ])
 
 # ==========================================
-# PESTAÑA 1: ROSTER
+# PESTAÑA 1: ROSTER (CON GRÁFICOS COMPLETOS EN ADMIN)
 # ==========================================
 with tab_roster:
     st.title("🔥 Gestión de Roster")
@@ -392,6 +391,36 @@ with tab_roster:
             guardar_en_sheet(sheet_roster, df_roster_editado)
             st.success("✅ Roster actualizado y sincronizado en tiempo real.")
             st.rerun()
+
+        # --- GRÁFICOS ESTADÍSTICOS COMPLETOS DE ROSTER (SOLO ADMIN) ---
+        st.markdown("---")
+        st.markdown("### 📊 Analítica y Gráficos Generales del Roster")
+        
+        df_validos_graf = df_roster_actual[df_roster_actual["Nombre Real"].astype(str).str.strip() != ""].copy()
+        
+        if not df_validos_graf.empty:
+            g_col1, g_col2, g_col3 = st.columns(3)
+            
+            with g_col1:
+                df_roles = df_validos_graf["Rol Principal"].value_counts().reset_index()
+                df_roles.columns = ["Rol", "Cantidad"]
+                fig_roles = px.pie(df_roles, names="Rol", values="Cantidad", title="Distribución por Rol Principal", hole=0.4, color_discrete_sequence=px.colors.sequential.Reds)
+                fig_roles.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#ece8e1")
+                st.plotly_chart(fig_roles, use_container_width=True)
+                
+            with g_col2:
+                df_estados = df_validos_graf["Estado"].value_counts().reset_index()
+                df_estados.columns = ["Estado", "Cantidad"]
+                fig_estados = px.bar(df_estados, x="Estado", y="Cantidad", title="Estado Actual del Plantel", color="Estado", color_discrete_sequence=px.colors.sequential.Burg)
+                fig_estados.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#ece8e1")
+                st.plotly_chart(fig_estados, use_container_width=True)
+                
+            with g_col3:
+                df_rangos = df_validos_graf["Rango / Cima"].value_counts().reset_index()
+                df_rangos.columns = ["Rango", "Cantidad"]
+                fig_rangos = px.bar(df_rangos, x="Rango", y="Cantidad", title="Desglose por Rango / Cima", color="Rango", color_discrete_sequence=px.colors.sequential.Sunsetdark)
+                fig_rangos.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#ece8e1")
+                st.plotly_chart(fig_rangos, use_container_width=True)
 
         st.markdown("---")
         st.markdown("### 🎭 Gestor Dinámico de Agentes")
@@ -714,7 +743,7 @@ if st.session_state.rol_usuario == "admin":
             
             st.markdown("Contraseña de Administrador de Confirmación", unsafe_allow_html=True)
             pass_confirmacion_emergencia = st.text_input("PassEmergenciaOculta", label_visibility="collapsed", key="input_emergencia_pass_custom")
-            st.markdown('<script>document.querySelector(\'input[aria-label="PassEmergenciaOculta"]\').type = "text"; document.querySelector(\'input[aria-label="PassEmergenciaOculta"]\'].classList.add("fake-password");</script>', unsafe_allow_html=True)
+            st.markdown('<script>document.querySelector(\'input[aria-label="PassEmergenciaOculta"]\').classList.add("fake-password");</script>', unsafe_allow_html=True)
             
             btn_ejecutar_emergencia = st.form_submit_button("🔥 VACIAR Y REINICIAR TODA LA BASE DE DATOS")
             
