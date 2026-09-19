@@ -11,22 +11,22 @@ st.set_page_config(page_title="Scarlet Multi-Divisiones", page_icon="🔥", layo
 URL_LOGO_EQUIPO = "https://cdn.discordapp.com/attachments/1272709315039592469/1275623434063314984/SCARLET.png?ex=6aaf32e6&is=6aade166&hm=4889e788d8f71a5e470db02c4c8f42b95fb19fcdce9be96f7fabab8b6fec25e4&"
 
 # --- ESTILOS EMPRESARIALES MINIMALISTAS & SCARLET THEME ---
-st.markdown(f"""
+st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
-    .stApp {{ 
+    .stApp { 
         background: linear-gradient(135deg, #0b1017 0%, #111a24 100%); 
         color: #e2e8f0; 
         font-family: 'Inter', sans-serif; 
-    }}
+    }
     
     /* Estilo de la portada de bienvenida con fondo de imagen */
-    .hero-container {{
+    .hero-container {
         position: relative;
         width: 100%;
         min-height: 85vh;
-        background: linear-gradient(rgba(11, 16, 23, 0.85), rgba(17, 26, 36, 0.90)), url('{URL_LOGO_EQUIPO}');
+        background: linear-gradient(rgba(11, 16, 23, 0.85), rgba(17, 26, 36, 0.90));
         background-size: cover;
         background-position: center;
         border-radius: 12px;
@@ -39,15 +39,15 @@ st.markdown(f"""
         border: 1px solid rgba(255, 70, 85, 0.3);
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
         margin-top: 20px;
-    }}
+    }
     
-    h1, h2, h3 {{ 
+    h1, h2, h3 { 
         color: #ffffff !important; 
         font-weight: 700; 
         letter-spacing: -0.5px; 
-    }}
+    }
     
-    h1 {{
+    h1 {
         background: linear-gradient(90deg, #ffffff 0%, #ff4655 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
@@ -55,27 +55,27 @@ st.markdown(f"""
         border-bottom: 2px solid rgba(255, 70, 85, 0.3);
         padding-bottom: 10px;
         margin-bottom: 25px;
-    }}
+    }
 
-    div[data-testid="stMetric"] {{
+    div[data-testid="stMetric"] {
         background: linear-gradient(145deg, #16222d 0%, #0f1923 100%);
         border: 1px solid rgba(255, 70, 85, 0.3);
         padding: 15px;
         border-radius: 8px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
         transition: all 0.3s ease;
-    }}
-    div[data-testid="stMetric"]:hover {{
+    }
+    div[data-testid="stMetric"]:hover {
         border-color: #ff4655;
         box-shadow: 0 6px 25px rgba(255, 70, 85, 0.3);
-    }}
-    div[data-testid="stMetricValue"] {{ 
+    }
+    div[data-testid="stMetricValue"] { 
         color: #ff4655 !important; 
         font-weight: 700; 
-    }}
+    }
 
     /* Botones de Barra Superior y Estilo General */
-    .stButton>button {{ 
+    .stButton>button { 
         width: 100%;
         background: transparent !important;
         color: #cbd5e1 !important; 
@@ -86,25 +86,25 @@ st.markdown(f"""
         letter-spacing: 0.8px;
         text-transform: uppercase;
         transition: all 0.2s ease; 
-    }}
+    }
     
-    .stButton>button:hover {{ 
+    .stButton>button:hover { 
         color: #ff4655 !important;
         background: rgba(255, 70, 85, 0.1) !important;
         border-radius: 4px;
     }
 
-    .stTextInput input, .stSelectbox select, .stDateInput input {{
+    .stTextInput input, .stSelectbox select, .stDateInput input {
         background-color: #111a24 !important;
         color: #ffffff !important;
         border: 1px solid #233242 !important;
         border-radius: 6px !important;
         padding: 10px !important;
-    }}
-    .stTextInput input:focus, .stSelectbox select:focus {{
+    }
+    .stTextInput input:focus, .stSelectbox select:focus {
         border-color: #ff4655 !important;
         box-shadow: 0 0 0 2px rgba(255, 70, 85, 0.2) !important;
-    }}
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -248,7 +248,7 @@ if 'division_autenticada' not in st.session_state: st.session_state.division_aut
 # ==========================================
 if st.session_state.division_activa is None:
     st.markdown(f"""
-        <div class="hero-container">
+        <div class="hero-container" style="background: linear-gradient(rgba(11, 16, 23, 0.85), rgba(17, 26, 36, 0.90)), url('{URL_LOGO_EQUIPO}'); background-size: cover; background-position: center;">
             <img src="{URL_LOGO_EQUIPO}" width="120" style="margin-bottom: 20px; border-radius: 50%; box-shadow: 0 0 20px rgba(255, 70, 85, 0.5);">
             <h1 style="border: none; margin-bottom: 10px;">SCARLET ESPORTS ORGANIZATION</h1>
             <p style="font-size: 1.2rem; color: #94a3b8; max-width: 600px; margin-bottom: 30px;">
@@ -259,7 +259,6 @@ if st.session_state.division_activa is None:
     
     st.markdown("<h3 style='text-align: center; margin-top: 30px;'>Selecciona la División a la que deseas ingresar:</h3>", unsafe_allow_html=True)
     
-    # Crear botones organizados en columnas para seleccionar la división
     cols_divs = st.columns(len(DIVISIONES_DISPONIBLES))
     for idx, div_nombre in enumerate(DIVISIONES_DISPONIBLES):
         with cols_divs[idx]:
