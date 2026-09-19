@@ -7,7 +7,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Scarlet Roster - Sistema Seguro en Tiempo Real", page_icon="🔥", layout="wide")
 
-# --- ESTILOS CORPORATIVOS ---
+# --- ESTILOS CORPORATIVOS Y DESACTIVACIÓN DE AUTOCOMPLETADO GLOBAL ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
@@ -21,6 +21,23 @@ st.markdown("""
     .stSelectbox label, .stTextInput label, .stMultiSelect label { color: #ece8e1; font-weight: 600; font-size: 0.9rem; }
     div[data-testid="stMetricValue"] { color: #ff4655; font-weight: 700; }
     </style>
+
+    <!-- SCRIPT DE JAVASCRIPT PARA MATAR EL AUTOCOMPLETADO Y SUGERENCIAS EN TODOS LOS INPUTS -->
+    <script>
+    function desactivarAutocompletado() {
+        const inputs = document.querySelectorAll('input');
+        inputs.forEach(input => {
+            input.setAttribute('autocomplete', 'new-password');
+            input.setAttribute('autocorrect', 'off');
+            input.setAttribute('autocapitalize', 'off');
+            input.setAttribute('spellcheck', 'false');
+        });
+    }
+    // Ejecutar al cargar y observar cambios dinámicos en el DOM
+    window.addEventListener('DOMContentLoaded', desactivarAutocompletado);
+    const observer = new MutationObserver(desactivarAutocompletado);
+    observer.observe(document.body, { childList: true, subtree: true });
+    </script>
 """, unsafe_allow_html=True)
 
 # --- DATOS INICIALES PREDETERMINADOS ---
@@ -204,7 +221,7 @@ if not st.session_state.autenticado:
                 else:
                     st.error("❌ Usuario o contraseña incorrectos.")
 
-    # 3. Pestaña Registro de Nuevo Jugador (Crea en Roster y en Config)
+    # 3. Pestaña Registro de Nuevo Jugador
     with tab_reg_player:
         st.markdown("### ✨ Registro de Ingreso para Nuevo Jugador")
         st.markdown("Si fuiste aceptado en la división, completa tus datos base. Esto te agregará automáticamente al Roster y creará tu cuenta.")
@@ -239,20 +256,17 @@ if not st.session_state.autenticado:
                     df_c_check = cargar_configuracion_fresco()
                     df_r_check = cargar_roster_fresco()
                     
-                    # Validaciones de duplicados
                     if not df_c_check[df_c_check["Usuario"].astype(str).str.lower() == reg_usuario.strip().lower()].empty:
                         st.error("❌ Este nombre de usuario ya está en uso. Elige otro.")
                     elif not df_r_check[df_r_check["Nombre Real"].astype(str).str.lower() == reg_nombre_real.strip().lower()].empty:
                         st.error("❌ Ya existe un jugador registrado con este Nombre Real en el Roster.")
                     else:
-                        # 1. Calcular nuevo ID consecutivo
                         try:
                             max_id = int(df_r_check["ID"].max()) if not df_r_check.empty and "ID" in df_r_check.columns else 0
                         except:
                             max_id = len(df_r_check)
                         nuevo_id = max_id + 1
 
-                        # 2. Agregar nueva fila al Roster
                         nueva_fila_roster = pd.DataFrame([{
                             "ID": nuevo_id,
                             "Riot ID (Nick#TAG)": reg_riot_id.strip(),
@@ -270,7 +284,6 @@ if not st.session_state.autenticado:
                         df_roster_updated = pd.concat([df_r_check, nueva_fila_roster], ignore_index=True)
                         guardar_en_sheet(sheet_roster, df_roster_updated)
 
-                        # 3. Agregar credenciales a Configuración
                         nueva_fila_config = pd.DataFrame([{
                             "Usuario": reg_usuario.strip(),
                             "Contraseña": reg_pass.strip(),
@@ -286,7 +299,7 @@ if not st.session_state.autenticado:
 
 
 # ==========================================
-# APLICACIÓN PRINCIPAL (POST-LOGIN) - TIEMPO REAL
+# APLICACIÓN PRINCIPAL (POST-LOGIN)
 # ==========================================
 st.sidebar.markdown(f"👤 **Conectado como:** `{st.session_state.nombre_usuario}`")
 st.sidebar.markdown(f"🏷️ **Rol:** `{st.session_state.rol_usuario.upper()}`")
@@ -306,7 +319,6 @@ df_roster_actual = cargar_roster_fresco()
 df_incidencias_actual = cargar_incidencias_fresco()
 df_config_actual = cargar_configuracion_fresco()
 
-# --- DICCIONARIOS Y LISTAS DESPLEGABLES ---
 AGENTES_POR_ROL = {
     "Duelista": ["Jett", "Neon", "Raze", "Reyna", "Phoenix", "Yoru", "Iso"],
     "Iniciador": ["Sova", "Fade", "Breach", "KAY/O", "Skye", "Gekko"],
@@ -320,7 +332,6 @@ OPCIONES_CARGOS = ["Capitan", "Sub capitan", "Player", "Manager", "Coach", ""]
 OPCIONES_ESTADO = ["Titular", "Banca", "Sexto player", "En Prueba", "Inactivo", ""]
 OPCIONES_ACTIVIDAD = ["Alta", "Media", "Baja", ""]
 
-# --- PESTAÑAS SEGÚN ROL ---
 if st.session_state.rol_usuario == "admin":
     tab_roster, tab_asistencia, tab_historial, tab_stats, tab_config = st.tabs([
         "📝 Roster", "📅 Asistencia", "🛡️ Disciplina", "📈 Tracker", "⚙️ Config / Borrados"
@@ -611,7 +622,6 @@ if st.session_state.rol_usuario == "admin":
         st.title("⚙️ Configuración y Panel de Borrado Avanzado")
         st.markdown("Gestiona las credenciales de la hoja **Configuracion** y utiliza los botones de borrado específico por sección.")
         
-        # 1. Editor de Credenciales
         st.markdown("### 🔑 Credenciales de Acceso")
         config_editado = st.data_editor(
             df_config_actual,
@@ -632,7 +642,6 @@ if st.session_state.rol_usuario == "admin":
         
         col_b1, col_b2, col_b3 = st.columns(3)
         
-        # A. Borrar Sanción / Incidencia Específica
         with col_b1:
             st.markdown("#### Borrar Sanción")
             if not df_incidencias_actual.empty:
@@ -649,7 +658,6 @@ if st.session_state.rol_usuario == "admin":
             else:
                 st.info("No hay sanciones para borrar.")
 
-        # B. Borrar Jugador del Roster
         with col_b2:
             st.markdown("#### Borrar Jugador del Roster")
             jugadores_para_borrar = [j for j in df_roster_actual["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
@@ -670,7 +678,6 @@ if st.session_state.rol_usuario == "admin":
             else:
                 st.info("No hay jugadores en el Roster.")
 
-        # C. Borrar Registro de Asistencia Completo o Mes
         with col_b3:
             st.markdown("#### Limpiar Asistencia")
             if sheet_asistencia is not None:
@@ -689,9 +696,6 @@ if st.session_state.rol_usuario == "admin":
                     except Exception as e:
                         st.error(f"Error al limpiar asistencia: {e}")
 
-        # ==========================================
-        # SECCIÓN DE EMERGENCIA: VACIAR TODA LA BASE DE DATOS
-        # ==========================================
         st.markdown("---")
         st.markdown("### 🚨 ZONA DE EMERGENCIA - RESET TOTAL")
         st.error("⚠️ **ADVERTENCIA CRÍTICA:** Esto borrará absolutamente **toda** la información de Google Sheets (Roster, Asistencia, Disciplina y Credenciales) y la restablecerá a los valores iniciales de fábrica.")
@@ -711,18 +715,14 @@ if st.session_state.rol_usuario == "admin":
                         st.error("❌ Contraseña incorrecta. Operación cancelada por seguridad.")
                     else:
                         try:
-                            # 1. Reset Roster
                             guardar_en_sheet(sheet_roster, DATOS_INICIALES_ROSTER)
                             
-                            # 2. Reset Asistencia
                             df_asistencia_init = pd.DataFrame(columns=["Nombre Real", "Mes", "Días Hábiles"] + [str(i) for i in range(1, 32)])
                             guardar_en_sheet(sheet_asistencia, df_asistencia_init)
                             
-                            # 3. Reset Disciplina
                             df_disc_init = pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])
                             guardar_en_sheet(sheet_disciplina, df_disc_init)
                             
-                            # 4. Reset Configuración
                             guardar_en_sheet(sheet_config, DATOS_INICIALES_CONFIG)
                             
                             st.success("✅ ¡Base de datos completamente vaciada y reiniciada a fábrica con éxito!")
