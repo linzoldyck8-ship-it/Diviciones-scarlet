@@ -10,9 +10,6 @@ st.set_page_config(page_title="Scarlet Multi-Divisiones", page_icon="🔥", layo
 # URL OFICIAL DEL LOGO GENERAL DEL EQUIPO
 URL_LOGO_EQUIPO = "https://cdn.discordapp.com/attachments/1272709315039592469/1275623434063314984/SCARLET.png?ex=6aaf32e6&is=6aade166&hm=4889e788d8f71a5e470db02c4c8f42b95fb19fcdce9be96f7fabab8b6fec25e4&"
 
-# CONTRASEÑA GLOBAL DE SUPER ADMINISTRADOR
-CLAVE_SUPER_ADMIN = "super_secret_2026"
-
 # URLs DE LOS LOGOS DE CADA JUEGO
 LOGOS_DIVISIONES = {
     "Valorant A": "https://images.seeklogo.com/logo-png/37/1/valorant-logo-png_seeklogo-379976.png",
@@ -154,14 +151,10 @@ st.markdown("""
         border-radius: 6px !important;
         padding: 10px !important;
     }
-    .stTextInput input:focus, .stSelectbox select:focus {
-        border-color: #ff4655 !important;
-        box-shadow: 0 0 0 2px rgba(255, 70, 85, 0.2) !important;
-    }
     </style>
 """, unsafe_allow_html=True)
 
-# --- DATOS INICIALES PREDETERMINADOS ---
+# --- DATOS INICIALES PREDETERMINADOS (INCLUYE SUPER ADMIN EN LA DB) ---
 DATOS_INICIALES_ROSTER = pd.DataFrame({
     "ID": [1, 2, 3, 4, 5],
     "Nick / ID": ["Player1#TAG", "Player2#TAG", "Player3#TAG", "Player4#TAG", "Player5#TAG"],
@@ -178,10 +171,10 @@ DATOS_INICIALES_ROSTER = pd.DataFrame({
 })
 
 DATOS_INICIALES_CONFIG = pd.DataFrame({
-    "Usuario": ["admin"],
-    "Contraseña": ["admin123"],
-    "Rol": ["admin"],
-    "Nombre Real Vinculado": [""]
+    "Usuario": ["admin", "superadmin"],
+    "Contraseña": ["admin123", "super_secret_2026"],
+    "Rol": ["admin", "super_admin"],
+    "Nombre Real Vinculado": ["", "Super Administrador"]
 })
 
 DIVISIONES_DISPONIBLES = [
@@ -337,7 +330,7 @@ df_config_live = cargar_configuracion_fresco(sheet_config)
 
 
 # ==========================================
-# BARRA SUPERIOR CON CAMBIO DE DIVISIÓN Y LOGO
+# BARRA SUPERIOR (SOLO VISIBLE PARA EL SUPER ADMINISTRADOR)
 # ==========================================
 st.markdown("""
     <div style="background-color: #0b1017; border-bottom: 2px solid #ff4655; padding: 12px 0px 8px 0px; margin-bottom: 15px;">
@@ -347,14 +340,20 @@ st.markdown("""
 c_div_1, c_div_2, c_div_3 = st.columns([0.8, 2, 1])
 with c_div_1:
     st.image(URL_LOGO_EQUIPO, width=45)
+
 with c_div_2:
-    nueva_div = st.selectbox("Cambiar División Activa", DIVISIONES_DISPONIBLES, index=DIVISIONES_DISPONIBLES.index(st.session_state.division_activa))
-    if nueva_div != st.session_state.division_activa:
-        st.session_state.division_activa = nueva_div
-        st.session_state.autenticado = False
-        st.session_state.rol_usuario = None
-        st.session_state.nombre_usuario = None
-        st.rerun()
+    # Restringir la visibilidad del selector de cambio de división exclusivamente al Super Administrador
+    if st.session_state.autenticado and st.session_state.rol_usuario == "super_admin":
+        nueva_div = st.selectbox("Cambiar División Activa", DIVISIONES_DISPONIBLES, index=DIVISIONES_DISPONIBLES.index(st.session_state.division_activa))
+        if nueva_div != st.session_state.division_activa:
+            st.session_state.division_activa = nueva_div
+            st.session_state.autenticado = False
+            st.session_state.rol_usuario = None
+            st.session_state.nombre_usuario = None
+            st.rerun()
+    else:
+        st.markdown(f"<h4 style='color: #ff4655; padding-top: 8px;'>División: {st.session_state.division_activa}</h4>", unsafe_allow_html=True)
+
 with c_div_3:
     if st.button("🏠 Volver al Inicio"):
         st.session_state.division_activa = None
@@ -365,52 +364,39 @@ with c_div_3:
 
 
 # ==========================================
-# PANTALLA DE LOGIN / REGISTRO / SUPER ADMIN POR DIVISIÓN
+# PANTALLA DE LOGIN / REGISTRO (CON VALIDACIÓN DE SUPER ADMIN EN DB)
 # ==========================================
 if not st.session_state.autenticado:
     st.title(f"SCARLET ROSTER — {st.session_state.division_activa.upper()}")
     st.markdown(f"Base de datos y credenciales exclusivas para **{st.session_state.division_activa}**. Inicie sesión o regístrese.")
     
-    tab_login_admin, tab_login_super, tab_login_player, tab_reg_player = st.tabs(["Administrador", "Super Admin", "Inicio de Sesión (Jugador)", "Nuevo Registro"])
+    tab_login_admin, tab_login_player, tab_reg_player = st.tabs(["Administración / Super Admin", "Inicio de Sesión (Jugador)", "Nuevo Registro"])
     
     with tab_login_admin:
-        st.markdown(f"### Credenciales de Administrador ({st.session_state.division_activa})")
+        st.markdown(f"### Credenciales de Administrador o Super Administrador")
         with st.form("form_login_admin"):
-            user_admin = st.text_input("Usuario Administrador", key="input_admin_user")
+            user_admin = st.text_input("Usuario Administrador / Super Admin", key="input_admin_user")
             pass_admin = st.text_input("Contraseña de Acceso", type="password", key="input_admin_pass")
-            submit_admin = st.form_submit_button("AUTORIZAR ACCESO ADMIN")
+            submit_admin = st.form_submit_button("AUTORIZAR ACCESO")
             
             if submit_admin:
                 match = df_config_live[(df_config_live["Usuario"].astype(str).str.lower() == user_admin.strip().lower()) & 
-                                       (df_config_live["Contraseña"].astype(str) == pass_admin.strip()) & 
-                                       (df_config_live["Rol"].astype(str).str.lower() == "admin")]
+                                       (df_config_live["Contraseña"].astype(str) == pass_admin.strip())]
                 if not match.empty:
-                    st.session_state.autenticado = True
-                    st.session_state.rol_usuario = "admin"
-                    st.session_state.nombre_usuario = "Administrador"
-                    st.session_state.division_autenticada = st.session_state.division_activa
-                    st.success(f"Acceso autorizado para {st.session_state.division_activa}. Redirigiendo...")
-                    st.rerun()
+                    row_match = match.iloc[0]
+                    rol_encontrado = str(row_match["Rol"]).strip().lower()
+                    
+                    if rol_encontrado in ["admin", "super_admin"]:
+                        st.session_state.autenticado = True
+                        st.session_state.rol_usuario = rol_encontrado # "admin" o "super_admin"
+                        st.session_state.nombre_usuario = row_match.get("Nombre Real Vinculado", "Administrador")
+                        st.session_state.division_autenticada = st.session_state.division_activa
+                        st.success(f"Acceso autorizado como {rol_encontrado.upper()}. Redirigiendo...")
+                        st.rerun()
+                    else:
+                        st.error("El usuario ingresado no cuenta con privilegios administrativos.")
                 else:
-                    st.error(f"Credenciales inválidas para la división {st.session_state.division_activa}.")
-
-    with tab_login_super:
-        st.markdown(f"### Acceso Global de Super Administrador")
-        st.markdown("Ingrese la contraseña maestra para acceder a esta división con privilegios completos de administrador.")
-        with st.form("form_login_super_admin"):
-            pass_super = st.text_input("Contraseña Maestra de Super Admin", type="password", key="input_super_pass")
-            submit_super = st.form_submit_button("ACCEDER COMO SUPER ADMIN")
-            
-            if submit_super:
-                if pass_super.strip() == CLAVE_SUPER_ADMIN:
-                    st.session_state.autenticado = True
-                    st.session_state.rol_usuario = "admin"
-                    st.session_state.nombre_usuario = "Super Administrador"
-                    st.session_state.division_autenticada = st.session_state.division_activa
-                    st.success(f"Acceso de Super Administrador concedido en {st.session_state.division_activa}. Redirigiendo...")
-                    st.rerun()
-                else:
-                    st.error("Contraseña de Super Administrador incorrecta.")
+                    st.error("Credenciales inválidas en la base de datos.")
 
     with tab_login_player:
         st.markdown(f"### Credenciales de Jugador ({st.session_state.division_activa})")
@@ -421,7 +407,8 @@ if not st.session_state.autenticado:
             
             if submit_player:
                 match = df_config_live[(df_config_live["Usuario"].astype(str).str.lower() == user_player.strip().lower()) & 
-                                       (df_config_live["Contraseña"].astype(str) == pass_player.strip())]
+                                       (df_config_live["Contraseña"].astype(str) == pass_player.strip()) &
+                                       (df_config_live["Rol"].astype(str).str.lower() == "jugador")]
                 if not match.empty:
                     row_match = match.iloc[0]
                     st.session_state.autenticado = True
@@ -431,11 +418,10 @@ if not st.session_state.autenticado:
                     st.success(f"Bienvenido, {st.session_state.nombre_usuario}.")
                     st.rerun()
                 else:
-                    st.error("Usuario o contraseña incorrectos en esta división.")
+                    st.error("Usuario o contraseña incorrectos.")
 
     with tab_reg_player:
         st.markdown(f"### Formulario de Alta para Nuevo Integrante ({st.session_state.division_activa})")
-        
         OPCIONES_ROLES = ["Duelista", "Iniciador", "Controlador", "Centinela", "Flex"]
         OPCIONES_RANGOS = ["Hierro", "Bronce", "Plata", "Oro", "Platino", "Diamante", "Ascendente 1", "Ascendente 2", "Ascendente 3", "Inmortal 1", "Inmortal 2", "Inmortal 3", "Radiante", "Maestro", "Gran Maestro", "Top 500"]
         OPCIONES_ESTADO = ["Titular", "Banca", "Sexto player", "En Prueba"]
@@ -512,10 +498,10 @@ if not st.session_state.autenticado:
 # APLICACIÓN PRINCIPAL (POST-LOGIN)
 # ==========================================
 
-# --- BARRA LATERAL EXCLUSIVA PARA ADMINISTRADORES ---
-if st.session_state.rol_usuario == "admin":
+# --- BARRA LATERAL PARA ADMINISTRADORES Y SUPER ADMIN ---
+if st.session_state.rol_usuario in ["admin", "super_admin"]:
     st.sidebar.markdown(f"👤 **Usuario:** `{st.session_state.nombre_usuario}`")
-    st.sidebar.markdown(f"🏷️ **Credencial:** `ADMIN`")
+    st.sidebar.markdown(f"🏷️ **Credencial:** `{st.session_state.rol_usuario.upper()}`")
     st.sidebar.markdown(f"🎯 **División:** `{st.session_state.division_activa}`")
     st.sidebar.markdown("---")
     if st.sidebar.button("🔄 Recargar Datos"):
@@ -535,7 +521,7 @@ else:
     """, unsafe_allow_html=True)
 
 # --- BOTONES DE NAVEGACIÓN SUPERIORES ---
-if st.session_state.rol_usuario == "admin":
+if st.session_state.rol_usuario in ["admin", "super_admin"]:
     cols_nav = st.columns(5)
     with cols_nav[0]:
         if st.button("Roster"): st.session_state.menu_activo = "Roster"
@@ -572,12 +558,11 @@ OPCIONES_ACTIVIDAD = ["Alta", "Media", "Baja", ""]
 
 
 # ==========================================
-# SECCIÓN 1: ROSTER (CON SELECCIÓN DINÁMICA + GRÁFICOS RESTAURADOS)
+# SECCIÓN 1: ROSTER
 # ==========================================
 if st.session_state.menu_activo == "Roster":
     st.title(f"Gestión de Roster — {st.session_state.division_activa}")
     
-    # Determinar qué opciones de agentes/roles mostrar según el juego seleccionado
     div_actual = st.session_state.division_activa.lower()
     if "valorant" in div_actual:
         opciones_juego = AGENTES_VALORANT
@@ -585,7 +570,7 @@ if st.session_state.menu_activo == "Roster":
     elif "overwatch" in div_actual:
         opciones_juego = HEROES_OVERWATCH
         label_agentes = "Héroes principales (Overwatch)"
-    else:  # CS
+    else:
         opciones_juego = ROLES_CS
         label_agentes = "Roles tácticos (CS)"
 
@@ -599,7 +584,7 @@ if st.session_state.menu_activo == "Roster":
     
     st.markdown("---")
     
-    if st.session_state.rol_usuario == "admin":
+    if st.session_state.rol_usuario in ["admin", "super_admin"]:
         configuracion_columnas = {
             "Rol Principal": st.column_config.SelectboxColumn("Rol Principal", options=OPCIONES_ROLES),
             "Rol Secundario": st.column_config.SelectboxColumn("Rol Secundario", options=OPCIONES_ROLES),
@@ -624,7 +609,6 @@ if st.session_state.menu_activo == "Roster":
             st.success("Roster actualizado y sincronizado.")
             st.rerun()
 
-        # --- SELECTOR DINÁMICO FÁCIL (EVITA ESCRIBIR A MANO) ---
         st.markdown("---")
         st.markdown(f"### Selección Dinámica de {label_agentes} por Jugador")
         
@@ -635,7 +619,6 @@ if st.session_state.menu_activo == "Roster":
             with col_sel_p:
                 jugador_elegido = st.selectbox("Seleccionar Jugador", jugadores_disponibles, key="select_jugador_agentes")
             
-            # Buscar agentes actuales del jugador seleccionado
             fila_jugador = df_roster_actual[df_roster_actual["Nombre Real"] == jugador_elegido]
             agentes_actuales_str = str(fila_jugador.iloc[0]["Personajes / Agentes"]) if not fila_jugador.empty else ""
             default_selection = [a.strip() for a in agentes_actuales_str.split(",") if a.strip() in opciones_juego]
@@ -655,7 +638,6 @@ if st.session_state.menu_activo == "Roster":
                 st.success(f"¡Agentes actualizados para {jugador_elegido} con éxito!")
                 st.rerun()
 
-        # --- GRÁFICOS ANALÍTICOS DE ROSTER RESTAURADOS ---
         st.markdown("---")
         st.markdown("### Analítica Ejecutiva del Plantel")
         
@@ -663,21 +645,18 @@ if st.session_state.menu_activo == "Roster":
         
         if not df_validos_graf.empty:
             g_col1, g_col2, g_col3 = st.columns(3)
-            
             with g_col1:
                 df_roles = df_validos_graf["Rol Principal"].value_counts().reset_index()
                 df_roles.columns = ["Rol", "Cantidad"]
                 fig_roles = px.pie(df_roles, names="Rol", values="Cantidad", title="Distribución por Rol", hole=0.5, color_discrete_sequence=px.colors.sequential.Reds)
                 fig_roles.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#e2e8f0")
                 st.plotly_chart(fig_roles, use_container_width=True)
-                
             with g_col2:
                 df_estados = df_validos_graf["Estado"].value_counts().reset_index()
                 df_estados.columns = ["Estado", "Cantidad"]
                 fig_estados = px.bar(df_estados, x="Estado", y="Cantidad", title="Estado Actual", color="Estado", color_discrete_sequence=px.colors.sequential.Burg)
                 fig_estados.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#e2e8f0")
                 st.plotly_chart(fig_estados, use_container_width=True)
-                
             with g_col3:
                 df_rangos = df_validos_graf["Rango / Cima"].value_counts().reset_index()
                 df_rangos.columns = ["Rango", "Cantidad"]
@@ -700,7 +679,6 @@ elif st.session_state.menu_activo == "Asistencia":
         st.warning("No hay jugadores registrados en esta división.")
     else:
         mes_seleccionado = st.selectbox("Seleccionar Mes Operativo", ["Septiembre", "Octubre", "Noviembre", "Diciembre"])
-        
         df_asistencia_guardada = pd.DataFrame()
         if sheet_asistencia is not None:
             try:
@@ -735,7 +713,7 @@ elif st.session_state.menu_activo == "Asistencia":
             asistencia = sum(row[dias_mes] == "P") + sum(row[dias_mes] == "J") + (sum(row[dias_mes] == "T") * 0.8)
             return f"{min((asistencia / dias) * 100, 100):.0f}%"
 
-        if st.session_state.rol_usuario == "admin":
+        if st.session_state.rol_usuario in ["admin", "super_admin"]:
             df_editado = st.data_editor(df_mes, use_container_width=True, key="editor_asistencia_mes")
             df_editado["% Asistencia"] = df_editado.apply(calcular_porcentaje, axis=1)
             st.dataframe(df_editado[["Mes", "Días Hábiles", "% Asistencia"]], use_container_width=True)
@@ -763,7 +741,7 @@ elif st.session_state.menu_activo == "Asistencia":
 # SECCIÓN 3: DISCIPLINA / MIS SANCIONES
 # ==========================================
 elif st.session_state.menu_activo == "Disciplina":
-    if st.session_state.rol_usuario == "admin":
+    if st.session_state.rol_usuario in ["admin", "super_admin"]:
         st.title(f"Panel Disciplinario — {st.session_state.division_activa}")
         jugadores_activos = [j for j in df_roster_actual["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
         
@@ -819,14 +797,11 @@ elif st.session_state.menu_activo == "Disciplina":
     else:
         st.title("Expediente Personal y Sanciones")
         mi_nombre = st.session_state.nombre_usuario
-        
         if not df_incidencias_actual.empty and mi_nombre:
             df_mis_inc = df_incidencias_actual[df_incidencias_actual["Jugador"].str.lower() == mi_nombre.lower()]
-            
             col_m1, col_m2 = st.columns(2)
             col_m1.metric("TOTAL ANOTACIONES", len(df_mis_inc))
             col_m2.metric("SANCIONES ACTIVAS", len(df_mis_inc[df_mis_inc["Sanción"] != "Ninguna"]))
-            
             st.markdown("---")
             if not df_mis_inc.empty:
                 st.dataframe(df_mis_inc[["Fecha", "Tipo", "Sanción", "Detalles"]], use_container_width=True, hide_index=True)
@@ -841,12 +816,10 @@ elif st.session_state.menu_activo == "Disciplina":
 # ==========================================
 elif st.session_state.menu_activo == "Tracker":
     st.title(f"Tracker y Estadísticas — {st.session_state.division_activa}")
-    
     df_validos_tracker = df_roster_actual[
         (df_roster_actual["Nick / ID"].astype(str).str.strip() != "") & 
         (df_roster_actual["Nick / ID"].astype(str).str.lower() != "nan")
     ]
-    
     nicks_lista = df_validos_tracker["Nick / ID"].tolist()
     
     if len(nicks_lista) > 0:
@@ -880,13 +853,13 @@ elif st.session_state.menu_activo == "Tracker":
 
 
 # ==========================================
-# SECCIÓN 5: CONFIGURACIÓN Y BORRADOS (SOLO ADMIN)
+# SECCIÓN 5: CONFIGURACIÓN Y SUPER ADMIN EXCLUSIVO
 # ==========================================
-elif st.session_state.menu_activo == "Config" and st.session_state.rol_usuario == "admin":
+elif st.session_state.menu_activo == "Config" and st.session_state.rol_usuario in ["admin", "super_admin"]:
     st.title(f"Configuración de División — {st.session_state.division_activa}")
     st.markdown(f"Gestión de credenciales exclusivas de la hoja **{st.session_state.division_activa.replace(' ', '_')}_Config**.")
     
-    st.markdown("### Credenciales de Acceso Exclusivas")
+    st.markdown("### Credenciales de Acceso")
     config_editado = st.data_editor(
         df_config_actual,
         num_rows="dynamic",
@@ -900,99 +873,97 @@ elif st.session_state.menu_activo == "Config" and st.session_state.rol_usuario =
         st.success("Credenciales actualizadas y sincronizadas para esta división.")
         st.rerun()
 
-    st.markdown("---")
-    st.markdown("### Panel de Eliminación Específica")
-    st.warning("Las acciones eliminan permanentemente los datos seleccionados de esta división en Google Sheets.")
-    
-    col_b1, col_b2, col_b3 = st.columns(3)
-    
-    with col_b1:
-        st.markdown("#### Eliminar Sanción")
-        if not df_incidencias_actual.empty:
-            opciones_sanciones = [f"[{row['Fecha']}] {row['Jugador']} - {row['Sanción']} ({row['Detalles'][:20]}...)" for idx, row in df_incidencias_actual.iterrows()]
-            sancion_a_borrar = st.selectbox("Seleccionar sanción", [""] + opciones_sanciones, key="sel_borrar_sancion")
-            
-            if st.button("ELIMINAR SANCIÓN"):
-                if sancion_a_borrar != "":
-                    idx_seleccionado = opciones_sanciones.index(sancion_a_borrar)
-                    df_disc_nuevo = df_incidencias_actual.drop(df_incidencias_actual.index[idx_seleccionado]).reset_index(drop=True)
-                    guardar_en_sheet(sheet_disciplina, df_disc_nuevo)
-                    st.success("Sanción eliminada con éxito.")
-                    st.rerun()
-        else:
-            st.info("Sin sanciones para eliminar.")
-
-    with col_b2:
-        st.markdown("#### Eliminar Jugador del Roster")
-        jugadores_para_borrar = [j for j in df_roster_actual["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
-        if len(jugadores_para_borrar) > 0:
-            jugador_a_eliminar = st.selectbox("Seleccionar jugador", [""] + jugadores_para_borrar, key="sel_borrar_jugador")
-            
-            if st.button("ELIMINAR INTEGRANTE"):
-                if jugador_a_eliminar != "":
-                    df_roster_nuevo = df_roster_actual[df_roster_actual["Nombre Real"] != jugador_a_eliminar].reset_index(drop=True)
-                    guardar_en_sheet(sheet_roster, df_roster_nuevo)
-                    
-                    df_config_live_b = cargar_configuracion_fresco(sheet_config)
-                    df_config_nuevo = df_config_live_b[df_config_live_b["Nombre Real Vinculado"].str.lower() != jugador_a_eliminar.lower()].reset_index(drop=True)
-                    guardar_en_sheet(sheet_config, df_config_nuevo)
-                    
-                    st.success(f"Integrante {jugador_a_eliminar} dado de baja.")
-                    st.rerun()
-        else:
-            st.info("Roster vacío.")
-
-    with col_b3:
-        st.markdown("#### Limpiar Asistencia")
-        if sheet_asistencia is not None:
-            mes_a_limpiar = st.selectbox("Mes a limpiar", ["Septiembre", "Octubre", "Noviembre", "Diciembre"], key="sel_limpiar_mes")
-            if st.button("RESETEAR MES"):
-                try:
-                    data_asis_all = sheet_asistencia.get_all_records()
-                    if data_asis_all:
-                        df_asis_all = pd.DataFrame(data_asis_all)
-                        df_asis_filtrado = df_asis_all[df_asis_all["Mes"] != mes_a_limpiar]
-                        guardar_en_sheet(sheet_asistencia, df_asis_filtrado)
-                        st.success(f"Registros de {mes_a_limpiar} limpiados.")
-                        st.rerun()
-                    else:
-                        st.info("Hoja de asistencia vacía.")
-                except Exception as e:
-                    st.error(f"Error: {e}")
-
-    st.markdown("---")
-    st.markdown("### ZONA DE EMERGENCIA — RESET DIVISIÓN")
-    st.warning("Restablece toda la base de datos de esta división a valores iniciales de fábrica.")
-    
-    with st.form("form_emergencia_reset", clear_on_submit=True):
-        st.markdown("Ingrese contraseña de administrador o de Super Admin para autorizar:")
-        pass_confirmacion_emergencia = st.text_input("Contraseña", type="password", key="input_emergencia_pass")
-        btn_ejecutar_emergencia = st.form_submit_button("VACIAR Y REINICIAR DIVISIÓN")
+    # --- ZONA EXCLUSIVA PARA EL SUPER ADMINISTRADOR ---
+    if st.session_state.rol_usuario == "super_admin":
+        st.markdown("---")
+        st.markdown("### 🔒 Panel Exclusivo de Super Administrador")
+        st.markdown("Las siguientes herramientas de control y borrado masivo solo son visibles para cuentas con rol de **Super Administrador**.")
         
-        if btn_ejecutar_emergencia:
-            if not pass_confirmacion_emergencia.strip():
-                st.error("Ingrese la contraseña.")
-            else:
-                match_admin = df_config_actual[(df_config_actual["Contraseña"].astype(str) == pass_confirmacion_emergencia.strip()) & 
-                                               (df_config_actual["Rol"].astype(str).str.lower() == "admin")]
-                es_super = (pass_confirmacion_emergencia.strip() == CLAVE_SUPER_ADMIN)
+        col_b1, col_b2, col_b3 = st.columns(3)
+        
+        with col_b1:
+            st.markdown("#### Eliminar Sanción")
+            if not df_incidencias_actual.empty:
+                opciones_sanciones = [f"[{row['Fecha']}] {row['Jugador']} - {row['Sanción']} ({row['Detalles'][:20]}...)" for idx, row in df_incidencias_actual.iterrows()]
+                sancion_a_borrar = st.selectbox("Seleccionar sanción", [""] + opciones_sanciones, key="sel_borrar_sancion")
                 
-                if match_admin.empty and not es_super:
-                    st.error("Contraseña incorrecta. Operación cancelada.")
-                else:
-                    try:
-                        guardar_en_sheet(sheet_roster, DATOS_INICIALES_ROSTER)
-                        
-                        df_asistencia_init = pd.DataFrame(columns=["Nombre Real", "Mes", "Días Hábiles"] + [str(i) for i in range(1, 32)])
-                        guardar_en_sheet(sheet_asistencia, df_asistencia_init)
-                        
-                        df_disc_init = pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])
-                        guardar_en_sheet(sheet_disciplina, df_disc_init)
-                        
-                        guardar_en_sheet(sheet_config, DATOS_INICIALES_CONFIG)
-                        
-                        st.success(f"¡División {st.session_state.division_activa} reiniciada a valores de fábrica!")
-                        st.balloons()
+                if st.button("ELIMINAR SANCIÓN"):
+                    if sancion_a_borrar != "":
+                        idx_seleccionado = opciones_sanciones.index(sancion_a_borrar)
+                        df_disc_nuevo = df_incidencias_actual.drop(df_incidencias_actual.index[idx_seleccionado]).reset_index(drop=True)
+                        guardar_en_sheet(sheet_disciplina, df_disc_nuevo)
+                        st.success("Sanción eliminada con éxito.")
                         st.rerun()
+            else:
+                st.info("Sin sanciones para eliminar.")
+
+        with col_b2:
+            st.markdown("#### Eliminar Jugador del Roster")
+            jugadores_para_borrar = [j for j in df_roster_actual["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
+            if len(jugadores_para_borrar) > 0:
+                jugador_a_eliminar = st.selectbox("Seleccionar jugador", [""] + jugadores_para_borrar, key="sel_borrar_jugador")
+                
+                if st.button("ELIMINAR INTEGRANTE"):
+                    if jugador_a_eliminar != "":
+                        df_roster_nuevo = df_roster_actual[df_roster_actual["Nombre Real"] != jugador_a_eliminar].reset_index(drop=True)
+                        guardar_en_sheet(sheet_roster, df_roster_nuevo)
+                        
+                        df_config_live_b = cargar_configuracion_fresco(sheet_config)
+                        df_config_nuevo = df_config_live_b[df_config_live_b["Nombre Real Vinculado"].str.lower() != jugador_a_eliminar.lower()].reset_index(drop=True)
+                        guardar_en_sheet(sheet_config, df_config_nuevo)
+                        
+                        st.success(f"Integrante {jugador_a_eliminar} dado de baja.")
+                        st.rerun()
+            else:
+                st.info("Roster vacío.")
+
+        with col_b3:
+            st.markdown("#### Limpiar Asistencia")
+            if sheet_asistencia is not None:
+                mes_a_limpiar = st.selectbox("Mes a limpiar", ["Septiembre", "Octubre", "Noviembre", "Diciembre"], key="sel_limpiar_mes")
+                if st.button("RESETEAR MES"):
+                    try:
+                        data_asis_all = sheet_asistencia.get_all_records()
+                        if data_asis_all:
+                            df_asis_all = pd.DataFrame(data_asis_all)
+                            df_asis_filtrado = df_asis_all[df_asis_all["Mes"] != mes_a_limpiar]
+                            guardar_en_sheet(sheet_asistencia, df_asis_filtrado)
+                            st.success(f"Registros de {mes_a_limpiar} limpiados.")
+                            st.rerun()
+                        else:
+                            st.info("Hoja de asistencia vacía.")
                     except Exception as e:
-                        st.error(f"Error crítico: {e}")
+                        st.error(f"Error: {e}")
+
+        st.markdown("---")
+        st.markdown("### ZONA DE EMERGENCIA — RESET DIVISIÓN")
+        st.warning("Restablece toda la base de datos de esta división a valores iniciales de fábrica.")
+        
+        with st.form("form_emergencia_reset", clear_on_submit=True):
+            st.markdown("Ingrese su contraseña de **Super Administrador** para autorizar el reseteo:")
+            pass_confirmacion_emergencia = st.text_input("Contraseña de Super Admin", type="password", key="input_emergencia_pass")
+            btn_ejecutar_emergencia = st.form_submit_button("VACIAR Y REINICIAR DIVISIÓN")
+            
+            if btn_ejecutar_emergencia:
+                if not pass_confirmacion_emergencia.strip():
+                    st.error("Ingrese la contraseña.")
+                else:
+                    match_super = df_config_actual[(df_config_actual["Contraseña"].astype(str) == pass_confirmacion_emergencia.strip()) & 
+                                                   (df_config_actual["Rol"].astype(str).str.lower() == "super_admin")]
+                    
+                    if match_super.empty:
+                        st.error("Contraseña de Super Administrador incorrecta.")
+                    else:
+                        try:
+                            guardar_en_sheet(sheet_roster, DATOS_INICIALES_ROSTER)
+                            df_asistencia_init = pd.DataFrame(columns=["Nombre Real", "Mes", "Días Hábiles"] + [str(i) for i in range(1, 32)])
+                            guardar_en_sheet(sheet_asistencia, df_asistencia_init)
+                            df_disc_init = pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])
+                            guardar_en_sheet(sheet_disciplina, df_disc_init)
+                            guardar_en_sheet(sheet_config, DATOS_INICIALES_CONFIG)
+                            
+                            st.success(f"¡División {st.session_state.division_activa} reiniciada a valores de fábrica!")
+                            st.balloons()
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error crítico: {e}")
