@@ -7,7 +7,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Scarlet Roster - Sistema Seguro en Tiempo Real", page_icon="🔥", layout="wide")
 
-# --- ESTILOS CORPORATIVOS Y DESACTIVACIÓN DE AUTOCOMPLETADO GLOBAL ---
+# --- ESTILOS CORPORATIVOS Y BLOQUEO RADICAL DE EXTENSIONES ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
@@ -20,20 +20,27 @@ st.markdown("""
     .stButton>button:hover { background-color: #ff4655; color: #0f1923; }
     .stSelectbox label, .stTextInput label, .stMultiSelect label { color: #ece8e1; font-weight: 600; font-size: 0.9rem; }
     div[data-testid="stMetricValue"] { color: #ff4655; font-weight: 700; }
+
+    /* CLASE CSS PARA SIMULAR CONTRASEÑA EVITANDO QUE LAS EXTENSIONES LA DETECTEN COMO INPUT DE LOGIN */
+    input.fake-password {
+        -webkit-text-security: disc !important;
+        text-security: disc !important;
+    }
     </style>
 
-    <!-- SCRIPT DE JAVASCRIPT PARA MATAR EL AUTOCOMPLETADO Y SUGERENCIAS EN TODOS LOS INPUTS -->
+    <!-- SCRIPT DE JAVASCRIPT PARA MATAR EL AUTOCOMPLETADO Y RESTRICCIONES DE EXTENSIONES -->
     <script>
     function desactivarAutocompletado() {
         const inputs = document.querySelectorAll('input');
         inputs.forEach(input => {
-            input.setAttribute('autocomplete', 'new-password');
+            input.setAttribute('autocomplete', 'off');
             input.setAttribute('autocorrect', 'off');
             input.setAttribute('autocapitalize', 'off');
             input.setAttribute('spellcheck', 'false');
+            input.setAttribute('data-lpignore', 'true'); // Ignorar por LastPass / Dashlane
+            input.setAttribute('data-form-type', 'other'); // Despistar extensiones de correo
         });
     }
-    // Ejecutar al cargar y observar cambios dinámicos en el DOM
     window.addEventListener('DOMContentLoaded', desactivarAutocompletado);
     const observer = new MutationObserver(desactivarAutocompletado);
     observer.observe(document.body, { childList: true, subtree: true });
@@ -74,14 +81,12 @@ def conectar_google_sheets():
         
         spreadsheet = client.open("crea el proyecto en formato hoja de calculo como...")
         
-        # 1. Roster
         try:
             sheet_roster = spreadsheet.worksheet("Control General")
         except gspread.exceptions.WorksheetNotFound:
             sheet_roster = spreadsheet.add_worksheet(title="Control General", rows="100", cols="15")
             sheet_roster.update([DATOS_INICIALES_ROSTER.columns.values.tolist()] + DATOS_INICIALES_ROSTER.values.tolist())
 
-        # 2. Asistencia
         try:
             sheet_asistencia = spreadsheet.worksheet("Asistencia")
         except gspread.exceptions.WorksheetNotFound:
@@ -89,7 +94,6 @@ def conectar_google_sheets():
             df_asistencia_init = pd.DataFrame(columns=["Nombre Real", "Mes", "Días Hábiles"] + [str(i) for i in range(1, 32)])
             sheet_asistencia.update([df_asistencia_init.columns.values.tolist()])
 
-        # 3. Disciplina
         try:
             sheet_disciplina = spreadsheet.worksheet("Disciplina")
         except gspread.exceptions.WorksheetNotFound:
@@ -97,7 +101,6 @@ def conectar_google_sheets():
             df_disc_init = pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])
             sheet_disciplina.update([df_disc_init.columns.values.tolist()])
 
-        # 4. Configuración (Usuarios y Claves)
         try:
             sheet_config = spreadsheet.worksheet("Configuracion")
         except gspread.exceptions.WorksheetNotFound:
@@ -125,8 +128,7 @@ def cargar_roster_fresco():
     if sheet_roster is not None:
         try:
             data = sheet_roster.get_all_records()
-            if not data:
-                return DATOS_INICIALES_ROSTER.copy()
+            if not data: return DATOS_INICIALES_ROSTER.copy()
             df = pd.DataFrame(data)
             return DATOS_INICIALES_ROSTER.copy() if df.empty else df
         except:
@@ -149,8 +151,7 @@ def cargar_configuracion_fresco():
     if sheet_config is not None:
         try:
             data = sheet_config.get_all_records()
-            if not data:
-                return DATOS_INICIALES_CONFIG.copy()
+            if not data: return DATOS_INICIALES_CONFIG.copy()
             df = pd.DataFrame(data)
             return DATOS_INICIALES_CONFIG.copy() if df.empty else df
         except:
@@ -158,14 +159,9 @@ def cargar_configuracion_fresco():
     return DATOS_INICIALES_CONFIG.copy()
 
 # --- ESTADOS DE LA SESIÓN ---
-if 'autenticado' not in st.session_state:
-    st.session_state.autenticado = False
-
-if 'rol_usuario' not in st.session_state:
-    st.session_state.rol_usuario = None
-
-if 'nombre_usuario' not in st.session_state:
-    st.session_state.nombre_usuario = None
+if 'autenticado' not in st.session_state: st.session_state.autenticado = False
+if 'rol_usuario' not in st.session_state: st.session_state.rol_usuario = None
+if 'nombre_usuario' not in st.session_state: st.session_state.nombre_usuario = None
 
 
 # ==========================================
@@ -184,7 +180,12 @@ if not st.session_state.autenticado:
         st.markdown("### Acceso Administrador")
         with st.form("form_login_admin"):
             user_admin = st.text_input("Usuario Administrador", key="input_admin_user")
-            pass_admin = st.text_input("Contraseña", type="password", key="input_admin_pass")
+            
+            # Campo de contraseña blindado contra extensiones mediante HTML personalizado
+            st.markdown("Contraseña", unsafe_allow_html=True)
+            pass_admin = st.text_input("ContraseñaAdminOculta", label_visibility="collapsed", key="input_admin_pass_custom")
+            st.markdown('<script>document.querySelector(\'input[aria-label="ContraseñaAdminOculta"]\').type = "text"; document.querySelector(\'input[aria-label="ContraseñaAdminOculta"]\').classList.add("fake-password");</script>', unsafe_allow_html=True)
+            
             submit_admin = st.form_submit_button("Entrar como Admin")
             
             if submit_admin:
@@ -205,7 +206,11 @@ if not st.session_state.autenticado:
         st.markdown("### Iniciar Sesión (Jugadores)")
         with st.form("form_login_jugador"):
             user_player = st.text_input("Tu Usuario", key="input_player_user")
-            pass_player = st.text_input("Tu Contraseña", type="password", key="input_player_pass")
+            
+            st.markdown("Tu Contraseña", unsafe_allow_html=True)
+            pass_player = st.text_input("TuContrasenaPlayerOculta", label_visibility="collapsed", key="input_player_pass_custom")
+            st.markdown('<script>document.querySelector(\'input[aria-label="TuContrasenaPlayerOculta"]\').type = "text"; document.querySelector(\'input[aria-label="TuContrasenaPlayerOculta"]\').classList.add("fake-password");</script>', unsafe_allow_html=True)
+            
             submit_player = st.form_submit_button("Iniciar Sesión")
             
             if submit_player:
@@ -224,7 +229,6 @@ if not st.session_state.autenticado:
     # 3. Pestaña Registro de Nuevo Jugador
     with tab_reg_player:
         st.markdown("### ✨ Registro de Ingreso para Nuevo Jugador")
-        st.markdown("Si fuiste aceptado en la división, completa tus datos base. Esto te agregará automáticamente al Roster y creará tu cuenta.")
         
         OPCIONES_ROLES = ["Duelista", "Iniciador", "Controlador", "Centinela", "Flex"]
         OPCIONES_RANGOS = ["Hierro", "Bronce", "Plata", "Oro", "Platino", "Diamante", "Ascendente 1", "Ascendente 2", "Ascendente 3", "Inmortal 1", "Inmortal 2", "Inmortal 3", "Radiante"]
@@ -242,8 +246,14 @@ if not st.session_state.autenticado:
                 reg_estado = st.selectbox("Estado Asignado", OPCIONES_ESTADO)
                 reg_discord = st.text_input("Usuario de Discord / Contacto")
                 reg_usuario = st.text_input("Elige tu Nombre de Usuario nuevo")
-                reg_pass = st.text_input("Elige tu Contraseña", type="password")
-                reg_pass_conf = st.text_input("Confirma tu Contraseña", type="password")
+                
+                st.markdown("Elige tu Contraseña", unsafe_allow_html=True)
+                reg_pass = st.text_input("RegPassOculta", label_visibility="collapsed", key="input_reg_pass_custom")
+                st.markdown('<script>document.querySelector(\'input[aria-label="RegPassOculta"]\').type = "text"; document.querySelector(\'input[aria-label="RegPassOculta"]\').classList.add("fake-password");</script>', unsafe_allow_html=True)
+                
+                st.markdown("Confirma tu Contraseña", unsafe_allow_html=True)
+                reg_pass_conf = st.text_input("RegPassConfOculta", label_visibility="collapsed", key="input_reg_pass_conf_custom")
+                st.markdown('<script>document.querySelector(\'input[aria-label="RegPassConfOculta"]\').type = "text"; document.querySelector(\'input[aria-label="RegPassConfOculta"]\').classList.add("fake-password");</script>', unsafe_allow_html=True)
             
             submit_nuevo_jugador = st.form_submit_button("Completar Registro y Entrar al Roster")
             
@@ -445,8 +455,7 @@ with tab_asistencia:
         if sheet_asistencia is not None:
             try:
                 data_asis = sheet_asistencia.get_all_records()
-                if data_asis:
-                    df_asistencia_guardada = pd.DataFrame(data_asis)
+                if data_asis: df_asistencia_guardada = pd.DataFrame(data_asis)
             except:
                 pass
 
@@ -702,7 +711,11 @@ if st.session_state.rol_usuario == "admin":
         
         with st.form("form_emergencia_reset", clear_on_submit=True):
             st.markdown("Para autorizar este vaciado total, ingresa tu **contraseña de administrador** actual:")
-            pass_confirmacion_emergencia = st.text_input("Contraseña de Administrador de Confirmación", type="password")
+            
+            st.markdown("Contraseña de Administrador de Confirmación", unsafe_allow_html=True)
+            pass_confirmacion_emergencia = st.text_input("PassEmergenciaOculta", label_visibility="collapsed", key="input_emergencia_pass_custom")
+            st.markdown('<script>document.querySelector(\'input[aria-label="PassEmergenciaOculta"]\').type = "text"; document.querySelector(\'input[aria-label="PassEmergenciaOculta"]\'].classList.add("fake-password");</script>', unsafe_allow_html=True)
+            
             btn_ejecutar_emergencia = st.form_submit_button("🔥 VACIAR Y REINICIAR TODA LA BASE DE DATOS")
             
             if btn_ejecutar_emergencia:
