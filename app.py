@@ -77,7 +77,27 @@ with tab_roster:
     
     st.markdown("---")
     
-    # Diccionario de Agentes (CORREGIDO)
+    # --- GRÁFICOS EXPLICATIVOS SENCILLOS ---
+    c_g1, c_g2 = st.columns(2)
+    with c_g1:
+        if not st.session_state.df_roster.empty:
+            rol_counts = st.session_state.df_roster['Rol Principal'].value_counts().reset_index()
+            rol_counts.columns = ['Rol', 'Cantidad']
+            fig_roles = px.bar(rol_counts, x='Rol', y='Cantidad', title="Distribución por Rol Principal", color_discrete_sequence=['#ff4655'])
+            fig_roles.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='#ffffff', height=240, margin=dict(t=30, b=10, l=10, r=10))
+            st.plotly_chart(fig_roles, use_container_width=True)
+            
+    with c_g2:
+        if not st.session_state.df_roster.empty:
+            estado_counts = st.session_state.df_roster['Estado'].value_counts().reset_index()
+            estado_counts.columns = ['Estado', 'Cantidad']
+            fig_estado = px.pie(estado_counts, names='Estado', values='Cantidad', title="Estado Actual del Roster", color_discrete_sequence=['#ff4655', '#ece8e1', '#283442', '#52606d'])
+            fig_estado.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='#ffffff', height=240, margin=dict(t=30, b=10, l=10, r=10))
+            st.plotly_chart(fig_estado, use_container_width=True)
+
+    st.markdown("---")
+    
+    # Diccionario de Agentes 
     with st.expander("📚 Diccionario de Agentes por Rol (Referencia)"):
         ca, cb, cc, cd = st.columns(4)
         ca.info(f"**Duelistas:**\n{', '.join(AGENTES_POR_ROL['Duelista'])}")
@@ -85,7 +105,7 @@ with tab_roster:
         cc.info(f"**Controladores:**\n{', '.join(AGENTES_POR_ROL['Controlador'])}")
         cd.info(f"**Centinelas:**\n{', '.join(AGENTES_POR_ROL['Centinela'])}")
 
-    # Tabla Principal
+    # Tabla Principal (Con agentes bloqueados para edición directa)
     st.markdown("**Planilla de Control General**")
     configuracion_columnas = {
         "Rol Principal": st.column_config.SelectboxColumn("Rol Principal", options=OPCIONES_ROLES),
@@ -94,7 +114,7 @@ with tab_roster:
         "Cargo": st.column_config.SelectboxColumn("Cargo en Equipo", options=OPCIONES_CARGOS),
         "Estado": st.column_config.SelectboxColumn("Estado", options=OPCIONES_ESTADO),
         "Actividad": st.column_config.SelectboxColumn("Actividad", options=OPCIONES_ACTIVIDAD),
-        "Agentes Principales": st.column_config.TextColumn("Agentes Principales (Usa el Gestor de abajo para editar)"),
+        "Agentes Principales": st.column_config.TextColumn("Agentes Principales (Solo editable abajo ⬇️)", disabled=True),
     }
     
     df_roster_editado = st.data_editor(
@@ -128,19 +148,17 @@ with tab_roster:
                 rol_1 = str(st.session_state.df_roster.at[idx, "Rol Principal"])
                 rol_2 = str(st.session_state.df_roster.at[idx, "Rol Secundario"])
                 
-                # Filtrar opciones basadas en los roles de la tabla
                 opciones_validas = []
                 if rol_1 in AGENTES_POR_ROL: opciones_validas.extend(AGENTES_POR_ROL[rol_1])
                 if rol_2 in AGENTES_POR_ROL: opciones_validas.extend(AGENTES_POR_ROL[rol_2])
-                opciones_validas = list(set(opciones_validas)) # Eliminar duplicados
+                opciones_validas = list(set(opciones_validas))
                 
                 if not opciones_validas:
                     st.warning("⚠️ Asigna al menos un Rol (Principal o Secundario) válido en la tabla de arriba para cargar sus agentes.")
                 else:
-                    # Leer agentes actuales
                     agentes_str = st.session_state.df_roster.at[idx, "Agentes Principales"]
                     agentes_actuales = [a.strip() for a in str(agentes_str).split(",")] if pd.notna(agentes_str) and str(agentes_str).strip() != "" else []
-                    agentes_actuales = [a for a in agentes_actuales if a in opciones_validas] # Limpiar agentes de roles viejos
+                    agentes_actuales = [a for a in agentes_actuales if a in opciones_validas]
                     
                     nuevos_agentes = st.multiselect(
                         f"2. Agentes disponibles para los roles de {jugador_agentes} ({rol_1} / {rol_2}):",
