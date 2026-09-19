@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+from gspread.exceptions import WorksheetNotFound
 
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Scarlet Multi-Divisiones", page_icon="🔥", layout="wide")
@@ -189,28 +190,34 @@ def conectar_google_sheets():
 
 spreadsheet = conectar_google_sheets()
 
+@st.cache_resource
 def obtener_hojas_division(division_nombre):
     if spreadsheet is None: return None, None, None, None
     prefix = division_nombre.replace(" ", "_")
-    try: sheet_roster = spreadsheet.worksheet(f"{prefix}_Roster")
-    except:
+    
+    try: 
+        sheet_roster = spreadsheet.worksheet(f"{prefix}_Roster")
+    except WorksheetNotFound:
         sheet_roster = spreadsheet.add_worksheet(title=f"{prefix}_Roster", rows="100", cols="15")
         sheet_roster.update([DATOS_INICIALES_ROSTER.columns.values.tolist()] + DATOS_INICIALES_ROSTER.values.tolist())
 
-    try: sheet_asistencia = spreadsheet.worksheet(f"{prefix}_Asistencia")
-    except:
+    try: 
+        sheet_asistencia = spreadsheet.worksheet(f"{prefix}_Asistencia")
+    except WorksheetNotFound:
         sheet_asistencia = spreadsheet.add_worksheet(title=f"{prefix}_Asistencia", rows="100", cols="35")
         df_asistencia_init = pd.DataFrame(columns=["Nombre Real", "Mes", "Días Hábiles"] + [str(i) for i in range(1, 32)])
         sheet_asistencia.update([df_asistencia_init.columns.values.tolist()])
 
-    try: sheet_disciplina = spreadsheet.worksheet(f"{prefix}_Disciplina")
-    except:
+    try: 
+        sheet_disciplina = spreadsheet.worksheet(f"{prefix}_Disciplina")
+    except WorksheetNotFound:
         sheet_disciplina = spreadsheet.add_worksheet(title=f"{prefix}_Disciplina", rows="100", cols="10")
         df_disc_init = pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])
         sheet_disciplina.update([df_disc_init.columns.values.tolist()])
 
-    try: sheet_config = spreadsheet.worksheet(f"{prefix}_Config")
-    except:
+    try: 
+        sheet_config = spreadsheet.worksheet(f"{prefix}_Config")
+    except WorksheetNotFound:
         sheet_config = spreadsheet.add_worksheet(title=f"{prefix}_Config", rows="50", cols="5")
         sheet_config.update([DATOS_INICIALES_CONFIG.columns.values.tolist()] + DATOS_INICIALES_CONFIG.values.tolist())
         
@@ -226,20 +233,22 @@ def guardar_en_sheet(sheet_obj, df):
         except Exception as e:
             st.error(f"Error al sincronizar con Google Sheets: {e}")
 
-def cargar_roster_fresco(sheet_roster):
-    if sheet_roster is not None:
+@st.cache_data
+def cargar_roster_fresco_cached(_sheet_roster):
+    if _sheet_roster is not None:
         try:
-            data = sheet_roster.get_all_records()
+            data = _sheet_roster.get_all_records()
             if not data: return DATOS_INICIALES_ROSTER.copy()
             df = pd.DataFrame(data)
             return DATOS_INICIALES_ROSTER.copy() if df.empty else df
         except: return DATOS_INICIALES_ROSTER.copy()
     return DATOS_INICIALES_ROSTER.copy()
 
-def cargar_incidencias_fresco(sheet_disciplina):
-    if sheet_disciplina is not None:
+@st.cache_data
+def cargar_incidencias_fresco_cached(_sheet_disciplina):
+    if _sheet_disciplina is not None:
         try:
-            data = sheet_disciplina.get_all_records()
+            data = _sheet_disciplina.get_all_records()
             df = pd.DataFrame(data)
             if df.empty or "Fecha" not in df.columns:
                 return pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])
@@ -247,10 +256,11 @@ def cargar_incidencias_fresco(sheet_disciplina):
         except: return pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])
     return pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])
 
-def cargar_configuracion_fresco(sheet_config):
-    if sheet_config is not None:
+@st.cache_data
+def cargar_configuracion_fresco_cached(_sheet_config):
+    if _sheet_config is not None:
         try:
-            data = sheet_config.get_all_records()
+            data = _sheet_config.get_all_records()
             if not data: return DATOS_INICIALES_CONFIG.copy()
             df = pd.DataFrame(data)
             return DATOS_INICIALES_CONFIG.copy() if df.empty else df
@@ -306,7 +316,7 @@ if st.session_state.division_activa is None:
 # CARGAR HOJAS Y DATOS DE LA DIVISIÓN ACTIVA SELECCIONADA
 # ==========================================
 sheet_roster, sheet_asistencia, sheet_disciplina, sheet_config = obtener_hojas_division(st.session_state.division_activa)
-df_config_live = cargar_configuracion_fresco(sheet_config)
+df_config_live = cargar_configuracion_fresco_cached(sheet_config)
 
 # Extraer roles y rangos específicos del juego activo
 datos_juego_actual = obtener_datos_juego(st.session_state.division_activa)
@@ -399,8 +409,8 @@ if not st.session_state.autenticado:
                 elif reg_pass != reg_pass_conf:
                     st.error("Las contraseñas no coinciden.")
                 else:
-                    df_c_check = cargar_configuracion_fresco(sheet_config)
-                    df_r_check = cargar_roster_fresco(sheet_roster)
+                    df_c_check = cargar_configuracion_fresco_cached(sheet_config)
+                    df_r_check = cargar_roster_fresco_cached(sheet_roster)
                     
                     if not df_c_check[df_c_check["Usuario"].astype(str).str.lower() == reg_usuario.strip().lower()].empty:
                         st.error("El nombre de usuario ya está registrado.")
@@ -432,7 +442,9 @@ if not st.session_state.autenticado:
 if st.session_state.rol_usuario == "admin":
     st.sidebar.markdown(f"👤 **Usuario:** `{st.session_state.nombre_usuario}`\n🏷️ **Credencial:** `ADMIN`\n🎯 **División:** `{st.session_state.division_activa}`")
     st.sidebar.markdown("---")
-    if st.sidebar.button("🔄 Recargar Datos"): st.rerun()
+    if st.sidebar.button("🔄 Limpiar Caché / Recargar"):
+        st.cache_data.clear()
+        st.rerun()
     if st.sidebar.button("🚪 Cerrar Sesión"):
         st.session_state.autenticado = False
         st.session_state.rol_usuario = None
@@ -449,15 +461,25 @@ if cols_nav[3].button("Tracker"): st.session_state.menu_activo = "Tracker"
 if st.session_state.rol_usuario == "admin" and cols_nav[4].button("Config"): st.session_state.menu_activo = "Config"
 st.markdown("<hr style='border: 1px solid rgba(255, 70, 85, 0.4); margin: 15px 0;'>", unsafe_allow_html=True)
 
-df_roster_actual = cargar_roster_fresco(sheet_roster)
-df_incidencias_actual = cargar_incidencias_fresco(sheet_disciplina)
-df_config_actual = cargar_configuracion_fresco(sheet_config)
+# Manejo de datos mediante session_state para evitar peticiones masivas a la API
+key_roster_state = f"roster_{st.session_state.division_activa}"
+key_disciplina_state = f"disciplina_{st.session_state.division_activa}"
+
+if key_roster_state not in st.session_state:
+    st.session_state[key_roster_state] = cargar_roster_fresco_cached(sheet_roster)
+
+if key_disciplina_state not in st.session_state:
+    st.session_state[key_disciplina_state] = cargar_incidencias_fresco_cached(sheet_disciplina)
+
+df_config_actual = cargar_configuracion_fresco_cached(sheet_config)
 
 # ==========================================
 # SECCIÓN 1: ROSTER
 # ==========================================
 if st.session_state.menu_activo == "Roster":
     st.title(f"Gestión de Roster — {st.session_state.division_activa}")
+    df_roster_actual = st.session_state[key_roster_state]
+    
     jugadores_activos_temp = [j for j in df_roster_actual["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
     
     col1, col2, col3, col4 = st.columns(4)
@@ -483,14 +505,16 @@ if st.session_state.menu_activo == "Roster":
             column_config=configuracion_columnas, height=350, key="editor_roster_principal"
         )
         
-        if not df_roster_editado.equals(df_roster_actual):
+        st.session_state[key_roster_state] = df_roster_editado
+        
+        if st.button("💾 GUARDAR CAMBIOS DE ROSTER EN SHEETS"):
             guardar_en_sheet(sheet_roster, df_roster_editado)
-            st.success("Roster actualizado y sincronizado.")
-            st.rerun()
+            st.cache_data.clear()
+            st.success("Roster sincronizado con Google Sheets correctamente.")
 
         st.markdown("### Analítica Ejecutiva del Plantel")
-        if not df_roster_actual.empty:
-            df_validos_graf = df_roster_actual[df_roster_actual["Nombre Real"].astype(str).str.strip() != ""].copy()
+        if not df_roster_editado.empty:
+            df_validos_graf = df_roster_editado[df_roster_editado["Nombre Real"].astype(str).str.strip() != ""].copy()
             if not df_validos_graf.empty:
                 g_col1, g_col2, g_col3 = st.columns(3)
                 with g_col1:
@@ -516,6 +540,7 @@ if st.session_state.menu_activo == "Roster":
 # ==========================================
 elif st.session_state.menu_activo == "Asistencia":
     st.title(f"Control de Asistencia — {st.session_state.division_activa}")
+    df_roster_actual = st.session_state[key_roster_state]
     jugadores_activos = [j for j in df_roster_actual["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"] if not df_roster_actual.empty else []
     
     if not jugadores_activos:
@@ -546,11 +571,12 @@ elif st.session_state.menu_activo == "Asistencia":
             df_editado = st.data_editor(df_mes, use_container_width=True, key="editor_asistencia_mes")
             df_editado["% Asistencia"] = df_editado.apply(calcular_porcentaje, axis=1)
             st.dataframe(df_editado[["Mes", "Días Hábiles", "% Asistencia"]], use_container_width=True)
-            if st.button("GUARDAR ASISTENCIA EN SHEETS"):
+            if st.button("💾 GUARDAR ASISTENCIA EN SHEETS"):
                 df_para_guardar = df_editado.reset_index()
                 df_final_asis = pd.concat([df_asistencia_guardada[df_asistencia_guardada["Mes"] != mes_seleccionado], df_para_guardar], ignore_index=True) if not df_asistencia_guardada.empty else df_para_guardar
                 guardar_en_sheet(sheet_asistencia, df_final_asis)
-                st.success("Asistencia sincronizada.")
+                st.cache_data.clear()
+                st.success("Asistencia sincronizada correctamente.")
         else:
             df_mes["% Asistencia"] = df_mes.apply(calcular_porcentaje, axis=1)
             if st.session_state.nombre_usuario in df_mes.index:
@@ -562,6 +588,9 @@ elif st.session_state.menu_activo == "Asistencia":
 # SECCIÓN 3: DISCIPLINA / MIS SANCIONES
 # ==========================================
 elif st.session_state.menu_activo == "Disciplina":
+    df_roster_actual = st.session_state[key_roster_state]
+    df_incidencias_actual = st.session_state[key_disciplina_state]
+    
     if st.session_state.rol_usuario == "admin":
         st.title(f"Panel Disciplinario — {st.session_state.division_activa}")
         jugadores_activos = [j for j in df_roster_actual["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"] if not df_roster_actual.empty else []
@@ -578,11 +607,14 @@ elif st.session_state.menu_activo == "Disciplina":
                     jugador_sel = st.selectbox("Jugador Implicado", jugadores_activos if jugadores_activos else ["Sin jugadores"])
                     detalles = st.text_area("Notas / Observaciones detalladas")
                 
-                if st.form_submit_button("REGISTRAR Y SINCRONIZAR"):
+                if st.form_submit_button("REGISTRAR INCIDENCIA"):
                     if jugador_sel != "Sin jugadores":
                         nueva_fila = pd.DataFrame([{"Fecha": str(fecha), "Jugador": jugador_sel, "Tipo": tipo, "Sanción": sancion, "Detalles": detalles}])
-                        guardar_en_sheet(sheet_disciplina, pd.concat([df_incidencias_actual, nueva_fila], ignore_index=True))
-                        st.success("Incidencia registrada.")
+                        df_updated_disc = pd.concat([df_incidencias_actual, nueva_fila], ignore_index=True)
+                        st.session_state[key_disciplina_state] = df_updated_disc
+                        guardar_en_sheet(sheet_disciplina, df_updated_disc)
+                        st.cache_data.clear()
+                        st.success("Incidencia registrada y sincronizada.")
                         st.rerun()
             st.dataframe(df_incidencias_actual, use_container_width=True, hide_index=True)
 
@@ -608,6 +640,7 @@ elif st.session_state.menu_activo == "Disciplina":
 # ==========================================
 elif st.session_state.menu_activo == "Tracker":
     st.title(f"Tracker y Estadísticas — {st.session_state.division_activa}")
+    df_roster_actual = st.session_state[key_roster_state]
     df_validos_tracker = df_roster_actual[(df_roster_actual["Nick / ID"].astype(str).str.strip() != "") & (df_roster_actual["Nick / ID"].astype(str).str.lower() != "nan")] if not df_roster_actual.empty else pd.DataFrame()
     nicks_lista = df_validos_tracker["Nick / ID"].tolist()
     
@@ -636,8 +669,12 @@ elif st.session_state.menu_activo == "Config" and st.session_state.rol_usuario =
     config_editado = st.data_editor(df_config_actual, num_rows="dynamic", use_container_width=True, hide_index=True)
     if not config_editado.equals(df_config_actual):
         guardar_en_sheet(sheet_config, config_editado)
+        st.cache_data.clear()
         st.success("Credenciales actualizadas.")
         st.rerun()
+
+    df_roster_actual = st.session_state[key_roster_state]
+    df_incidencias_actual = st.session_state[key_disciplina_state]
 
     st.markdown("### Panel de Eliminación Específica")
     col_b1, col_b2, col_b3 = st.columns(3)
@@ -647,17 +684,25 @@ elif st.session_state.menu_activo == "Config" and st.session_state.rol_usuario =
             opciones_sanciones = [f"[{row['Fecha']}] {row['Jugador']} - {row['Sanción']}" for idx, row in df_incidencias_actual.iterrows()]
             sancion_a_borrar = st.selectbox("Seleccionar sanción", [""] + opciones_sanciones)
             if st.button("ELIMINAR SANCIÓN") and sancion_a_borrar:
-                guardar_en_sheet(sheet_disciplina, df_incidencias_actual.drop(df_incidencias_actual.index[opciones_sanciones.index(sancion_a_borrar) - 1]).reset_index(drop=True))
-                st.success("Sanción eliminada."); st.rerun()
+                nuevo_df_disc = df_incidencias_actual.drop(df_incidencias_actual.index[opciones_sanciones.index(sancion_a_borrar) - 1]).reset_index(drop=True)
+                st.session_state[key_disciplina_state] = nuevo_df_disc
+                guardar_en_sheet(sheet_disciplina, nuevo_df_disc)
+                st.cache_data.clear()
+                st.success("Sanción eliminada.")
+                st.rerun()
     with col_b2:
         st.markdown("#### Eliminar Jugador")
         jugadores_para_borrar = [j for j in df_roster_actual["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"] if not df_roster_actual.empty else []
         if jugadores_para_borrar:
             jugador_a_eliminar = st.selectbox("Seleccionar jugador", [""] + jugadores_para_borrar)
             if st.button("ELIMINAR INTEGRANTE") and jugador_a_eliminar:
-                guardar_en_sheet(sheet_roster, df_roster_actual[df_roster_actual["Nombre Real"] != jugador_a_eliminar].reset_index(drop=True))
+                nuevo_df_roster = df_roster_actual[df_roster_actual["Nombre Real"] != jugador_a_eliminar].reset_index(drop=True)
+                st.session_state[key_roster_state] = nuevo_df_roster
+                guardar_en_sheet(sheet_roster, nuevo_df_roster)
                 guardar_en_sheet(sheet_config, df_config_actual[df_config_actual["Nombre Real Vinculado"].str.lower() != jugador_a_eliminar.lower()].reset_index(drop=True))
-                st.success(f"{jugador_a_eliminar} dado de baja."); st.rerun()
+                st.cache_data.clear()
+                st.success(f"{jugador_a_eliminar} dado de baja.")
+                st.rerun()
     with col_b3:
         st.markdown("#### Limpiar Asistencia")
         mes_a_limpiar = st.selectbox("Mes a limpiar", ["Septiembre", "Octubre", "Noviembre", "Diciembre"])
@@ -665,7 +710,9 @@ elif st.session_state.menu_activo == "Config" and st.session_state.rol_usuario =
             data_asis = sheet_asistencia.get_all_records()
             if data_asis:
                 guardar_en_sheet(sheet_asistencia, pd.DataFrame(data_asis)[pd.DataFrame(data_asis)["Mes"] != mes_a_limpiar])
-                st.success(f"Registros de {mes_a_limpiar} limpiados."); st.rerun()
+                st.cache_data.clear()
+                st.success(f"Registros de {mes_a_limpiar} limpiados.")
+                st.rerun()
 
     st.markdown("### ZONA DE EMERGENCIA — RESET DIVISIÓN")
     with st.form("form_emergencia_reset", clear_on_submit=True):
@@ -676,8 +723,8 @@ elif st.session_state.menu_activo == "Config" and st.session_state.rol_usuario =
                 guardar_en_sheet(sheet_asistencia, pd.DataFrame(columns=["Nombre Real", "Mes", "Días Hábiles"] + [str(i) for i in range(1, 32)]))
                 guardar_en_sheet(sheet_disciplina, pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"]))
                 guardar_en_sheet(sheet_config, DATOS_INICIALES_CONFIG)
+                st.cache_data.clear()
                 st.success(f"¡División {st.session_state.division_activa} reiniciada a valores de fábrica!")
                 st.rerun()
             else:
                 st.error("Contraseña incorrecta.")
-                
