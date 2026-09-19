@@ -19,14 +19,21 @@ st.markdown("""
     }
     .stButton>button:hover { background-color: #ff4655; color: #0f1923; }
     
-    .stSelectbox label, .stTextInput label, .stDateInput label, .stFileUploader label { 
+    .stSelectbox label, .stTextInput label, .stDateInput label, .stFileUploader label, .stMultiSelect label { 
         color: #ece8e1; font-weight: 600; font-size: 0.9rem; 
     }
     div[data-testid="stMetricValue"] { color: #ff4655; font-weight: 700; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- LISTAS DESPLEGABLES (Opciones para la tabla) ---
+# --- DICCIONARIOS Y LISTAS DESPLEGABLES ---
+AGENTES_POR_ROL = {
+    "Duelista": ["Jett", "Neon", "Raze", "Reyna", "Phoenix", "Yoru", "Iso"],
+    "Iniciador": ["Sova", "Fade", "Breach", "KAY/O", "Skye", "Gekko"],
+    "Controlador": ["Omen", "Astra", "Viper", "Brimstone", "Harbor", "Clove"],
+    "Centinela": ["Killjoy", "Cypher", "Sage", "Chamber", "Deadlock", "Vyse"]
+}
+
 OPCIONES_ROLES = ["Duelista", "Iniciador", "Controlador", "Centinela", "Flex", ""]
 OPCIONES_RANGOS = ["Hierro", "Bronce", "Plata", "Oro", "Platino", "Diamante", "Ascendente 1", "Ascendente 2", "Ascendente 3", "Inmortal 1", "Inmortal 2", "Inmortal 3", "Radiante", ""]
 OPCIONES_CARGOS = ["Capitan", "Sub capitan", "Player", "Manager", "Coach", ""]
@@ -35,7 +42,6 @@ OPCIONES_ACTIVIDAD = ["Alta", "Media", "Baja", ""]
 
 # --- BASE DE DATOS MAESTRA EN SESIÓN ---
 if 'df_roster' not in st.session_state:
-    # Estado inicial basado en tu captura de Excel
     st.session_state.df_roster = pd.DataFrame({
         "Riot ID (Nick#TAG)": ["Mazinhooo#lovsf", "Lionora#ZERO", "BestiaDelTrap#ARK", "leO#deus", "ELNIÑOMARAVILLA#14y", "Lotenesquepedir#boka", "Shuten#2006"],
         "Nombre Real": ["Maximiliano", "Lientur", "Facundo", "Leonardo", "Felipe", "Ian", "Leonel"],
@@ -47,10 +53,9 @@ if 'df_roster' not in st.session_state:
         "Estado": ["Titular", "Banca", "Titular", "Titular", "Titular", "Sexto player", "Titular"],
         "Actividad": ["Alta", "Alta", "Alta", "Media", "Alta", "Media", "Media"],
         "Contacto": ["Mazzito", "LINO", "facuu", "Leo", "felipoomo", "Iansuki", "Shuten"],
-        "Strikes": [0, 0, 0, 0, 0, 0, 0] # Columna oculta en Roster, visible en Disciplina
+        "Strikes": [0, 0, 0, 0, 0, 0, 0]
     })
 
-# Extraer lista de jugadores válidos (sin celdas vacías) para usar en otras pestañas
 jugadores_activos = [j for j in st.session_state.df_roster["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
 
 # --- PESTAÑAS PRINCIPALES ---
@@ -64,40 +69,24 @@ tab_roster, tab_asistencia, tab_historial, tab_stats = st.tabs([
 with tab_roster:
     st.title("🔥 Gestión de Roster - Valorant")
     
-    # 1. Gráficos y Métricas
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("TOTAL JUGADORES", len(jugadores_activos))
     col2.metric("TITULARES", len(st.session_state.df_roster[st.session_state.df_roster['Estado'] == 'Titular']))
     col3.metric("SEXTO PLAYER", len(st.session_state.df_roster[st.session_state.df_roster['Estado'] == 'Sexto player']))
     col4.metric("BANCA", len(st.session_state.df_roster[st.session_state.df_roster['Estado'] == 'Banca']))
     
-    col_g1, col_g2 = st.columns(2)
-    with col_g1:
-        rol_counts = st.session_state.df_roster['Rol Principal'].value_counts().reset_index()
-        fig_roles = px.bar(rol_counts, x='Rol Principal', y='count', color_discrete_sequence=['#ff4655'], title="Distribución por Rol")
-        fig_roles.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='#ffffff', height=250)
-        st.plotly_chart(fig_roles, use_container_width=True)
-
-    with col_g2:
-        estado_counts = st.session_state.df_roster['Estado'].value_counts().reset_index()
-        fig_estado = px.pie(estado_counts, names='Estado', values='count', color_discrete_sequence=['#ff4655', '#ece8e1', '#0f1923', '#808080'], title="Estado General")
-        fig_estado.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='#ffffff', height=250)
-        st.plotly_chart(fig_estado, use_container_width=True)
-
     st.markdown("---")
     
-    # 2. Diccionario de Agentes (Colapsable)
-    with st.expander("📚 Diccionario de Agentes por Rol (Para copiar y pegar)"):
+    # Diccionario de Agentes 
+    with st.expander("📚 Diccionario de Agentes por Rol (Referencia)"):
         ca, cb, cc, cd = st.columns(4)
-        ca.info("**Duelistas:**\nJett, Neon, Raze, Reyna, Phoenix, Yoru, Iso")
-        cb.info("**Iniciadores:**\nSova, Fade, Breach, KAY/O, Skye, Gekko")
-        cc.info("**Controladores:**\nOmen, Astra, Viper, Brimstone, Harbor, Clove")
-        cd.info("**Centinelas:**\nKilljoy, Cypher, Sage, Chamber, Deadlock, Vyse")
+        ca.info(f"**Duelistas:**\n{', '.join(AGENTES_POR_ROL['Duelista'])}")
+        cb.info(f"**Iniciadores:**\n{', '.join(AGENTES_POR_ROL['Iniciador'])}")
+        cc.info(f"**Controladores:**\n{', '.join(AGENTES_POR_ROL['Controlador'])}")
+        cd.info(f"**Centinelas:**\n{', '.join(AGENTES_POR_ROL['Centinelas'])}")
 
-    # 3. Editor de Tabla Dinámica (Sincronizado)
-    st.markdown("**Planilla de Control (Puedes agregar o eliminar filas debajo de la tabla)**")
-    
-    # Configurar columnas con menús desplegables
+    # Tabla Principal
+    st.markdown("**Planilla de Control General**")
     configuracion_columnas = {
         "Rol Principal": st.column_config.SelectboxColumn("Rol Principal", options=OPCIONES_ROLES),
         "Rol Secundario": st.column_config.SelectboxColumn("Rol Secundario", options=OPCIONES_ROLES),
@@ -105,11 +94,12 @@ with tab_roster:
         "Cargo": st.column_config.SelectboxColumn("Cargo en Equipo", options=OPCIONES_CARGOS),
         "Estado": st.column_config.SelectboxColumn("Estado", options=OPCIONES_ESTADO),
         "Actividad": st.column_config.SelectboxColumn("Actividad", options=OPCIONES_ACTIVIDAD),
+        "Agentes Principales": st.column_config.TextColumn("Agentes Principales (Usa el Gestor de abajo para editar)"),
     }
     
     df_roster_editado = st.data_editor(
         st.session_state.df_roster,
-        num_rows="dynamic", # Permite agregar/quitar jugadores
+        num_rows="dynamic",
         use_container_width=True,
         hide_index=True,
         column_order=["Riot ID (Nick#TAG)", "Nombre Real", "Rol Principal", "Rol Secundario", "Agentes Principales", "Rango / Cima", "Cargo", "Estado", "Actividad", "Contacto"],
@@ -117,16 +107,53 @@ with tab_roster:
         height=350
     )
     
-    # Guardar cambios en el estado maestro (Asegurando que la columna Strikes no se pierda al editar)
     if "Strikes" not in df_roster_editado.columns:
         df_roster_editado["Strikes"] = st.session_state.df_roster["Strikes"]
-    
-    # Si se añade una fila nueva, asegurar que empiece con 0 strikes
     df_roster_editado["Strikes"] = df_roster_editado["Strikes"].fillna(0).astype(int)
     st.session_state.df_roster = df_roster_editado
 
+    # --- GESTOR INTELIGENTE DE AGENTES ---
+    st.markdown("---")
+    st.markdown("### 🎭 Gestor Dinámico de Agentes")
+    st.caption("Selecciona un jugador. El sistema detectará sus roles y te mostrará solo los agentes correspondientes.")
+    
+    if len(jugadores_activos) > 0:
+        c_sel, c_form = st.columns([1, 2])
+        with c_sel:
+            jugador_agentes = st.selectbox("1. Selecciona al Jugador:", [""] + jugadores_activos)
+        
+        if jugador_agentes != "":
+            with c_form:
+                idx = st.session_state.df_roster[st.session_state.df_roster["Nombre Real"] == jugador_agentes].index[0]
+                rol_1 = str(st.session_state.df_roster.at[idx, "Rol Principal"])
+                rol_2 = str(st.session_state.df_roster.at[idx, "Rol Secundario"])
+                
+                # Filtrar opciones basadas en los roles de la tabla
+                opciones_validas = []
+                if rol_1 in AGENTES_POR_ROL: opciones_validas.extend(AGENTES_POR_ROL[rol_1])
+                if rol_2 in AGENTES_POR_ROL: opciones_validas.extend(AGENTES_POR_ROL[rol_2])
+                opciones_validas = list(set(opciones_validas)) # Eliminar duplicados
+                
+                if not opciones_validas:
+                    st.warning("⚠️ Asigna al menos un Rol (Principal o Secundario) válido en la tabla de arriba para cargar sus agentes.")
+                else:
+                    # Leer agentes actuales
+                    agentes_str = st.session_state.df_roster.at[idx, "Agentes Principales"]
+                    agentes_actuales = [a.strip() for a in str(agentes_str).split(",")] if pd.notna(agentes_str) and str(agentes_str).strip() != "" else []
+                    agentes_actuales = [a for a in agentes_actuales if a in opciones_validas] # Limpiar agentes de roles viejos
+                    
+                    nuevos_agentes = st.multiselect(
+                        f"2. Agentes disponibles para los roles de {jugador_agentes} ({rol_1} / {rol_2}):",
+                        options=opciones_validas,
+                        default=agentes_actuales
+                    )
+                    
+                    if st.button("💾 Guardar Pool de Agentes"):
+                        st.session_state.df_roster.at[idx, "Agentes Principales"] = ", ".join(nuevos_agentes)
+                        st.rerun()
+
 # ==========================================
-# PESTAÑA 2: ASISTENCIA (Sincronizada)
+# PESTAÑA 2: ASISTENCIA 
 # ==========================================
 with tab_asistencia:
     st.title("📅 Asistencia")
@@ -154,28 +181,23 @@ with tab_asistencia:
         st.dataframe(df_editado[["Días Hábiles", "% Asistencia"]], use_container_width=True)
 
 # ==========================================
-# PESTAÑA 3: DISCIPLINA (Sincronizada)
+# PESTAÑA 3: DISCIPLINA
 # ==========================================
 with tab_historial:
     st.title("🛡️ Panel de Disciplina")
     st.info("💡 Este panel refleja exclusivamente los jugadores registrados en la pestaña Roster. Solo la columna 'Strikes' es editable aquí.")
     
     if len(jugadores_activos) > 0:
-        # Extraer solo las columnas necesarias para el panel de disciplina
         df_disc_view = st.session_state.df_roster[["Nombre Real", "Estado", "Rol Principal", "Strikes"]].copy()
-        
-        # Eliminar filas vacías para una vista limpia
         df_disc_view = df_disc_view[df_disc_view["Nombre Real"].astype(str).str.strip() != ""]
         
-        # Editor donde solo se puede modificar los Strikes
         edited_disc = st.data_editor(
             df_disc_view,
             use_container_width=True,
             hide_index=True,
-            disabled=["Nombre Real", "Estado", "Rol Principal"] # Bloquea estas columnas
+            disabled=["Nombre Real", "Estado", "Rol Principal"]
         )
         
-        # Sincronizar los Strikes modificados de vuelta al Roster principal
         for index, row in edited_disc.iterrows():
             idx_roster = st.session_state.df_roster.index[st.session_state.df_roster['Nombre Real'] == row['Nombre Real']].tolist()
             if idx_roster:
@@ -206,7 +228,6 @@ with tab_stats:
     if len(jugadores_activos) > 0:
         c_sel, c_btn = st.columns([2, 1])
         with c_sel: 
-            # Permite seleccionar por Nombre Real, pero usa el Riot ID para la URL
             nombres_roster = st.session_state.df_roster[st.session_state.df_roster["Nombre Real"].astype(str).str.strip() != ""]
             dic_nombres_riot = dict(zip(nombres_roster["Nombre Real"], nombres_roster["Riot ID (Nick#TAG)"]))
             jugador_stat = st.selectbox("Seleccionar Jugador", list(dic_nombres_riot.keys()))
@@ -218,7 +239,7 @@ with tab_stats:
                 url = f"https://tracker.gg/valorant/profile/riot/{str(riot_id_seleccionado).replace('#', '%23')}/overview"
                 st.link_button(f"🔴 Perfil en Tracker.gg", url, use_container_width=True)
             else:
-                st.error("Riot ID no válido")
+                st.error("Riot ID no válido. Asegúrate de incluir el '#' en la pestaña Roster.")
 
         st.markdown("---")
         st.markdown(f"**Captura de Rendimiento - {jugador_stat}**")
@@ -226,7 +247,5 @@ with tab_stats:
         
         if img_upload:
             st.image(img_upload, use_column_width=True, caption=f"Última actualización de stats para {jugador_stat}")
-        else:
-            st.info("💡 Haz clic en el botón superior para ver las estadísticas en vivo.")
     else:
         st.warning("Agrega jugadores en la pestaña 'Roster'.")
