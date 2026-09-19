@@ -7,52 +7,75 @@ from oauth2client.service_account import ServiceAccountCredentials
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Scarlet Multi-Divisiones", page_icon="🔥", layout="wide")
 
+# URL OFICIAL DEL LOGO PROPORCIONADA
+URL_LOGO_EQUIPO = "https://cdn.discordapp.com/attachments/1272709315039592469/1275623434063314984/SCARLET.png?ex=6aaf32e6&is=6aade166&hm=4889e788d8f71a5e470db02c4c8f42b95fb19fcdce9be96f7fabab8b6fec25e4&"
+
 # --- ESTILOS EMPRESARIALES MINIMALISTAS & SCARLET THEME ---
-st.markdown("""
+st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
-    .stApp { 
+    .stApp {{ 
         background: linear-gradient(135deg, #0b1017 0%, #111a24 100%); 
         color: #e2e8f0; 
         font-family: 'Inter', sans-serif; 
-    }
+    }}
     
-    h1, h2, h3 { 
+    /* Estilo de la portada de bienvenida con fondo de imagen */
+    .hero-container {{
+        position: relative;
+        width: 100%;
+        min-height: 85vh;
+        background: linear-gradient(rgba(11, 16, 23, 0.85), rgba(17, 26, 36, 0.90)), url('{URL_LOGO_EQUIPO}');
+        background-size: cover;
+        background-position: center;
+        border-radius: 12px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 40px;
+        border: 1px solid rgba(255, 70, 85, 0.3);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+        margin-top: 20px;
+    }}
+    
+    h1, h2, h3 {{ 
         color: #ffffff !important; 
         font-weight: 700; 
         letter-spacing: -0.5px; 
-    }
+    }}
     
-    h1 {
+    h1 {{
         background: linear-gradient(90deg, #ffffff 0%, #ff4655 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        font-size: 2.2rem;
+        font-size: 2.5rem;
         border-bottom: 2px solid rgba(255, 70, 85, 0.3);
         padding-bottom: 10px;
         margin-bottom: 25px;
-    }
+    }}
 
-    div[data-testid="stMetric"] {
+    div[data-testid="stMetric"] {{
         background: linear-gradient(145deg, #16222d 0%, #0f1923 100%);
         border: 1px solid rgba(255, 70, 85, 0.3);
         padding: 15px;
         border-radius: 8px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
         transition: all 0.3s ease;
-    }
-    div[data-testid="stMetric"]:hover {
+    }}
+    div[data-testid="stMetric"]:hover {{
         border-color: #ff4655;
         box-shadow: 0 6px 25px rgba(255, 70, 85, 0.3);
-    }
-    div[data-testid="stMetricValue"] { 
+    }}
+    div[data-testid="stMetricValue"] {{ 
         color: #ff4655 !important; 
         font-weight: 700; 
-    }
+    }}
 
-    /* Botones de Barra Superior Estilo Navbar Corporativo */
-    .stButton>button { 
+    /* Botones de Barra Superior y Estilo General */
+    .stButton>button {{ 
         width: 100%;
         background: transparent !important;
         color: #cbd5e1 !important; 
@@ -63,25 +86,25 @@ st.markdown("""
         letter-spacing: 0.8px;
         text-transform: uppercase;
         transition: all 0.2s ease; 
-    }
+    }}
     
-    .stButton>button:hover { 
+    .stButton>button:hover {{ 
         color: #ff4655 !important;
         background: rgba(255, 70, 85, 0.1) !important;
         border-radius: 4px;
     }
 
-    .stTextInput input, .stSelectbox select, .stDateInput input {
+    .stTextInput input, .stSelectbox select, .stDateInput input {{
         background-color: #111a24 !important;
         color: #ffffff !important;
         border: 1px solid #233242 !important;
         border-radius: 6px !important;
         padding: 10px !important;
-    }
-    .stTextInput input:focus, .stSelectbox select:focus {
+    }}
+    .stTextInput input:focus, .stSelectbox select:focus {{
         border-color: #ff4655 !important;
         box-shadow: 0 0 0 2px rgba(255, 70, 85, 0.2) !important;
-    }
+    }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -216,36 +239,69 @@ if 'autenticado' not in st.session_state: st.session_state.autenticado = False
 if 'rol_usuario' not in st.session_state: st.session_state.rol_usuario = None
 if 'nombre_usuario' not in st.session_state: st.session_state.nombre_usuario = None
 if 'menu_activo' not in st.session_state: st.session_state.menu_activo = "Roster"
-if 'division_activa' not in st.session_state: st.session_state.division_activa = "Valorant A"
+if 'division_activa' not in st.session_state: st.session_state.division_activa = None
 if 'division_autenticada' not in st.session_state: st.session_state.division_autenticada = None
 
 
 # ==========================================
-# SELECCIÓN DE DIVISIÓN GLOBAL (BARRA SUPERIOR)
+# PORTADA DE BIENVENIDA (LANDING PAGE) SI NO HAY DIVISIÓN SELECCIONADA
+# ==========================================
+if st.session_state.division_activa is None:
+    st.markdown(f"""
+        <div class="hero-container">
+            <img src="{URL_LOGO_EQUIPO}" width="120" style="margin-bottom: 20px; border-radius: 50%; box-shadow: 0 0 20px rgba(255, 70, 85, 0.5);">
+            <h1 style="border: none; margin-bottom: 10px;">SCARLET ESPORTS ORGANIZATION</h1>
+            <p style="font-size: 1.2rem; color: #94a3b8; max-width: 600px; margin-bottom: 30px;">
+                Sistema integral de gestión de planteles, control de asistencia, seguimiento disciplinario y analítica por división.
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("<h3 style='text-align: center; margin-top: 30px;'>Selecciona la División a la que deseas ingresar:</h3>", unsafe_allow_html=True)
+    
+    # Crear botones organizados en columnas para seleccionar la división
+    cols_divs = st.columns(len(DIVISIONES_DISPONIBLES))
+    for idx, div_nombre in enumerate(DIVISIONES_DISPONIBLES):
+        with cols_divs[idx]:
+            if st.button(div_nombre, key=f"btn_div_{idx}"):
+                st.session_state.division_activa = div_nombre
+                st.rerun()
+    st.stop()
+
+
+# ==========================================
+# CARGAR HOJAS DE LA DIVISIÓN ACTIVA SELECCIONADA
+# ==========================================
+sheet_roster, sheet_asistencia, sheet_disciplina, sheet_config = obtener_hojas_division(st.session_state.division_activa)
+df_config_live = cargar_configuracion_fresco(sheet_config)
+
+
+# ==========================================
+# BARRA SUPERIOR CON CAMBIO DE DIVISIÓN Y LOGO
 # ==========================================
 st.markdown("""
     <div style="background-color: #0b1017; border-bottom: 2px solid #ff4655; padding: 12px 0px 8px 0px; margin-bottom: 15px;">
     </div>
 """, unsafe_allow_html=True)
 
-c_div_1, c_div_2 = st.columns([1, 3])
+c_div_1, c_div_2, c_div_3 = st.columns([0.8, 2, 1])
 with c_div_1:
-    URL_LOGO_EQUIPO = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60"
     st.image(URL_LOGO_EQUIPO, width=45)
 with c_div_2:
-    division_seleccionada = st.selectbox("Seleccionar División Activa", DIVISIONES_DISPONIBLES, index=DIVISIONES_DISPONIBLES.index(st.session_state.division_activa))
-    if division_seleccionada != st.session_state.division_activa:
-        st.session_state.division_activa = division_seleccionada
-        # Si cambia de división, exigir nueva autenticación para mantener aislamiento estricto
-        if st.session_state.division_autenticada != division_seleccionada:
-            st.session_state.autenticado = False
-            st.session_state.rol_usuario = None
-            st.session_state.nombre_usuario = None
+    nueva_div = st.selectbox("Cambiar División Activa", DIVISIONES_DISPONIBLES, index=DIVISIONES_DISPONIBLES.index(st.session_state.division_activa))
+    if nueva_div != st.session_state.division_activa:
+        st.session_state.division_activa = nueva_div
+        st.session_state.autenticado = False
+        st.session_state.rol_usuario = None
+        st.session_state.nombre_usuario = None
         st.rerun()
-
-# Cargar hojas exclusivas de la división activa seleccionada
-sheet_roster, sheet_asistencia, sheet_disciplina, sheet_config = obtener_hojas_division(st.session_state.division_activa)
-df_config_live = cargar_configuracion_fresco(sheet_config)
+with c_div_3:
+    if st.button("🏠 Volver al Inicio"):
+        st.session_state.division_activa = None
+        st.session_state.autenticado = False
+        st.session_state.rol_usuario = None
+        st.session_state.nombre_usuario = None
+        st.rerun()
 
 
 # ==========================================
