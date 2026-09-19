@@ -5,7 +5,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
 # --- CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(page_title="Scarlet Roster - Google Sheets", page_icon="🔥", layout="wide")
+st.set_page_config(page_title="Scarlet Roster - Sistema Seguro", page_icon="🔥", layout="wide")
 
 # --- ESTILOS CORPORATIVOS ---
 st.markdown("""
@@ -39,6 +39,13 @@ DATOS_INICIALES_ROSTER = pd.DataFrame({
     "Notas / Observaciones": ["", "", "", "", "", "", ""]
 })
 
+DATOS_INICIALES_CONFIG = pd.DataFrame({
+    "Usuario": ["admin", "maximiliano", "lientur", "facundo", "leonardo", "felipe", "ian", "leonel"],
+    "Contraseña": ["admin123", "1234", "1234", "1234", "1234", "1234", "1234", "1234"],
+    "Rol": ["admin", "jugador", "jugador", "jugador", "jugador", "jugador", "jugador", "jugador"],
+    "Nombre Real Vinculado": ["", "Maximiliano", "Lientur", "Facundo", "Leonardo", "Felipe", "Ian", "Leonel"]
+})
+
 # --- CONEXIÓN Y CREACIÓN AUTOMÁTICA DE MULTI-HOJAS ---
 @st.cache_resource
 def conectar_google_sheets():
@@ -48,18 +55,16 @@ def conectar_google_sheets():
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         client = gspread.authorize(creds)
         
-        # Abre el documento principal
         spreadsheet = client.open("crea el proyecto en formato hoja de calculo como...")
         
-        # 1. Pestaña Control General (Roster)
+        # 1. Roster
         try:
             sheet_roster = spreadsheet.worksheet("Control General")
         except gspread.exceptions.WorksheetNotFound:
             sheet_roster = spreadsheet.add_worksheet(title="Control General", rows="100", cols="15")
-            data_to_upload = [DATOS_INICIALES_ROSTER.columns.values.tolist()] + DATOS_INICIALES_ROSTER.values.tolist()
-            sheet_roster.update(data_to_upload)
+            sheet_roster.update([DATOS_INICIALES_ROSTER.columns.values.tolist()] + DATOS_INICIALES_ROSTER.values.tolist())
 
-        # 2. Pestaña Asistencia
+        # 2. Asistencia
         try:
             sheet_asistencia = spreadsheet.worksheet("Asistencia")
         except gspread.exceptions.WorksheetNotFound:
@@ -67,22 +72,28 @@ def conectar_google_sheets():
             df_asistencia_init = pd.DataFrame(columns=["Nombre Real", "Mes", "Días Hábiles"] + [str(i) for i in range(1, 32)])
             sheet_asistencia.update([df_asistencia_init.columns.values.tolist()])
 
-        # 3. Pestaña Disciplina
+        # 3. Disciplina
         try:
             sheet_disciplina = spreadsheet.worksheet("Disciplina")
         except gspread.exceptions.WorksheetNotFound:
             sheet_disciplina = spreadsheet.add_worksheet(title="Disciplina", rows="100", cols="10")
             df_disc_init = pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])
             sheet_disciplina.update([df_disc_init.columns.values.tolist()])
+
+        # 4. Configuración (Usuarios y Claves)
+        try:
+            sheet_config = spreadsheet.worksheet("Configuracion")
+        except gspread.exceptions.WorksheetNotFound:
+            sheet_config = spreadsheet.add_worksheet(title="Configuracion", rows="50", cols="5")
+            sheet_config.update([DATOS_INICIALES_CONFIG.columns.values.tolist()] + DATOS_INICIALES_CONFIG.values.tolist())
             
-        return spreadsheet, sheet_roster, sheet_asistencia, sheet_disciplina
+        return spreadsheet, sheet_roster, sheet_asistencia, sheet_disciplina, sheet_config
     except Exception as e:
         st.error(f"Error crítico conectando a Google Sheets: {e}")
-        return None, None, None, None
+        return None, None, None, None, None
 
-spreadsheet, sheet_roster, sheet_asistencia, sheet_disciplina = conectar_google_sheets()
+spreadsheet, sheet_roster, sheet_asistencia, sheet_disciplina, sheet_config = conectar_google_sheets()
 
-# --- FUNCIONES DE CARGA Y GUARDADO GENERALES ---
 def guardar_en_sheet(sheet_obj, df):
     if sheet_obj is not None:
         try:
@@ -118,12 +129,105 @@ def cargar_incidencias():
             return pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])
     return pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])
 
+def cargar_configuracion():
+    if sheet_config is not None:
+        try:
+            data = sheet_config.get_all_records()
+            if not data:
+                guardar_en_sheet(sheet_config, DATOS_INICIALES_CONFIG)
+                return DATOS_INICIALES_CONFIG.copy()
+            df = pd.DataFrame(data)
+            return DATOS_INICIALES_CONFIG.copy() if df.empty else df
+        except:
+            return DATOS_INICIALES_CONFIG.copy()
+    return DATOS_INICIALES_CONFIG.copy()
+
 # --- ESTADOS DE LA SESIÓN ---
 if 'df_roster' not in st.session_state:
     st.session_state.df_roster = cargar_roster()
 
 if 'df_incidencias' not in st.session_state:
     st.session_state.df_incidencias = cargar_incidencias()
+
+if 'df_config' not in st.session_state:
+    st.session_state.df_config = cargar_configuracion()
+
+if 'autenticado' not in st.session_state:
+    st.session_state.autenticado = False
+
+if 'rol_usuario' not in st.session_state:
+    st.session_state.rol_usuario = None
+
+if 'nombre_usuario' not in st.session_state:
+    st.session_state.nombre_usuario = None
+
+
+# ==========================================
+# PANTALLA DE LOGIN / SELECCIÓN DE MODO
+# ==========================================
+if not st.session_state.autenticado:
+    st.title("🔥 Scarlet Roster - Control de Acceso")
+    st.markdown("Selecciona tu modo de acceso o inicia sesión con tus credenciales guardadas en Google Sheets.")
+    
+    col_l1, col_l2 = st.columns(2)
+    
+    with col_l1:
+        st.markdown("### 🛡️ Acceso Administrador")
+        with st.form("form_login_admin"):
+            user_admin = st.text_input("Usuario Administrador", key="input_admin_user")
+            pass_admin = st.text_input("Contraseña", type="password", key="input_admin_pass")
+            submit_admin = st.form_submit_button("Entrar como Admin")
+            
+            if submit_admin:
+                df_c = st.session_state.df_config
+                match = df_c[(df_c["Usuario"].astype(str).str.lower() == user_admin.strip().lower()) & 
+                             (df_c["Contraseña"].astype(str) == pass_admin.strip()) & 
+                             (df_c["Rol"].astype(str).str.lower() == "admin")]
+                if not match.empty:
+                    st.session_state.autenticado = True
+                    st.session_state.rol_usuario = "admin"
+                    st.session_state.nombre_usuario = "Administrador"
+                    st.success("✅ ¡Acceso concedido como Administrador!")
+                    st.rerun()
+                else:
+                    st.error("❌ Credenciales o permisos de administrador incorrectos.")
+
+    with col_l2:
+        st.markdown("### 🎮 Acceso Jugador (Modo Normal)")
+        with st.form("form_login_jugador"):
+            user_player = st.text_input("Tu Usuario / Nick en el sistema", key="input_player_user")
+            pass_player = st.text_input("Tu Contraseña", type="password", key="input_player_pass")
+            submit_player = st.form_submit_button("Entrar como Jugador")
+            
+            if submit_player:
+                df_c = st.session_state.df_config
+                match = df_c[(df_c["Usuario"].astype(str).str.lower() == user_player.strip().lower()) & 
+                             (df_c["Contraseña"].astype(str) == pass_player.strip())]
+                if not match.empty:
+                    row_match = match.iloc[0]
+                    st.session_state.autenticado = True
+                    st.session_state.rol_usuario = "jugador"
+                    st.session_state.nombre_usuario = row_match["Nombre Real Vinculado"]
+                    st.success(f"✅ ¡Bienvenido, {st.session_state.nombre_usuario}!")
+                    st.rerun()
+                else:
+                    st.error("❌ Usuario o contraseña incorrectos.")
+    
+    st.stop() # Detiene la ejecución aquí hasta que el usuario inicie sesión
+
+
+# ==========================================
+# APLICACIÓN PRINCIPAL (POST-LOGIN)
+# ==========================================
+st.sidebar.markdown(f"👤 **Conectado como:** `{st.session_state.nombre_usuario}`")
+st.sidebar.markdown(f"🏷️ **Rol:** `{st.session_state.rol_usuario.upper()}`")
+if st.sidebar.button("🚪 Cerrar Sesión"):
+    st.session_state.autenticado = False
+    st.session_state.rol_usuario = None
+    st.session_state.nombre_usuario = None
+    st.rerun()
+
+st.sidebar.markdown("---")
 
 # --- DICCIONARIOS Y LISTAS DESPLEGABLES ---
 AGENTES_POR_ROL = {
@@ -139,22 +243,22 @@ OPCIONES_CARGOS = ["Capitan", "Sub capitan", "Player", "Manager", "Coach", ""]
 OPCIONES_ESTADO = ["Titular", "Banca", "Sexto player", "En Prueba", "Inactivo", ""]
 OPCIONES_ACTIVIDAD = ["Alta", "Media", "Baja", ""]
 
-# --- PESTAÑAS PRINCIPALES ---
-tab_roster, tab_asistencia, tab_historial, tab_stats = st.tabs([
-    "📝 Roster", "📅 Asistencia", "🛡️ Disciplina", "📈 Tracker"
-])
+# --- PESTAÑAS SEGÚN ROL ---
+if st.session_state.rol_usuario == "admin":
+    tab_roster, tab_asistencia, tab_historial, tab_stats, tab_config = st.tabs([
+        "📝 Roster", "📅 Asistencia", "🛡️ Disciplina", "📈 Tracker", "⚙️ Config / Claves"
+    ])
+else:
+    tab_roster, tab_asistencia, tab_historial, tab_stats = st.tabs([
+        "📝 Roster", "📅 Asistencia", "🛡️ Mis Sanciones", "📈 Tracker"
+    ])
 
 # ==========================================
 # PESTAÑA 1: ROSTER
 # ==========================================
 with tab_roster:
-    st.title("🔥 Gestión de Roster - Sincronizado")
+    st.title("🔥 Gestión de Roster")
     
-    if spreadsheet is None:
-        st.error("⚠️ No se pudo conectar con Google Sheets. Verifica tus secretos.")
-    else:
-        st.success("🟢 Conexión activa con Google Sheets (Multi-hoja habilitada).")
-
     jugadores_activos_temp = [j for j in st.session_state.df_roster["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
     
     col1, col2, col3, col4 = st.columns(4)
@@ -165,92 +269,97 @@ with tab_roster:
     
     st.markdown("---")
     
-    configuracion_columnas = {
-        "Rol Principal": st.column_config.SelectboxColumn("Rol Principal", options=OPCIONES_ROLES),
-        "Rol Secundario": st.column_config.SelectboxColumn("Rol Secundario", options=OPCIONES_ROLES),
-        "Rango / Cima": st.column_config.SelectboxColumn("Rango / Cima", options=OPCIONES_RANGOS),
-        "Cargo en Equipo": st.column_config.SelectboxColumn("Cargo en Equipo", options=OPCIONES_CARGOS),
-        "Estado": st.column_config.SelectboxColumn("Estado", options=OPCIONES_ESTADO),
-        "Actividad": st.column_config.SelectboxColumn("Actividad", options=OPCIONES_ACTIVIDAD),
-        "Agentes Principales": st.column_config.TextColumn("Agentes Principales (Gestionable abajo ⬇️)", disabled=True),
-    }
-    
-    df_roster_editado = st.data_editor(
-        st.session_state.df_roster,
-        num_rows="dynamic",
-        use_container_width=True,
-        hide_index=True,
-        column_config=configuracion_columnas,
-        height=350,
-        key="editor_roster_principal"
-    )
-    
-    if not df_roster_editado.equals(st.session_state.df_roster):
-        st.session_state.df_roster = df_roster_editado
-        guardar_en_sheet(sheet_roster, st.session_state.df_roster)
-        st.rerun()
-
-    if st.button("🔄 Recargar Roster desde Sheets"):
-        st.session_state.df_roster = cargar_roster()
-        st.success("🔄 ¡Datos de Roster actualizados!")
-        st.rerun()
-
-    # --- GESTOR DINÁMICO DE AGENTES ---
-    st.markdown("---")
-    st.markdown("### 🎭 Gestor Dinámico de Agentes")
-    riot_ids_actuales = [r for r in st.session_state.df_roster["Riot ID (Nick#TAG)"].tolist() if str(r).strip() != "" and str(r).lower() != "nan"]
-    
-    if len(riot_ids_actuales) > 0:
-        c_sel, c_form = st.columns([1, 2])
-        with c_sel:
-            jugador_agentes = st.selectbox("1. Selecciona al Riot ID:", [""] + riot_ids_actuales, key="select_riot_agente")
+    if st.session_state.rol_usuario == "admin":
+        configuracion_columnas = {
+            "Rol Principal": st.column_config.SelectboxColumn("Rol Principal", options=OPCIONES_ROLES),
+            "Rol Secundario": st.column_config.SelectboxColumn("Rol Secundario", options=OPCIONES_ROLES),
+            "Rango / Cima": st.column_config.SelectboxColumn("Rango / Cima", options=OPCIONES_RANGOS),
+            "Cargo en Equipo": st.column_config.SelectboxColumn("Cargo en Equipo", options=OPCIONES_CARGOS),
+            "Estado": st.column_config.SelectboxColumn("Estado", options=OPCIONES_ESTADO),
+            "Actividad": st.column_config.SelectboxColumn("Actividad", options=OPCIONES_ACTIVIDAD),
+            "Agentes Principales": st.column_config.TextColumn("Agentes Principales (Gestionable abajo ⬇️)", disabled=True),
+        }
         
-        if jugador_agentes != "":
-            with c_form:
-                filas_coinciondentes = st.session_state.df_roster[st.session_state.df_roster["Riot ID (Nick#TAG)"] == jugador_agentes]
-                if not filas_coinciondentes.empty:
-                    idx = filas_coinciondentes.index[0]
-                    rol_1 = str(st.session_state.df_roster.at[idx, "Rol Principal"])
-                    rol_2 = str(st.session_state.df_roster.at[idx, "Rol Secundario"])
-                    
-                    opciones_validas = []
-                    if rol_1 in AGENTES_POR_ROL: opciones_validas.extend(AGENTES_POR_ROL[rol_1])
-                    if rol_2 in AGENTES_POR_ROL: opciones_validas.extend(AGENTES_POR_ROL[rol_2])
-                    opciones_validas = list(set(opciones_validas))
-                    
-                    if not opciones_validas:
-                        st.warning("⚠️ Asigna al menos un Rol válido en la tabla superior para este jugador.")
-                    else:
-                        agentes_str = st.session_state.df_roster.at[idx, "Agentes Principales"]
-                        agentes_actuales = [a.strip() for a in str(agentes_str).split(",")] if pd.notna(agentes_str) and str(agentes_str).strip() != "" else []
-                        agentes_actuales = [a for a in agentes_actuales if a in opciones_validas]
+        df_roster_editado = st.data_editor(
+            st.session_state.df_roster,
+            num_rows="dynamic",
+            use_container_width=True,
+            hide_index=True,
+            column_config=configuracion_columnas,
+            height=350,
+            key="editor_roster_principal"
+        )
+        
+        if not df_roster_editado.equals(st.session_state.df_roster):
+            st.session_state.df_roster = df_roster_editado
+            guardar_en_sheet(sheet_roster, st.session_state.df_roster)
+            st.rerun()
+
+        if st.button("🔄 Recargar Roster desde Sheets"):
+            st.session_state.df_roster = cargar_roster()
+            st.success("🔄 ¡Datos actualizados!")
+            st.rerun()
+
+        # --- GESTOR DINÁMICO DE AGENTES (SOLO ADMIN) ---
+        st.markdown("---")
+        st.markdown("### 🎭 Gestor Dinámico de Agentes")
+        riot_ids_actuales = [r for r in st.session_state.df_roster["Riot ID (Nick#TAG)"].tolist() if str(r).strip() != "" and str(r).lower() != "nan"]
+        
+        if len(riot_ids_actuales) > 0:
+            c_sel, c_form = st.columns([1, 2])
+            with c_sel:
+                jugador_agentes = st.selectbox("1. Selecciona al Riot ID:", [""] + riot_ids_actuales, key="select_riot_agente")
+            
+            if jugador_agentes != "":
+                with c_form:
+                    filas_coinciondentes = st.session_state.df_roster[st.session_state.df_roster["Riot ID (Nick#TAG)"] == jugador_agentes]
+                    if not filas_coinciondentes.empty:
+                        idx = filas_coinciondentes.index[0]
+                        rol_1 = str(st.session_state.df_roster.at[idx, "Rol Principal"])
+                        rol_2 = str(st.session_state.df_roster.at[idx, "Rol Secundario"])
                         
-                        nuevos_agentes = st.multiselect(
-                            f"2. Agentes disponibles para {jugador_agentes} ({rol_1} / {rol_2}):",
-                            options=opciones_validas,
-                            default=agentes_actuales,
-                            key=f"multi_agentes_{jugador_agentes}"
-                        )
+                        opciones_validas = []
+                        if rol_1 in AGENTES_POR_ROL: opciones_validas.extend(AGENTES_POR_ROL[rol_1])
+                        if rol_2 in AGENTES_POR_ROL: opciones_validas.extend(AGENTES_POR_ROL[rol_2])
+                        opciones_validas = list(set(opciones_validas))
                         
-                        nuevos_str = ", ".join(nuevos_agentes)
-                        if agentes_str != nuevos_str:
-                            st.session_state.df_roster.at[idx, "Agentes Principales"] = nuevos_str
-                            guardar_en_sheet(sheet_roster, st.session_state.df_roster)
-                            st.rerun()
+                        if not opciones_validas:
+                            st.warning("⚠️ Asigna al menos un Rol válido en la tabla superior para este jugador.")
+                        else:
+                            agentes_str = st.session_state.df_roster.at[idx, "Agentes Principales"]
+                            agentes_actuales = [a.strip() for a in str(agentes_str).split(",")] if pd.notna(agentes_str) and str(agentes_str).strip() != "" else []
+                            agentes_actuales = [a for a in agentes_actuales if a in opciones_validas]
+                            
+                            nuevos_agentes = st.multiselect(
+                                f"2. Agentes disponibles para {jugador_agentes} ({rol_1} / {rol_2}):",
+                                options=opciones_validas,
+                                default=agentes_actuales,
+                                key=f"multi_agentes_{jugador_agentes}"
+                            )
+                            
+                            nuevos_str = ", ".join(nuevos_agentes)
+                            if agentes_str != nuevos_str:
+                                st.session_state.df_roster.at[idx, "Agentes Principales"] = nuevos_str
+                                guardar_en_sheet(sheet_roster, st.session_state.df_roster)
+                                st.rerun()
+    else:
+        # Modo Normal: Solo visualización del Roster
+        st.info("👁️ Modo Visualización: Solo puedes ver el estado del equipo y consultar los agentes.")
+        st.dataframe(st.session_state.df_roster, use_container_width=True, hide_index=True)
+
 
 # ==========================================
 # PESTAÑA 2: ASISTENCIA 
 # ==========================================
 with tab_asistencia:
-    st.title("📅 Asistencia - Sincronizado con Google Sheets")
+    st.title("📅 Control de Asistencia")
     jugadores_activos = [j for j in st.session_state.df_roster["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
     
     if len(jugadores_activos) == 0:
-        st.warning("Agrega jugadores en la pestaña 'Roster' para ver la asistencia.")
+        st.warning("No hay jugadores registrados en el Roster.")
     else:
         mes_seleccionado = st.selectbox("Seleccionar Mes", ["Septiembre", "Octubre", "Noviembre", "Diciembre"])
         
-        # Intentar cargar asistencia guardada desde Google Sheets
         df_asistencia_guardada = pd.DataFrame()
         if sheet_asistencia is not None:
             try:
@@ -261,14 +370,11 @@ with tab_asistencia:
                 pass
 
         dias_mes = [str(i) for i in range(1, 32)]
-        
-        # Construir matriz limpia para el mes seleccionado
         df_mes = pd.DataFrame(index=jugadores_activos, columns=dias_mes).fillna("-")
         df_mes["Días Hábiles"] = 22
         df_mes["Mes"] = mes_seleccionado
         df_mes = df_mes.reset_index().rename(columns={"index": "Nombre Real"})
 
-        # Si ya existen datos guardados previamente para este mes, los combinamos
         if not df_asistencia_guardada.empty and "Mes" in df_asistencia_guardada.columns and "Nombre Real" in df_asistencia_guardada.columns:
             df_mes_filtrado = df_asistencia_guardada[df_asistencia_guardada["Mes"] == mes_seleccionado]
             for idx, row in df_mes_filtrado.iterrows():
@@ -289,33 +395,39 @@ with tab_asistencia:
             asistencia = sum(row[dias_mes] == "P") + sum(row[dias_mes] == "J") + (sum(row[dias_mes] == "T") * 0.8)
             return f"{min((asistencia / dias) * 100, 100):.0f}%"
 
-        df_editado = st.data_editor(df_mes, use_container_width=True, key="editor_asistencia_mes")
-        df_editado["% Asistencia"] = df_editado.apply(calcular_porcentaje, axis=1)
-        st.dataframe(df_editado[["Mes", "Días Hábiles", "% Asistencia"]], use_container_width=True)
+        if st.session_state.rol_usuario == "admin":
+            df_editado = st.data_editor(df_mes, use_container_width=True, key="editor_asistencia_mes")
+            df_editado["% Asistencia"] = df_editado.apply(calcular_porcentaje, axis=1)
+            st.dataframe(df_editado[["Mes", "Días Hábiles", "% Asistencia"]], use_container_width=True)
 
-        # Botón para guardar cambios de asistencia en Google Sheets de forma permanente
-        if st.button("💾 Guardar Cambios de Asistencia en Sheets"):
-            df_para_guardar = df_editado.reset_index()
-            # Si hay registros de otros meses en la nube, los unimos para no perderlos
-            if not df_asistencia_guardada.empty:
-                otros_meses = df_asistencia_guardada[df_asistencia_guardada["Mes"] != mes_seleccionado]
-                df_final_asis = pd.concat([otros_meses, df_para_guardar], ignore_index=True)
+            if st.button("💾 Guardar Cambios de Asistencia en Sheets"):
+                df_para_guardar = df_editado.reset_index()
+                if not df_asistencia_guardada.empty:
+                    otros_meses = df_asistencia_guardada[df_asistencia_guardada["Mes"] != mes_seleccionado]
+                    df_final_asis = pd.concat([otros_meses, df_para_guardar], ignore_index=True)
+                else:
+                    df_final_asis = df_para_guardar
+                guardar_en_sheet(sheet_asistencia, df_final_asis)
+                st.success("✅ ¡Asistencia guardada correctamente!")
+        else:
+            # Modo Normal: Solo ve su propia asistencia
+            df_mes["% Asistencia"] = df_mes.apply(calcular_porcentaje, axis=1)
+            if st.session_state.nombre_usuario in df_mes.index:
+                df_personal = df_mes.loc[[st.session_state.nombre_usuario]]
+                st.markdown(f"### Tu Asistencia: {st.session_state.nombre_usuario}")
+                st.dataframe(df_personal, use_container_width=True)
             else:
-                df_final_asis = df_para_guardar
-            guardar_en_sheet(sheet_asistencia, df_final_asis)
-            st.success("✅ ¡Asistencia guardada correctamente en Google Sheets!")
+                st.info("No se encontró registro de asistencia asociado a tu usuario.")
+
 
 # ==========================================
-# PESTAÑA 3: DISCIPLINA
+# PESTAÑA 3: DISCIPLINA / MIS SANCIONES
 # ==========================================
 with tab_historial:
-    st.title("🛡️ Panel de Disciplina - Sincronizado")
-    
-    jugadores_activos = [j for j in st.session_state.df_roster["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
-    
-    if len(jugadores_activos) == 0:
-        st.warning("Agrega jugadores en la pestaña 'Roster' para iniciar el control de disciplina.")
-    else:
+    if st.session_state.rol_usuario == "admin":
+        st.title("🛡️ Panel de Disciplina y Conducta")
+        jugadores_activos = [j for j in st.session_state.df_roster["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
+        
         sub_gen, sub_ind = st.tabs(["📋 Historial General e Ingreso", "👤 Anotaciones por Jugador"])
         
         with sub_gen:
@@ -340,11 +452,11 @@ with tab_historial:
                     }])
                     st.session_state.df_incidencias = pd.concat([st.session_state.df_incidencias, nueva_fila], ignore_index=True)
                     guardar_en_sheet(sheet_disciplina, st.session_state.df_incidencias)
-                    st.success(f"✅ Incidencia registrada y guardada en Google Sheets para {jugador_sel}.")
+                    st.success(f"✅ Incidencia registrada para {jugador_sel}.")
                     st.rerun()
             
             st.markdown("---")
-            st.markdown("### Historial Completo de Incidencias (Nube)")
+            st.markdown("### Historial Completo de Incidencias")
             if not st.session_state.df_incidencias.empty:
                 st.dataframe(st.session_state.df_incidencias, use_container_width=True, hide_index=True)
             else:
@@ -352,22 +464,39 @@ with tab_historial:
 
         with sub_ind:
             st.markdown("### Expediente Individual por Jugador")
-            jugador_individual = st.selectbox("Selecciona un jugador para ver sus notas exclusivas:", jugadores_activos, key="select_jugador_ind")
-            
+            jugador_individual = st.selectbox("Selecciona un jugador:", jugadores_activos, key="select_jugador_ind")
             if not st.session_state.df_incidencias.empty:
                 df_filtrado = st.session_state.df_incidencias[st.session_state.df_incidencias["Jugador"] == jugador_individual]
-                
                 col_i1, col_i2 = st.columns(2)
-                col_i1.metric(f"TOTAL ANOTACIONES DE {jugador_individual.upper()}", len(df_filtrado))
+                col_i1.metric(f"TOTAL ANOTACIONES", len(df_filtrado))
                 col_i2.metric("SANCIONES ACTIVAS", len(df_filtrado[df_filtrado["Sanción"] != "Ninguna"]))
-                
                 st.markdown("---")
                 if not df_filtrado.empty:
                     st.dataframe(df_filtrado[["Fecha", "Tipo", "Sanción", "Detalles"]], use_container_width=True, hide_index=True)
                 else:
-                    st.info(f"✨ El jugador {jugador_individual} no tiene ninguna anotación ni incidencia registrada en su historial.")
+                    st.info("El jugador no tiene anotaciones.")
             else:
-                st.info("Aún no se han registrado incidencias en el sistema.")
+                st.info("Aún no hay incidencias.")
+    else:
+        # Modo Normal: Pestaña "Mis Sanciones"
+        st.title("🛡️ Mis Sanciones y Anotaciones")
+        mi_nombre = st.session_state.nombre_usuario
+        
+        if not st.session_state.df_incidencias.empty and mi_nombre:
+            df_mis_inc = st.session_state.df_incidencias[st.session_state.df_incidencias["Jugador"].str.lower() == mi_nombre.lower()]
+            
+            col_m1, col_m2 = st.columns(2)
+            col_m1.metric("TOTAL ANOTACIONES", len(df_mis_inc))
+            col_m2.metric("SANCIONES ACTIVAS", len(df_mis_inc[df_mis_inc["Sanción"] != "Ninguna"]))
+            
+            st.markdown("---")
+            if not df_mis_inc.empty:
+                st.dataframe(df_mis_inc[["Fecha", "Tipo", "Sanción", "Detalles"]], use_container_width=True, hide_index=True)
+            else:
+                st.success("✨ ¡Excelente! No tienes ninguna sanción ni advertencia registrada en tu expediente.")
+        else:
+            st.info("No hay registros en el sistema.")
+
 
 # ==========================================
 # PESTAÑA 4: TRACKER Y STATS
@@ -381,7 +510,13 @@ with tab_stats:
         with c_sel: 
             nombres_roster = st.session_state.df_roster[st.session_state.df_roster["Nombre Real"].astype(str).str.strip() != ""]
             dic_nombres_riot = dict(zip(nombres_roster["Nombre Real"], nombres_roster["Riot ID (Nick#TAG)"]))
-            jugador_stat = st.selectbox("Seleccionar Jugador", list(dic_nombres_riot.keys()), key="select_stats_jugador")
+            
+            # Si es jugador normal, preseleccionar su propio nombre si existe en el diccionario
+            default_idx = 0
+            if st.session_state.rol_usuario == "jugador" and st.session_state.nombre_usuario in list(dic_nombres_riot.keys()):
+                default_idx = list(dic_nombres_riot.keys()).index(st.session_state.nombre_usuario)
+                
+            jugador_stat = st.selectbox("Seleccionar Jugador", list(dic_nombres_riot.keys()), index=default_idx, key="select_stats_jugador")
             
         with c_btn:
             st.markdown("<br>", unsafe_allow_html=True)
@@ -390,7 +525,7 @@ with tab_stats:
                 url = f"https://tracker.gg/valorant/profile/riot/{str(riot_id_seleccionado).replace('#', '%23')}/overview"
                 st.link_button(f"🔴 Perfil en Tracker.gg", url, use_container_width=True)
             else:
-                st.error("Riot ID no válido en Sheets. Asegúrate de incluir el '#' en la columna Riot ID.")
+                st.error("Riot ID no válido en Sheets.")
 
         st.markdown("---")
         st.markdown(f"**Captura de Rendimiento - {jugador_stat}**")
@@ -398,4 +533,31 @@ with tab_stats:
         if img_upload:
             st.image(img_upload, use_column_width=True, caption=f"Última actualización de stats para {jugador_stat}")
     else:
-        st.warning("Agrega jugadores en la pestaña 'Roster'.")
+        st.warning("No hay jugadores en el Roster.")
+
+
+# ==========================================
+# PESTAÑA 5: CONFIGURACIÓN Y CLAVES (SOLO ADMIN)
+# ==========================================
+if st.session_state.rol_usuario == "admin":
+    with tab_config:
+        st.title("⚙️ Configuración y Gestión de Credenciales")
+        st.markdown("Aquí puedes gestionar los usuarios, contraseñas y roles de acceso que se guardan en la hoja **Configuracion** de tu Google Sheets.")
+        
+        config_editado = st.data_editor(
+            st.session_state.df_config,
+            num_rows="dynamic",
+            use_container_width=True,
+            hide_index=True,
+            key="editor_configuracion"
+        )
+        
+        if not config_editado.equals(st.session_state.df_config):
+            st.session_state.df_config = config_editado
+            guardar_en_sheet(sheet_config, st.session_state.df_config)
+            st.success("✅ ¡Credenciales y configuración guardadas en Google Sheets!")
+
+        if st.button("🔄 Recargar Configuración"):
+            st.session_state.df_config = cargar_configuracion()
+            st.success("🔄 ¡Datos de configuración recargados!")
+            st.rerun()
