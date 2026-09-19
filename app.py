@@ -13,7 +13,7 @@ URL_LOGO_EQUIPO = "https://cdn.discordapp.com/attachments/1272709315039592469/12
 # CONTRASEÑA GLOBAL DE SUPER ADMINISTRADOR
 CLAVE_SUPER_ADMIN = "super_secret_2026"
 
-# URLs DE LOS LOGOS DE CADA JUEGO (Puedes modificarlas aquí libremente)
+# URLS DE LOS LOGOS DE CADA JUEGO (Puedes modificarlas aquí libremente)
 LOGOS_DIVISIONES = {
     "Valorant A": "https://images.seeklogo.com/logo-png/37/1/valorant-logo-png_seeklogo-379976.png",
     "Valorant B": "https://images.seeklogo.com/logo-png/37/1/valorant-logo-png_seeklogo-379976.png",
@@ -188,7 +188,7 @@ def conectar_google_sheets():
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         client = gspread.authorize(creds)
         
-        spreadsheet = client.open("crea el proyecto en formato hoja de calculo como...")
+        spreadsheet = client.open("Scarlet_Esports_Database")
         return spreadsheet
     except Exception as e:
         st.error(f"Error crítico conectando a Google Sheets: {e}")
