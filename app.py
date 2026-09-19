@@ -9,7 +9,7 @@ st.set_page_config(page_title="Scarlet Multi-Divisiones", page_icon="🔥", layo
 
 URL_LOGO_EQUIPO = "https://cdn.discordapp.com/attachments/1272709315039592469/1275623434063314984/SCARLET.png?ex=6aaf32e6&is=6aade166&hm=4889e788d8f71a5e470db02c4c8f42b95fb19fcdce9be96f7fabab8b6fec25e4&"
 
-# CREDENCIALES FIJAS DE SUPER ADMINISTRADOR PARA GARANTIZAR ACCESO
+# CREDENCIALES FIJAS DE SUPER ADMINISTRADOR GLOBALES
 SUPER_USER_DEF = "superadmin"
 SUPER_PASS_DEF = "scarlet2026"
 
@@ -181,8 +181,8 @@ def cargar_configuracion_fresco(sheet_config):
                 guardar_en_sheet(sheet_config, DATOS_INICIALES_CONFIG)
                 return DATOS_INICIALES_CONFIG.copy()
             
-            # Verificar si existe el super_admin en la hoja, si no, agregarlo automáticamente y actualizar Google Sheets
-            df["Usuario_lower"] = df["Usuario"].astype(str).str.lower()
+            # Garantizar que superadmin exista en la base de datos de esta división
+            df["Usuario_lower"] = df["Usuario"].astype(str).str.lower().str.strip()
             if not (df["Usuario_lower"] == SUPER_USER_DEF).any():
                 nueva_fila = pd.DataFrame([{
                     "Usuario": SUPER_USER_DEF,
@@ -199,14 +199,14 @@ def cargar_configuracion_fresco(sheet_config):
             return DATOS_INICIALES_CONFIG.copy()
     return DATOS_INICIALES_CONFIG.copy()
 
+# Estados globales de sesión
 if 'autenticado' not in st.session_state: st.session_state.autenticado = False
 if 'rol_usuario' not in st.session_state: st.session_state.rol_usuario = None
 if 'nombre_usuario' not in st.session_state: st.session_state.nombre_usuario = None
 if 'menu_activo' not in st.session_state: st.session_state.menu_activo = "Roster"
 if 'division_activa' not in st.session_state: st.session_state.division_activa = None
-if 'division_autenticada' not in st.session_state: st.session_state.division_autenticada = None
 
-# Portada de bienvenida
+# Si no hay división activa, mostrar portada
 if st.session_state.division_activa is None:
     st.markdown(f"""
         <div class="hero-container" style="background: linear-gradient(rgba(11, 16, 23, 0.88), rgba(17, 26, 36, 0.92)), url('{URL_LOGO_EQUIPO}'); background-size: cover; background-position: center;">
@@ -238,6 +238,7 @@ if st.session_state.division_activa is None:
 sheet_roster, sheet_asistencia, sheet_disciplina, sheet_config = obtener_hojas_division(st.session_state.division_activa)
 df_config_live = cargar_configuracion_fresco(sheet_config)
 
+# --- BARRA SUPERIOR (SELECTOR DE DIVISIONES PERSISTENTE PARA SUPER ADMIN) ---
 st.markdown("""
     <div style="background-color: #0b1017; border-bottom: 2px solid #ff4655; padding: 12px 0px 8px 0px; margin-bottom: 15px;">
     </div>
@@ -246,17 +247,17 @@ st.markdown("""
 c_div_1, c_div_2, c_div_3 = st.columns([0.8, 2, 1])
 with c_div_1:
     st.image(URL_LOGO_EQUIPO, width=45)
+
 with c_div_2:
+    # Si es super_admin, se permite cambiar de división directamente SIN requerir contraseña de nuevo
     if st.session_state.autenticado and st.session_state.rol_usuario == "super_admin":
         nueva_div = st.selectbox("Cambiar División Activa", DIVISIONES_DISPONIBLES, index=DIVISIONES_DISPONIBLES.index(st.session_state.division_activa))
         if nueva_div != st.session_state.division_activa:
             st.session_state.division_activa = nueva_div
-            st.session_state.autenticado = False
-            st.session_state.rol_usuario = None
-            st.session_state.nombre_usuario = None
-            st.rerun()
+            st.rerun() # Recarga manteniendo la sesión de super_admin intacta
     else:
         st.markdown(f"<h4 style='color: #ff4655; padding-top: 8px;'>División: {st.session_state.division_activa}</h4>", unsafe_allow_html=True)
+
 with c_div_3:
     if st.button("🏠 Volver al Inicio"):
         st.session_state.division_activa = None
@@ -265,6 +266,7 @@ with c_div_3:
         st.session_state.nombre_usuario = None
         st.rerun()
 
+# Pantalla de Login (Si no está autenticado)
 if not st.session_state.autenticado:
     st.title(f"SCARLET ROSTER — {st.session_state.division_activa.upper()}")
     st.markdown(f"Base de datos y credenciales para **{st.session_state.division_activa}**.")
@@ -280,8 +282,8 @@ if not st.session_state.autenticado:
             submit_admin = st.form_submit_button("AUTORIZAR ACCESO")
             
             if submit_admin:
-                match = df_config_live[(df_config_live["Usuario"].astype(str).str.lower() == user_admin.strip().lower()) & 
-                                       (df_config_live["Contraseña"].astype(str) == pass_admin.strip())]
+                match = df_config_live[(df_config_live["Usuario"].astype(str).str.lower().str.strip() == user_admin.strip().lower()) & 
+                                       (df_config_live["Contraseña"].astype(str).str.strip() == pass_admin.strip())]
                 if not match.empty:
                     row_match = match.iloc[0]
                     rol_encontrado = str(row_match["Rol"]).strip().lower()
@@ -289,8 +291,7 @@ if not st.session_state.autenticado:
                     if rol_encontrado in ["admin", "super_admin"]:
                         st.session_state.autenticado = True
                         st.session_state.rol_usuario = rol_encontrado
-                        st.session_state.nombre_usuario = row_match.get("Nombre Real Vinculado", "Administrador")
-                        st.session_state.division_autenticada = st.session_state.division_activa
+                        st.session_state.nombre_usuario = row_match.get("Nombre Real Vinculado", "Super Administrador")
                         st.success(f"Acceso autorizado como {rol_encontrado.upper()}. Redirigiendo...")
                         st.rerun()
                     else:
@@ -303,14 +304,14 @@ if not st.session_state.autenticado:
             user_player = st.text_input("Usuario", key="input_player_user")
             pass_player = st.text_input("Contraseña", type="password", key="input_player_pass")
             if st.form_submit_button("INICIAR SESIÓN"):
-                match = df_config_live[(df_config_live["Usuario"].astype(str).str.lower() == user_player.strip().lower()) & 
-                                       (df_config_live["Contraseña"].astype(str) == pass_player.strip()) &
+                match = df_config_live[(df_config_live["Usuario"].astype(str).str.lower().str.strip() == user_player.strip().lower()) & 
+                                       (df_config_live["Contraseña"].astype(str).str.strip() == pass_player.strip()) &
                                        (df_config_live["Rol"].astype(str).str.lower() == "jugador")]
                 if not match.empty:
+                    row_match = match.iloc[0]
                     st.session_state.autenticado = True
                     st.session_state.rol_usuario = "jugador"
-                    st.session_state.nombre_usuario = match.iloc[0]["Nombre Real Vinculado"]
-                    st.session_state.division_autenticada = st.session_state.division_activa
+                    st.session_state.nombre_usuario = row_match["Nombre Real Vinculado"]
                     st.rerun()
                 else:
                     st.error("Usuario o contraseña incorrectos.")
@@ -347,6 +348,7 @@ if not st.session_state.autenticado:
                     st.success("Registrado correctamente. Ya puedes iniciar sesión.")
     st.stop()
 
+# --- APLICACIÓN PRINCIPAL ---
 if st.session_state.rol_usuario in ["admin", "super_admin"]:
     st.sidebar.markdown(f"👤 **Usuario:** `{st.session_state.nombre_usuario}`")
     st.sidebar.markdown(f"🏷️ **Credencial:** `{st.session_state.rol_usuario.upper()}`")
@@ -355,6 +357,7 @@ if st.session_state.rol_usuario in ["admin", "super_admin"]:
     if st.sidebar.button("🔄 Recargar Datos"): st.rerun()
     if st.sidebar.button("🚪 Cerrar Sesión"):
         st.session_state.autenticado = False
+        st.session_state.rol_usuario = None
         st.rerun()
 else:
     st.markdown("<style>section[data-testid='stSidebar'] { display: none; }</style>", unsafe_allow_html=True)
