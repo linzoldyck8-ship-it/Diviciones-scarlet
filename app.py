@@ -40,10 +40,10 @@ DATOS_INICIALES_ROSTER = pd.DataFrame({
 })
 
 DATOS_INICIALES_CONFIG = pd.DataFrame({
-    "Usuario": ["admin", "maximiliano", "lientur", "facundo", "leonardo", "felipe", "ian", "leonel"],
-    "Contraseña": ["admin123", "1234", "1234", "1234", "1234", "1234", "1234", "1234"],
-    "Rol": ["admin", "jugador", "jugador", "jugador", "jugador", "jugador", "jugador", "jugador"],
-    "Nombre Real Vinculado": ["", "Maximiliano", "Lientur", "Facundo", "Leonardo", "Felipe", "Ian", "Leonel"]
+    "Usuario": ["admin"],
+    "Contraseña": ["admin123"],
+    "Rol": ["admin"],
+    "Nombre Real Vinculado": [""]
 })
 
 # --- CONEXIÓN Y CREACIÓN AUTOMÁTICA DE MULTI-HOJAS ---
@@ -163,16 +163,17 @@ if 'nombre_usuario' not in st.session_state:
 
 
 # ==========================================
-# PANTALLA DE LOGIN / SELECCIÓN DE MODO
+# PANTALLA DE LOGIN / REGISTRO / SELECCIÓN
 # ==========================================
 if not st.session_state.autenticado:
     st.title("🔥 Scarlet Roster - Control de Acceso")
-    st.markdown("Selecciona tu modo de acceso o inicia sesión con tus credenciales guardadas en Google Sheets.")
+    st.markdown("Inicia sesión o crea tu cuenta de jugador por primera vez.")
     
-    col_l1, col_l2 = st.columns(2)
+    tab_login_admin, tab_login_player, tab_reg_player = st.tabs(["🛡️ Admin", "🎮 Iniciar Sesión (Jugador)", "✨ Registrarse por 1era vez"])
     
-    with col_l1:
-        st.markdown("### 🛡️ Acceso Administrador")
+    # 1. Pestaña Admin
+    with tab_login_admin:
+        st.markdown("### Acceso Administrador")
         with st.form("form_login_admin"):
             user_admin = st.text_input("Usuario Administrador", key="input_admin_user")
             pass_admin = st.text_input("Contraseña", type="password", key="input_admin_pass")
@@ -192,12 +193,13 @@ if not st.session_state.autenticado:
                 else:
                     st.error("❌ Credenciales o permisos de administrador incorrectos.")
 
-    with col_l2:
-        st.markdown("### 🎮 Acceso Jugador (Modo Normal)")
+    # 2. Pestaña Login Jugador
+    with tab_login_player:
+        st.markdown("### Iniciar Sesión (Jugadores)")
         with st.form("form_login_jugador"):
-            user_player = st.text_input("Tu Usuario / Nick en el sistema", key="input_player_user")
+            user_player = st.text_input("Tu Usuario creado", key="input_player_user")
             pass_player = st.text_input("Tu Contraseña", type="password", key="input_player_pass")
-            submit_player = st.form_submit_button("Entrar como Jugador")
+            submit_player = st.form_submit_button("Iniciar Sesión")
             
             if submit_player:
                 df_c = st.session_state.df_config
@@ -212,8 +214,48 @@ if not st.session_state.autenticado:
                     st.rerun()
                 else:
                     st.error("❌ Usuario o contraseña incorrectos.")
+
+    # 3. Pestaña Registro por Primera Vez (Jugador)
+    with tab_reg_player:
+        st.markdown("### Registro Inicial de Jugador")
+        st.markdown("Si estás en el Roster oficial, crea aquí tu usuario y contraseña por primera vez.")
+        
+        jugadores_roster = [j for j in st.session_state.df_roster["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
+        
+        with st.form("form_registro_jugador"):
+            nombre_seleccionado = st.selectbox("Selecciona tu Nombre Real (del Roster)", jugadores_roster)
+            nuevo_usuario = st.text_input("Elige tu Nombre de Usuario (para entrar)")
+            nueva_pass = st.text_input("Elige tu Contraseña", type="password")
+            nueva_pass_confirm = st.text_input("Confirma tu Contraseña", type="password")
+            
+            submit_registro = st.form_submit_button("Registrarme")
+            
+            if submit_registro:
+                if not nuevo_usuario.strip() or not nueva_pass.strip():
+                    st.error("❌ El usuario y la contraseña no pueden estar vacíos.")
+                elif nueva_pass != nueva_pass_confirm:
+                    st.error("❌ Las contraseñas no coinciden.")
+                else:
+                    df_c = st.session_state.df_config
+                    # Validar si el usuario ya existe
+                    if not df_c[df_c["Usuario"].astype(str).str.lower() == nuevo_usuario.strip().lower()].empty:
+                        st.error("❌ Este nombre de usuario ya está en uso. Elige otro.")
+                    # Validar si ese nombre real ya tiene cuenta asignada
+                    elif not df_c[df_c["Nombre Real Vinculado"].astype(str).str.lower() == nombre_seleccionado.strip().lower()].empty:
+                        st.error("❌ Este jugador del Roster ya tiene una cuenta registrada. Inicia sesión o contacta al Admin.")
+                    else:
+                        # Agregar nueva fila a configuración
+                        nueva_fila_config = pd.DataFrame([{
+                            "Usuario": nuevo_usuario.strip(),
+                            "Contraseña": nueva_pass.strip(),
+                            "Rol": "jugador",
+                            "Nombre Real Vinculado": nombre_seleccionado.strip()
+                        }])
+                        st.session_state.df_config = pd.concat([st.session_state.df_config, nueva_fila_config], ignore_index=True)
+                        guardar_en_sheet(sheet_config, st.session_state.df_config)
+                        st.success("✅ ¡Registro exitoso! Ya puedes ir a la pestaña 'Iniciar Sesión (Jugador)' y entrar con tus datos.")
     
-    st.stop() # Detiene la ejecución aquí hasta que el usuario inicie sesión
+    st.stop() # Detiene la ejecución hasta que inicie sesión
 
 
 # ==========================================
@@ -511,7 +553,6 @@ with tab_stats:
             nombres_roster = st.session_state.df_roster[st.session_state.df_roster["Nombre Real"].astype(str).str.strip() != ""]
             dic_nombres_riot = dict(zip(nombres_roster["Nombre Real"], nombres_roster["Riot ID (Nick#TAG)"]))
             
-            # Si es jugador normal, preseleccionar su propio nombre si existe en el diccionario
             default_idx = 0
             if st.session_state.rol_usuario == "jugador" and st.session_state.nombre_usuario in list(dic_nombres_riot.keys()):
                 default_idx = list(dic_nombres_riot.keys()).index(st.session_state.nombre_usuario)
