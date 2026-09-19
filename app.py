@@ -7,7 +7,7 @@ from sqlalchemy import create_engine, inspect
 st.set_page_config(page_title="Scarlet Multi-Divisiones", page_icon="⛩️", layout="wide")
 
 # URL OFICIAL DEL LOGO GENERAL DEL EQUIPO
-URL_LOGO_EQUIPO = "https://cdn.discordapp.com/attachments/1272709315039592469/1275623434063314984/SCARLET.png?ex=6aaf32e6&is=6aade166&hm=4889e788d8f71a5e470db02c4c8f42b95fb19fcdce9be96f7fabab8b6fec25e4&"
+URL_LOGO_EQUIPO = "https://img.magnific.com/vector-gratis/fondo-patron-textura-fibra-carbono-negra_1017-33436.jpg?semt=ais_hybrid&w=740&q=80"
 
 # URLS DE LOS LOGOS DE CADA JUEGO 
 LOGOS_DIVISIONES = {
