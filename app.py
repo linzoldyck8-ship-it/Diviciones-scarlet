@@ -56,9 +56,6 @@ if 'df_roster' not in st.session_state:
         "Strikes": [0, 0, 0, 0, 0, 0, 0]
     })
 
-jugadores_activos = [j for j in st.session_state.df_roster["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
-riot_ids_activos = [r for r in st.session_state.df_roster["Riot ID (Nick#TAG)"].tolist() if str(r).strip() != "" and str(r).lower() != "nan"]
-
 # --- PESTAÑAS PRINCIPALES ---
 tab_roster, tab_asistencia, tab_historial, tab_stats = st.tabs([
     "📝 Roster", "📅 Asistencia", "🛡️ Disciplina", "📈 Tracker"
@@ -70,8 +67,10 @@ tab_roster, tab_asistencia, tab_historial, tab_stats = st.tabs([
 with tab_roster:
     st.title("🔥 Gestión de Roster - Valorant")
     
+    jugadores_activos_temp = [j for j in st.session_state.df_roster["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
+    
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("TOTAL JUGADORES", len(jugadores_activos))
+    col1.metric("TOTAL JUGADORES", len(jugadores_activos_temp))
     col2.metric("TITULARES", len(st.session_state.df_roster[st.session_state.df_roster['Estado'] == 'Titular']))
     col3.metric("SEXTO PLAYER", len(st.session_state.df_roster[st.session_state.df_roster['Estado'] == 'Sexto player']))
     col4.metric("BANCA", len(st.session_state.df_roster[st.session_state.df_roster['Estado'] == 'Banca']))
@@ -106,7 +105,7 @@ with tab_roster:
         cc.info(f"**Controladores:**\n{', '.join(AGENTES_POR_ROL['Controlador'])}")
         cd.info(f"**Centinelas:**\n{', '.join(AGENTES_POR_ROL['Centinela'])}")
 
-    # Tabla Principal
+    # Tabla Principal con guardado automático inmediato en la sesión
     st.markdown("**Planilla de Control General**")
     configuracion_columnas = {
         "Rol Principal": st.column_config.SelectboxColumn("Rol Principal", options=OPCIONES_ROLES),
@@ -115,7 +114,7 @@ with tab_roster:
         "Cargo": st.column_config.SelectboxColumn("Cargo en Equipo", options=OPCIONES_CARGOS),
         "Estado": st.column_config.SelectboxColumn("Estado", options=OPCIONES_ESTADO),
         "Actividad": st.column_config.SelectboxColumn("Actividad", options=OPCIONES_ACTIVIDAD),
-        "Agentes Principales": st.column_config.TextColumn("Agentes Principales (Solo editable abajo ⬇️)", disabled=True),
+        "Agentes Principales": st.column_config.TextColumn("Agentes Principales (Gestionable abajo ⬇️)", disabled=True),
     }
     
     df_roster_editado = st.data_editor(
@@ -129,54 +128,59 @@ with tab_roster:
         key="editor_roster_principal"
     )
     
-    if st.button("💾 Guardar Cambios de la Tabla"):
-        df_temp = df_roster_editado.copy()
-        if "Strikes" not in df_temp.columns:
-            df_temp["Strikes"] = st.session_state.df_roster["Strikes"]
-        df_temp["Strikes"] = df_temp["Strikes"].fillna(0).astype(int)
-        st.session_state.df_roster = df_temp
-        st.success("✅ ¡Cambios guardados con éxito en la base de datos!")
+    # Guardado automático transparente en sesión cada vez que interactúas con la tabla
+    if not df_roster_editado.equals(st.session_state.df_roster):
+        temp_df = df_roster_editado.copy()
+        if "Strikes" not in temp_df.columns:
+            temp_df["Strikes"] = st.session_state.df_roster["Strikes"]
+        temp_df["Strikes"] = temp_df["Strikes"].fillna(0).astype(int)
+        st.session_state.df_roster = temp_df
         st.rerun()
 
-    # --- GESTOR INTELIGENTE DE AGENTES ---
+    # --- GESTOR DINÁMICO DE AGENTES MEJORADO ---
     st.markdown("---")
     st.markdown("### 🎭 Gestor Dinámico de Agentes")
-    st.caption("Selecciona un jugador por su Riot ID. El sistema detectará sus roles y te mostrará solo los agentes correspondientes.")
+    st.caption("Selecciona un jugador. Si acabas de agregarlo en la tabla de arriba, escribe o selecciona su Riot ID directamente.")
     
-    if len(riot_ids_activos) > 0:
+    riot_ids_actuales = [r for r in st.session_state.df_roster["Riot ID (Nick#TAG)"].tolist() if str(r).strip() != "" and str(r).lower() != "nan"]
+    
+    if len(riot_ids_actuales) > 0:
         c_sel, c_form = st.columns([1, 2])
         with c_sel:
-            jugador_agentes = st.selectbox("1. Selecciona al Riot ID:", [""] + riot_ids_activos, key="select_riot_agente")
+            jugador_agentes = st.selectbox("1. Selecciona al Riot ID:", [""] + riot_ids_actuales, key="select_riot_agente")
         
         if jugador_agentes != "":
             with c_form:
-                idx = st.session_state.df_roster[st.session_state.df_roster["Riot ID (Nick#TAG)"] == jugador_agentes].index[0]
-                rol_1 = str(st.session_state.df_roster.at[idx, "Rol Principal"])
-                rol_2 = str(st.session_state.df_roster.at[idx, "Rol Secundario"])
-                
-                opciones_validas = []
-                if rol_1 in AGENTES_POR_ROL: opciones_validas.extend(AGENTES_POR_ROL[rol_1])
-                if rol_2 in AGENTES_POR_ROL: opciones_validas.extend(AGENTES_POR_ROL[rol_2])
-                opciones_validas = list(set(opciones_validas))
-                
-                if not opciones_validas:
-                    st.warning("⚠️ Asigna al menos un Rol (Principal o Secundario) válido en la tabla de arriba para cargar sus agentes.")
-                else:
-                    agentes_str = st.session_state.df_roster.at[idx, "Agentes Principales"]
-                    agentes_actuales = [a.strip() for a in str(agentes_str).split(",")] if pd.notna(agentes_str) and str(agentes_str).strip() != "" else []
-                    agentes_actuales = [a for a in agentes_actuales if a in opciones_validas]
+                filas_coinciondentes = st.session_state.df_roster[st.session_state.df_roster["Riot ID (Nick#TAG)"] == jugador_agentes]
+                if not filas_coinciondentes.empty:
+                    idx = filas_coinciondentes.index[0]
+                    rol_1 = str(st.session_state.df_roster.at[idx, "Rol Principal"])
+                    rol_2 = str(st.session_state.df_roster.at[idx, "Rol Secundario"])
                     
-                    nuevos_agentes = st.multiselect(
-                        f"2. Agentes disponibles para los roles de {jugador_agentes} ({rol_1} / {rol_2}):",
-                        options=opciones_validas,
-                        default=agentes_actuales,
-                        key=f"multi_agentes_{jugador_agentes}"
-                    )
+                    opciones_validas = []
+                    if rol_1 in AGENTES_POR_ROL: opciones_validas.extend(AGENTES_POR_ROL[rol_1])
+                    if rol_2 in AGENTES_POR_ROL: opciones_validas.extend(AGENTES_POR_ROL[rol_2])
+                    opciones_validas = list(set(opciones_validas))
                     
-                    if st.button("💾 Guardar Pool de Agentes"):
-                        st.session_state.df_roster.at[idx, "Agentes Principales"] = ", ".join(nuevos_agentes)
-                        st.success(f"✅ ¡Agentes actualizados para {jugador_agentes}!")
-                        st.rerun()
+                    if not opciones_validas:
+                        st.warning("⚠️ Asigna al menos un Rol (Principal o Secundario) válido en la tabla superior para este jugador para cargar sus agentes.")
+                    else:
+                        agentes_str = st.session_state.df_roster.at[idx, "Agentes Principales"]
+                        agentes_actuales = [a.strip() for a in str(agentes_str).split(",")] if pd.notna(agentes_str) and str(agentes_str).strip() != "" else []
+                        agentes_actuales = [a for a in agentes_actuales if a in opciones_validas]
+                        
+                        nuevos_agentes = st.multiselect(
+                            f"2. Agentes disponibles para {jugador_agentes} ({rol_1} / {rol_2}):",
+                            options=opciones_validas,
+                            default=agentes_actuales,
+                            key=f"multi_agentes_{jugador_agentes}"
+                        )
+                        
+                        # Guardado automático al modificar el multiselect de agentes
+                        nuevos_str = ", ".join(nuevos_agentes)
+                        if agentes_str != nuevos_str:
+                            st.session_state.df_roster.at[idx, "Agentes Principales"] = nuevos_str
+                            st.rerun()
 
 # ==========================================
 # PESTAÑA 2: ASISTENCIA 
@@ -184,6 +188,8 @@ with tab_roster:
 with tab_asistencia:
     st.title("📅 Asistencia")
     st.caption("P - Presente | A - Ausencia | J - Justificado | T - Tardanza (80%)")
+    
+    jugadores_activos = [j for j in st.session_state.df_roster["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
     
     if len(jugadores_activos) == 0:
         st.warning("Agrega jugadores en la pestaña 'Roster' para ver la asistencia.")
@@ -211,7 +217,9 @@ with tab_asistencia:
 # ==========================================
 with tab_historial:
     st.title("🛡️ Panel de Disciplina")
-    st.info("💡 Este panel refleja exclusivamente los jugadores registrados en la pestaña Roster. Solo la columna 'Strikes' es editable aquí.")
+    st.info("💡 Este panel refleja exclusivamente los jugadores registrados en la pestaña Roster. Modifica los strikes y se guardarán automáticamente.")
+    
+    jugadores_activos = [j for j in st.session_state.df_roster["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
     
     if len(jugadores_activos) > 0:
         df_disc_view = st.session_state.df_roster[["Nombre Real", "Estado", "Rol Principal", "Strikes"]].copy()
@@ -225,12 +233,15 @@ with tab_historial:
             key="editor_disciplina_strikes"
         )
         
-        if st.button("💾 Guardar Cambios de Strikes"):
-            for index, row in edited_disc.iterrows():
-                idx_roster = st.session_state.df_roster.index[st.session_state.df_roster['Nombre Real'] == row['Nombre Real']].tolist()
-                if idx_roster:
+        # Guardado automático de strikes
+        cambio_strikes = False
+        for index, row in edited_disc.iterrows():
+            idx_roster = st.session_state.df_roster.index[st.session_state.df_roster['Nombre Real'] == row['Nombre Real']].tolist()
+            if idx_roster:
+                if st.session_state.df_roster.at[idx_roster[0], 'Strikes'] != row['Strikes']:
                     st.session_state.df_roster.at[idx_roster[0], 'Strikes'] = row['Strikes']
-            st.success("✅ ¡Strikes actualizados correctamente!")
+                    cambio_strikes = True
+        if cambio_strikes:
             st.rerun()
 
         st.markdown("---")
@@ -255,6 +266,8 @@ with tab_historial:
 with tab_stats:
     st.title("📈 Tracker y Estadísticas")
     
+    jugadores_activos = [j for j in st.session_state.df_roster["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
+    
     if len(jugadores_activos) > 0:
         c_sel, c_btn = st.columns([2, 1])
         with c_sel: 
@@ -264,7 +277,7 @@ with tab_stats:
             
         with c_btn:
             st.markdown("<br>", unsafe_allow_html=True)
-            riot_id_seleccionado = dic_nombres_riot[jugador_stat]
+            riot_id_seleccionado = dic_nombres_riot.get(jugador_stat, "")
             if pd.notna(riot_id_seleccionado) and "#" in str(riot_id_seleccionado):
                 url = f"https://tracker.gg/valorant/profile/riot/{str(riot_id_seleccionado).replace('#', '%23')}/overview"
                 st.link_button(f"🔴 Perfil en Tracker.gg", url, use_container_width=True)
