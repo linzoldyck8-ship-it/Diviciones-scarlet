@@ -138,7 +138,11 @@ GAME_DATA = {
     },
     "CS": {
         "Roles": ["Entry Fragger", "AWPer", "Support", "IGL", "Lurker", "Flex", ""],
-        "Rangos": ["Plata", "Nova de Oro", "Guardián Maestro", "Águila Legendaria", "Maestro Supremo", "Global Elite", ""],
+        "Rangos": [
+            "FACEIT Nivel 1", "FACEIT Nivel 2", "FACEIT Nivel 3", "FACEIT Nivel 4", "FACEIT Nivel 5",
+            "FACEIT Nivel 6", "FACEIT Nivel 7", "FACEIT Nivel 8", "FACEIT Nivel 9", "FACEIT Nivel 10",
+            "GC Nivel 1-5", "GC Nivel 6-10", "GC Nivel 11-15", "GC Nivel 16-20", "GC Level S", ""
+        ],
         "Personajes": ["Fuerzas Antiterroristas (CT)", "Fuerzas Terroristas (T)", "Ninguno"]
     }
 }
