@@ -5,7 +5,7 @@ import plotly.express as px
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Scarlet Roster", page_icon="🔥", layout="wide")
 
-# --- ESTILOS CORPORATIVOS Y MINIMALISTAS (SCARLET) ---
+# --- ESTILOS CORPORATIVOS Y MINIMALISTAS ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
@@ -13,18 +13,12 @@ st.markdown("""
     .stApp { background-color: #0f1923; color: #ece8e1; font-family: 'Inter', sans-serif; }
     h1, h2, h3 { color: #ff4655; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; }
     
-    /* Estilo de Botones Minimalista */
     .stButton>button { 
-        background-color: transparent; 
-        color: #ff4655; 
-        border: 1px solid #ff4655; 
-        border-radius: 4px; 
-        font-weight: 600; 
-        transition: all 0.3s ease; 
+        background-color: transparent; color: #ff4655; border: 1px solid #ff4655; 
+        border-radius: 4px; font-weight: 600; transition: all 0.3s ease; 
     }
     .stButton>button:hover { background-color: #ff4655; color: #0f1923; }
     
-    /* Inputs y Selectores */
     .stSelectbox label, .stTextInput label, .stDateInput label, .stFileUploader label { 
         color: #ece8e1; font-weight: 600; font-size: 0.9rem; 
     }
@@ -32,17 +26,32 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- VARIABLES DE SESIÓN (Para agregar/quitar jugadores dinámicamente) ---
-if 'jugadores_asistencia' not in st.session_state:
-    st.session_state.jugadores_asistencia = ["Mazzito", "Lino", "Leo", "Soy leo", "Iansuki", "Facu", "Felipo", "Benja"]
+# --- LISTAS DESPLEGABLES (Opciones para la tabla) ---
+OPCIONES_ROLES = ["Duelista", "Iniciador", "Controlador", "Centinela", "Flex", ""]
+OPCIONES_RANGOS = ["Hierro", "Bronce", "Plata", "Oro", "Platino", "Diamante", "Ascendente 1", "Ascendente 2", "Ascendente 3", "Inmortal 1", "Inmortal 2", "Inmortal 3", "Radiante", ""]
+OPCIONES_CARGOS = ["Capitan", "Sub capitan", "Player", "Manager", "Coach", ""]
+OPCIONES_ESTADO = ["Titular", "Banca", "Sexto player", "En Prueba", "Inactivo", ""]
+OPCIONES_ACTIVIDAD = ["Alta", "Media", "Baja", ""]
 
-if 'df_disciplina' not in st.session_state:
-    st.session_state.df_disciplina = pd.DataFrame({
-        "Jugador": ["Lino", "Facu", "Felipo"],
-        "Estado Actual": ["Banca", "Titular", "Titular"],
-        "Rol Principal": ["Controlador", "Duelista", "Controlador"],
-        "Strikes": [0, 0, 0]
+# --- BASE DE DATOS MAESTRA EN SESIÓN ---
+if 'df_roster' not in st.session_state:
+    # Estado inicial basado en tu captura de Excel
+    st.session_state.df_roster = pd.DataFrame({
+        "Riot ID (Nick#TAG)": ["Mazinhooo#lovsf", "Lionora#ZERO", "BestiaDelTrap#ARK", "leO#deus", "ELNIÑOMARAVILLA#14y", "Lotenesquepedir#boka", "Shuten#2006"],
+        "Nombre Real": ["Maximiliano", "Lientur", "Facundo", "Leonardo", "Felipe", "Ian", "Leonel"],
+        "Rol Principal": ["Iniciador", "Controlador", "Duelista", "Centinela", "Controlador", "Centinela", "Duelista"],
+        "Rol Secundario": ["Centinela", "Iniciador", "", "Duelista", "Centinela", "Iniciador", "Centinela"],
+        "Agentes Principales": ["Sova, Fade", "Omen, Fade", "Jett, Neon, Raze", "Cypher, Vyse, Chamber", "Chamber, Cypher, Vyse", "Breach, Sova, Fade", "Neon, Phoenix, Iso"],
+        "Rango / Cima": ["Ascendente 3", "Plata", "Ascendente 2", "Inmortal 1", "Inmortal 1", "Ascendente 3", "Ascendente 3"],
+        "Cargo": ["Capitan", "Sub capitan", "Player", "Player", "Player", "Player", "Player"],
+        "Estado": ["Titular", "Banca", "Titular", "Titular", "Titular", "Sexto player", "Titular"],
+        "Actividad": ["Alta", "Alta", "Alta", "Media", "Alta", "Media", "Media"],
+        "Contacto": ["Mazzito", "LINO", "facuu", "Leo", "felipoomo", "Iansuki", "Shuten"],
+        "Strikes": [0, 0, 0, 0, 0, 0, 0] # Columna oculta en Roster, visible en Disciplina
     })
+
+# Extraer lista de jugadores válidos (sin celdas vacías) para usar en otras pestañas
+jugadores_activos = [j for j in st.session_state.df_roster["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
 
 # --- PESTAÑAS PRINCIPALES ---
 tab_roster, tab_asistencia, tab_historial, tab_stats = st.tabs([
@@ -50,138 +59,174 @@ tab_roster, tab_asistencia, tab_historial, tab_stats = st.tabs([
 ])
 
 # ==========================================
-# PESTAÑA 1: ROSTER & DASHBOARD
+# PESTAÑA 1: ROSTER (Gestión Central)
 # ==========================================
 with tab_roster:
-    st.title("🔥 Panel Corporativo - Roster")
+    st.title("🔥 Gestión de Roster - Valorant")
     
-    df_roster = pd.DataFrame({
-        "Estado": ["Titular", "Titular", "Titular", "Titular", "Titular", "Sexto player", "Banca"],
-        "Rol Principal": ["Duelista", "Iniciador", "Controlador", "Centinela", "Centinela", "Iniciador", "Controlador"]
-    })
-    
+    # 1. Gráficos y Métricas
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("TOTAL JUGADORES", len(df_roster))
-    col2.metric("TITULARES", len(df_roster[df_roster['Estado'] == 'Titular']))
-    col3.metric("SEXTO PLAYER", len(df_roster[df_roster['Estado'] == 'Sexto player']))
-    col4.metric("RESERVA", len(df_roster[df_roster['Estado'].isin(['Banca', 'En Prueba'])]))
+    col1.metric("TOTAL JUGADORES", len(jugadores_activos))
+    col2.metric("TITULARES", len(st.session_state.df_roster[st.session_state.df_roster['Estado'] == 'Titular']))
+    col3.metric("SEXTO PLAYER", len(st.session_state.df_roster[st.session_state.df_roster['Estado'] == 'Sexto player']))
+    col4.metric("BANCA", len(st.session_state.df_roster[st.session_state.df_roster['Estado'] == 'Banca']))
     
-    st.markdown("---")
     col_g1, col_g2 = st.columns(2)
-    
     with col_g1:
-        st.markdown("**Desglose por Rol Táctico**")
-        rol_counts = df_roster['Rol Principal'].value_counts().reset_index()
-        rol_counts.columns = ['Rol Valorant', 'Cantidad']
-        fig_roles = px.bar(rol_counts, x='Rol Valorant', y='Cantidad', color_discrete_sequence=['#ff4655'])
-        fig_roles.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='#ffffff', margin=dict(t=10, b=10))
+        rol_counts = st.session_state.df_roster['Rol Principal'].value_counts().reset_index()
+        fig_roles = px.bar(rol_counts, x='Rol Principal', y='count', color_discrete_sequence=['#ff4655'], title="Distribución por Rol")
+        fig_roles.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='#ffffff', height=250)
         st.plotly_chart(fig_roles, use_container_width=True)
 
     with col_g2:
-        st.markdown("**Estado de los Jugadores**")
-        estado_counts = df_roster['Estado'].value_counts().reset_index()
-        estado_counts.columns = ['Estado', 'Cantidad']
-        fig_estado = px.pie(estado_counts, names='Estado', values='Cantidad', color_discrete_sequence=['#ff4655', '#ece8e1', '#0f1923'])
-        fig_estado.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='#ffffff', margin=dict(t=10, b=10))
+        estado_counts = st.session_state.df_roster['Estado'].value_counts().reset_index()
+        fig_estado = px.pie(estado_counts, names='Estado', values='count', color_discrete_sequence=['#ff4655', '#ece8e1', '#0f1923', '#808080'], title="Estado General")
+        fig_estado.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='#ffffff', height=250)
         st.plotly_chart(fig_estado, use_container_width=True)
 
+    st.markdown("---")
+    
+    # 2. Diccionario de Agentes (Colapsable)
+    with st.expander("📚 Diccionario de Agentes por Rol (Para copiar y pegar)"):
+        ca, cb, cc, cd = st.columns(4)
+        ca.info("**Duelistas:**\nJett, Neon, Raze, Reyna, Phoenix, Yoru, Iso")
+        cb.info("**Iniciadores:**\nSova, Fade, Breach, KAY/O, Skye, Gekko")
+        cc.info("**Controladores:**\nOmen, Astra, Viper, Brimstone, Harbor, Clove")
+        cd.info("**Centinelas:**\nKilljoy, Cypher, Sage, Chamber, Deadlock, Vyse")
+
+    # 3. Editor de Tabla Dinámica (Sincronizado)
+    st.markdown("**Planilla de Control (Puedes agregar o eliminar filas debajo de la tabla)**")
+    
+    # Configurar columnas con menús desplegables
+    configuracion_columnas = {
+        "Rol Principal": st.column_config.SelectboxColumn("Rol Principal", options=OPCIONES_ROLES),
+        "Rol Secundario": st.column_config.SelectboxColumn("Rol Secundario", options=OPCIONES_ROLES),
+        "Rango / Cima": st.column_config.SelectboxColumn("Rango / Cima", options=OPCIONES_RANGOS),
+        "Cargo": st.column_config.SelectboxColumn("Cargo en Equipo", options=OPCIONES_CARGOS),
+        "Estado": st.column_config.SelectboxColumn("Estado", options=OPCIONES_ESTADO),
+        "Actividad": st.column_config.SelectboxColumn("Actividad", options=OPCIONES_ACTIVIDAD),
+    }
+    
+    df_roster_editado = st.data_editor(
+        st.session_state.df_roster,
+        num_rows="dynamic", # Permite agregar/quitar jugadores
+        use_container_width=True,
+        hide_index=True,
+        column_order=["Riot ID (Nick#TAG)", "Nombre Real", "Rol Principal", "Rol Secundario", "Agentes Principales", "Rango / Cima", "Cargo", "Estado", "Actividad", "Contacto"],
+        column_config=configuracion_columnas,
+        height=350
+    )
+    
+    # Guardar cambios en el estado maestro (Asegurando que la columna Strikes no se pierda al editar)
+    if "Strikes" not in df_roster_editado.columns:
+        df_roster_editado["Strikes"] = st.session_state.df_roster["Strikes"]
+    
+    # Si se añade una fila nueva, asegurar que empiece con 0 strikes
+    df_roster_editado["Strikes"] = df_roster_editado["Strikes"].fillna(0).astype(int)
+    st.session_state.df_roster = df_roster_editado
+
 # ==========================================
-# PESTAÑA 2: ASISTENCIA (Con Agregar/Quitar)
+# PESTAÑA 2: ASISTENCIA (Sincronizada)
 # ==========================================
 with tab_asistencia:
     st.title("📅 Asistencia")
-    
-    with st.expander("⚙️ Administrar Lista de Asistencia"):
-        c_add, c_rem = st.columns(2)
-        with c_add:
-            nuevo_j = st.text_input("Nuevo Jugador:")
-            if st.button("➕ Añadir a Lista") and nuevo_j:
-                if nuevo_j not in st.session_state.jugadores_asistencia:
-                    st.session_state.jugadores_asistencia.append(nuevo_j)
-                    st.rerun()
-        with c_rem:
-            quitar_j = st.selectbox("Eliminar Jugador:", [""] + st.session_state.jugadores_asistencia)
-            if st.button("❌ Eliminar de Lista") and quitar_j:
-                st.session_state.jugadores_asistencia.remove(quitar_j)
-                st.rerun()
-
-    mes_seleccionado = st.selectbox("Mes", ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"])
     st.caption("P - Presente | A - Ausencia | J - Justificado | T - Tardanza (80%)")
     
-    dias_mes = [str(i) for i in range(1, 32)]
-    df_mes = pd.DataFrame(index=st.session_state.jugadores_asistencia, columns=dias_mes).fillna("-")
-    df_mes["Días Hábiles"] = 22
-    
-    def calcular_porcentaje(row):
-        dias = int(row["Días Hábiles"])
-        if dias == 0: return "0%"
-        asistencia = sum(row[dias_mes] == "P") + sum(row[dias_mes] == "J") + (sum(row[dias_mes] == "T") * 0.8)
-        return f"{min((asistencia / dias) * 100, 100):.0f}%"
+    if len(jugadores_activos) == 0:
+        st.warning("Agrega jugadores en la pestaña 'Roster' para ver la asistencia.")
+    else:
+        mes_seleccionado = st.selectbox("Mes", ["Septiembre", "Octubre", "Noviembre", "Diciembre"])
+        
+        dias_mes = [str(i) for i in range(1, 32)]
+        df_mes = pd.DataFrame(index=jugadores_activos, columns=dias_mes).fillna("-")
+        df_mes["Días Hábiles"] = 22
+        
+        def calcular_porcentaje(row):
+            dias = int(row["Días Hábiles"])
+            if dias == 0: return "0%"
+            asistencia = sum(row[dias_mes] == "P") + sum(row[dias_mes] == "J") + (sum(row[dias_mes] == "T") * 0.8)
+            return f"{min((asistencia / dias) * 100, 100):.0f}%"
 
-    df_editado = st.data_editor(df_mes, use_container_width=True)
-    df_editado["% Asistencia"] = df_editado.apply(calcular_porcentaje, axis=1)
-    
-    st.markdown("**Resumen Mensual**")
-    st.dataframe(df_editado[["Días Hábiles", "% Asistencia"]], use_container_width=True)
+        df_editado = st.data_editor(df_mes, use_container_width=True)
+        df_editado["% Asistencia"] = df_editado.apply(calcular_porcentaje, axis=1)
+        
+        st.markdown("**Resumen Mensual**")
+        st.dataframe(df_editado[["Días Hábiles", "% Asistencia"]], use_container_width=True)
 
 # ==========================================
-# PESTAÑA 3: DISCIPLINA (Con Agregar/Quitar)
+# PESTAÑA 3: DISCIPLINA (Sincronizada)
 # ==========================================
 with tab_historial:
     st.title("🛡️ Panel de Disciplina")
+    st.info("💡 Este panel refleja exclusivamente los jugadores registrados en la pestaña Roster. Solo la columna 'Strikes' es editable aquí.")
     
-    with st.expander("⚙️ Administrar Jugadores en Disciplina"):
-        c1, c2 = st.columns(2)
-        with c1:
-            nuevo_disc = st.text_input("Añadir Jugador al Panel:")
-            if st.button("➕ Añadir a Disciplina") and nuevo_disc:
-                nueva_fila = {"Jugador": nuevo_disc, "Estado Actual": "Titular", "Rol Principal": "Pendiente", "Strikes": 0}
-                st.session_state.df_disciplina = pd.concat([st.session_state.df_disciplina, pd.DataFrame([nueva_fila])], ignore_index=True)
-                st.rerun()
-        with c2:
-            quitar_disc = st.selectbox("Eliminar Jugador del Panel:", [""] + st.session_state.df_disciplina["Jugador"].tolist())
-            if st.button("❌ Eliminar de Disciplina") and quitar_disc:
-                st.session_state.df_disciplina = st.session_state.df_disciplina[st.session_state.df_disciplina["Jugador"] != quitar_disc]
-                st.rerun()
+    if len(jugadores_activos) > 0:
+        # Extraer solo las columnas necesarias para el panel de disciplina
+        df_disc_view = st.session_state.df_roster[["Nombre Real", "Estado", "Rol Principal", "Strikes"]].copy()
+        
+        # Eliminar filas vacías para una vista limpia
+        df_disc_view = df_disc_view[df_disc_view["Nombre Real"].astype(str).str.strip() != ""]
+        
+        # Editor donde solo se puede modificar los Strikes
+        edited_disc = st.data_editor(
+            df_disc_view,
+            use_container_width=True,
+            hide_index=True,
+            disabled=["Nombre Real", "Estado", "Rol Principal"] # Bloquea estas columnas
+        )
+        
+        # Sincronizar los Strikes modificados de vuelta al Roster principal
+        for index, row in edited_disc.iterrows():
+            idx_roster = st.session_state.df_roster.index[st.session_state.df_roster['Nombre Real'] == row['Nombre Real']].tolist()
+            if idx_roster:
+                st.session_state.df_roster.at[idx_roster[0], 'Strikes'] = row['Strikes']
 
-    st.markdown("**Estado General**")
-    st.data_editor(st.session_state.df_disciplina, use_container_width=True, hide_index=True)
-
-    st.markdown("---")
-    st.markdown("**Registro de Incidencias**")
-    with st.form("form_anotacion"):
-        c1, c2 = st.columns(2)
-        with c1:
-            fecha = st.date_input("Fecha")
-            tipo = st.selectbox("Tipo", ["Positiva", "Negativa"])
-            sancion = st.selectbox("Sanción", ["Ninguna", "Strike 1", "Expulsión"])
-        with c2:
-            jugador_sel = st.selectbox("Jugador Implicado", st.session_state.df_disciplina["Jugador"].tolist())
-            detalles = st.text_area("Detalles")
-        if st.form_submit_button("Guardar Registro"):
-            st.success("Incidencia registrada.")
+        st.markdown("---")
+        st.markdown("**Registro de Incidencias**")
+        with st.form("form_anotacion"):
+            c1, c2 = st.columns(2)
+            with c1:
+                fecha = st.date_input("Fecha")
+                tipo = st.selectbox("Tipo", ["Positiva", "Negativa"])
+                sancion = st.selectbox("Sanción", ["Ninguna", "Strike 1", "Expulsión"])
+            with c2:
+                jugador_sel = st.selectbox("Jugador Implicado", jugadores_activos)
+                detalles = st.text_area("Detalles")
+            if st.form_submit_button("Guardar Registro"):
+                st.success(f"Incidencia registrada para {jugador_sel}.")
+    else:
+        st.warning("Agrega jugadores en la pestaña 'Roster' para iniciar el control de disciplina.")
 
 # ==========================================
-# PESTAÑA 4: TRACKER Y STATS (Minimalista)
+# PESTAÑA 4: TRACKER Y STATS
 # ==========================================
 with tab_stats:
     st.title("📈 Tracker y Estadísticas")
-    roster_dic = {"Shuten": "Shuten#2006", "Leo": "leO#deus", "Felipo": "ELNIÑOMARAVILLA#14y"}
     
-    c_sel, c_btn = st.columns([2, 1])
-    with c_sel: 
-        jugador_stat = st.selectbox("Seleccionar Jugador", list(roster_dic.keys()))
-    with c_btn:
-        st.markdown("<br>", unsafe_allow_html=True)
-        url = f"https://tracker.gg/valorant/profile/riot/{roster_dic[jugador_stat].replace('#', '%23')}/overview"
-        st.link_button(f"🔴 Perfil en Tracker.gg", url, use_container_width=True)
+    if len(jugadores_activos) > 0:
+        c_sel, c_btn = st.columns([2, 1])
+        with c_sel: 
+            # Permite seleccionar por Nombre Real, pero usa el Riot ID para la URL
+            nombres_roster = st.session_state.df_roster[st.session_state.df_roster["Nombre Real"].astype(str).str.strip() != ""]
+            dic_nombres_riot = dict(zip(nombres_roster["Nombre Real"], nombres_roster["Riot ID (Nick#TAG)"]))
+            jugador_stat = st.selectbox("Seleccionar Jugador", list(dic_nombres_riot.keys()))
+            
+        with c_btn:
+            st.markdown("<br>", unsafe_allow_html=True)
+            riot_id_seleccionado = dic_nombres_riot[jugador_stat]
+            if pd.notna(riot_id_seleccionado) and "#" in str(riot_id_seleccionado):
+                url = f"https://tracker.gg/valorant/profile/riot/{str(riot_id_seleccionado).replace('#', '%23')}/overview"
+                st.link_button(f"🔴 Perfil en Tracker.gg", url, use_container_width=True)
+            else:
+                st.error("Riot ID no válido")
 
-    st.markdown("---")
-    
-    st.markdown(f"**Captura de Rendimiento - {jugador_stat}**")
-    img_upload = st.file_uploader("Sube una captura de pantalla del Tracker (Opcional)", type=["png", "jpg", "jpeg"])
-    
-    if img_upload:
-        st.image(img_upload, use_column_width=True, caption=f"Última actualización de stats para {jugador_stat}")
+        st.markdown("---")
+        st.markdown(f"**Captura de Rendimiento - {jugador_stat}**")
+        img_upload = st.file_uploader("Sube una captura de pantalla del Tracker (Opcional)", type=["png", "jpg", "jpeg"])
+        
+        if img_upload:
+            st.image(img_upload, use_column_width=True, caption=f"Última actualización de stats para {jugador_stat}")
+        else:
+            st.info("💡 Haz clic en el botón superior para ver las estadísticas en vivo.")
     else:
-        st.info("💡 Haz clic en el botón superior para ver las estadísticas en vivo. Aquí puedes subir una captura fija si deseas almacenarla en la interfaz.")
+        st.warning("Agrega jugadores en la pestaña 'Roster'.")
