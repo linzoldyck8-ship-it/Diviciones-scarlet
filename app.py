@@ -173,7 +173,7 @@ DATOS_INICIALES_ROSTER = pd.DataFrame({
 DATOS_INICIALES_CONFIG = pd.DataFrame({
     "Usuario": ["admin", "superadmin"],
     "Contraseña": ["admin123", "super_secret_2026"],
-    "Rol": ["admin", "super_admin"],
+    "Rol": ["admin", "scarlet2026"],
     "Nombre Real Vinculado": ["", "Super Administrador"]
 })
 
