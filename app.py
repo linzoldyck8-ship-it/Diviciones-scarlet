@@ -29,11 +29,19 @@ RANGOS_VALORANT = ["Hierro", "Bronce", "Plata", "Oro", "Platino", "Diamante", "A
 ROLES_VALORANT = ["Duelista", "Iniciador", "Controlador", "Centinela", "Flex", ""]
 
 HEROES_OVERWATCH = ["Reinhardt", "Winston", "D.Va", "Sigma", "Orisa", "Roadhog", "Zarya", "Junker Queen", "Mauga", "Ramattra", "Tracer", "Genji", "Reaper", "Mei", "Pharah", "Echo", "Sombra", "Soldier: 76", "Cassidy", "Ashe", "Hanzo", "Mercy", "Ana", "Kiriko", "Juno", "Lucio", "Zenyatta", "Baptiste", "Illari", "Lifeweaver", "Moira", "Brigitte"]
-RANGOS_OVERWATCH = ["Bronce", "Plata", "Oro", "Platino", "Diamante", "Maestro", "Gran Maestro", "Top 500", ""]
+RANGOS_OVERWATCH = ["Bronce", "Plata", "Oro", "Platino", "Esmeralda", "Diamante", "Maestro", "Gran Maestro", "Champion", ""]
 ROLES_OVERWATCH = ["Tanque", "Daño (DPS)", "Soporte", "Flex", ""]
 
 ROLES_CS = ["IGL (In-Game Leader)", "AWPer", "Entry Fragger", "Support", "Lurker", "Fragger", "Rifler", "Capitán de Mapa"]
-RANGOS_CS = ["Plata", "Nova de Oro", "Maestro Guardian", "Águila Laureada", "Supremo", "Global Elite", "Premier 5k-10k", "Premier 10k-15k", "Premier 15k-20k", "Premier 20k+", ""]
+RANGOS_CS = [
+    # FACEIT
+    "FACEIT Nivel 1", "FACEIT Nivel 2", "FACEIT Nivel 3", "FACEIT Nivel 4", "FACEIT Nivel 5", 
+    "FACEIT Nivel 6", "FACEIT Nivel 7", "FACEIT Nivel 8", "FACEIT Nivel 9", "FACEIT Nivel 10",
+    # Gamers Club (GC)
+    "GC Rookie", "GC Novato", "GC Main", "GC Intermediate", "GC Advanced", "GC Pro", "GC Elite",
+    # Clasicos / Premier
+    "Plata", "Nova de Oro", "Maestro Guardian", "Águila Laureada", "Supremo", "Global Elite", "Premier 20k+", ""
+]
 
 st.markdown("""
     <style>
@@ -398,7 +406,6 @@ df_config_actual = cargar_configuracion_fresco(sheet_config)
 if st.session_state.menu_activo == "Roster":
     st.title(f"Gestión de Roster — {st.session_state.division_activa}")
     
-    # Detección dinámica de opciones según la división activa
     div_actual = st.session_state.division_activa.lower()
     if "valorant" in div_actual:
         opciones_juego = AGENTES_VALORANT
