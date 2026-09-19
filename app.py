@@ -9,7 +9,7 @@ st.set_page_config(page_title="Scarlet Multi-Divisiones", page_icon="⛩️", la
 # URL OFICIAL DEL LOGO GENERAL DEL EQUIPO
 URL_LOGO_EQUIPO = "https://cdn.discordapp.com/attachments/1272709315039592469/1275623434063314984/SCARLET.png?ex=6aaf32e6&is=6aade166&hm=4889e788d8f71a5e470db02c4c8f42b95fb19fcdce9be96f7fabab8b6fec25e4&"
 
-# URLs DE LOS LOGOS DE CADA JUEGO 
+# URLS DE LOS LOGOS DE CADA JUEGO 
 LOGOS_DIVISIONES = {
     "Valorant A": "https://images.seeklogo.com/logo-png/37/1/valorant-logo-png_seeklogo-379976.png",
     "Valorant B": "https://images.seeklogo.com/logo-png/37/1/valorant-logo-png_seeklogo-379976.png",
@@ -18,6 +18,17 @@ LOGOS_DIVISIONES = {
     "Overwatch A": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/Overwatch_circle_logo.svg/1280px-Overwatch_circle_logo.svg.png?utm_source=es.wikipedia.org&utm_campaign=index&utm_content=thumbnail",
     "Overwatch B": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/Overwatch_circle_logo.svg/1280px-Overwatch_circle_logo.svg.png?utm_source=es.wikipedia.org&utm_campaign=index&utm_content=thumbnail",
     "CS": "https://images.seeklogo.com/logo-png/62/1/counter-strike-logo-png_seeklogo-622731.png"
+}
+
+# --- FONDOS POR URL PARA CADA DIVISIÓN (MODIFICA AQUÍ TUS URLS) ---
+FONDOS_DIVISIONES = {
+    "Valorant A": "https://www.chromethemer.com/wallpapers/images/960/valorant-wallpaper-4k.jpg",
+    "Valorant B": "https://www.chromethemer.com/wallpapers/images/960/valorant-wallpaper-4k.jpg",
+    "Valorant C": "https://www.chromethemer.com/wallpapers/images/960/valorant-wallpaper-4k.jpg",
+    "Valorant Femenino": "https://www.chromethemer.com/wallpapers/images/960/valorant-wallpaper-4k.jpg",
+    "Overwatch A": "https://c4.wallpaperflare.com/wallpaper/111/24/27/blizzard-entertainment-overwatch-video-games-reaper-overwatch-wallpaper-preview.jpg",
+    "Overwatch B": "https://c4.wallpaperflare.com/wallpaper/111/24/27/blizzard-entertainment-overwatch-video-games-reaper-overwatch-wallpaper-preview.jpg",
+    "CS": "https://wallpapers.com/images/featured/counter-strike-global-offensive-b5gx1yg1eegl77ew.jpg"
 }
 
 # --- ESTILOS EMPRESARIALES MINIMALISTAS & SCARLET THEME ---
@@ -292,6 +303,23 @@ if st.session_state.division_activa is None:
             st.markdown("<br>", unsafe_allow_html=True)
             
     st.stop()
+
+
+# ==========================================
+# APLICAR FONDO POR URL AL ENTRAR A CADA DIVISIÓN (ADMIN O JUGADOR)
+# ==========================================
+fondo_actual_url = FONDOS_DIVISIONES.get(st.session_state.division_activa, "")
+if fondo_actual_url:
+    st.markdown(f"""
+        <style>
+        .stApp {{
+            background: linear-gradient(rgba(11, 16, 23, 0.90), rgba(17, 26, 36, 0.95)), url('{fondo_actual_url}') !important;
+            background-size: cover !important;
+            background-position: center !important;
+            background-attachment: fixed !important;
+        }}
+        </style>
+    """, unsafe_allow_html=True)
 
 
 # ==========================================
