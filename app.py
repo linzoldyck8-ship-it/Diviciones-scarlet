@@ -156,7 +156,6 @@ def obtener_hojas_division(division_nombre):
         
     return sheet_roster, sheet_asistencia, sheet_disciplina, sheet_config
 
-spreadsheet = conectar_google_sheets()
 
 def obtener_hojas_division(division_nombre):
     if spreadsheet is None: return None, None, None, None
