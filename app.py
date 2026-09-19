@@ -103,7 +103,7 @@ st.markdown("""
         border-radius: 4px;
     }
 
-    /* Tarjetas estilizadas de divisiones en la portada (Flexbox para centrado perfecto) */
+    /* Tarjetas estilizadas interactivas de divisiones en la portada */
     .division-card-container {
         display: flex;
         flex-direction: column;
@@ -119,10 +119,16 @@ st.markdown("""
         background-position: center;
         border-radius: 12px;
         border: 1px solid rgba(255, 70, 85, 0.4);
-        padding: 25px 10px;
+        padding: 35px 15px;
         text-align: center;
         box-shadow: 0 6px 20px rgba(0,0,0,0.5);
         transition: all 0.3s ease;
+        cursor: pointer;
+        min-height: 140px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
     }
     .division-card:hover {
         transform: translateY(-5px);
@@ -301,7 +307,6 @@ if st.session_state.division_activa is None:
             sa_pass = st.text_input("Contraseña Super Admin", type="password")
             sa_submit = st.form_submit_button("ACCEDER COMO SUPER ADMIN")
             if sa_submit:
-                # Puedes cambiar o configurar las credenciales globales del Super Admin aquí
                 if sa_user.strip() == "superadmin" and sa_pass.strip() == "admin123":
                     st.session_state.es_super_admin = True
                     st.session_state.autenticado = True
@@ -315,21 +320,23 @@ if st.session_state.division_activa is None:
 
     st.markdown("<h3 style='text-align: center; margin: 30px 0 20px 0;'>Selecciona la División a la que deseas ingresar:</h3>", unsafe_allow_html=True)
     
-    # Tarjetas de divisiones con botones centrados perfectamente
+    # Tarjetas de divisiones interactivas (Haciendo clic en el botón de Streamlit que cubre la tarjeta)
     cols = st.columns(3)
     for idx, div_nombre in enumerate(DIVISIONES_DISPONIBLES):
         col_target = cols[idx % 3]
         logo_url = LOGOS_DIVISIONES.get(div_nombre, URL_LOGO_EQUIPO)
         
         with col_target:
+            # Renderizamos la tarjeta visualmente y usamos el botón de Streamlit transparente/estilizado encima para capturar el click de forma perfecta
             st.markdown(f"""
                 <div class="division-card-container">
                     <div class="division-card" style="background: linear-gradient(rgba(11, 16, 23, 0.85), rgba(17, 26, 36, 0.90)), url('{logo_url}'); background-size: cover; background-position: center;">
-                        <img src="{logo_url}" width="35" style="border-radius: 50%; margin-bottom: 8px; border: 1px solid #ff4655;">
-                        <h4 style="color: #ffffff; margin-bottom: 5px; font-weight: 600; letter-spacing: 0.5px;">{div_nombre}</h4>
+                        <img src="{logo_url}" width="40" style="border-radius: 50%; margin-bottom: 10px; border: 1px solid #ff4655;">
+                        <h4 style="color: #ffffff; margin-bottom: 0px; font-weight: 600; letter-spacing: 0.5px;">{div_nombre}</h4>
                     </div>
                 </div>
             """, unsafe_allow_html=True)
+            
             if st.button(f"Entrar a {div_nombre}", key=f"btn_card_{idx}", use_container_width=True):
                 st.session_state.division_activa = div_nombre
                 st.rerun()
@@ -358,8 +365,6 @@ with c_div_1:
     st.image(URL_LOGO_EQUIPO, width=45)
 
 with c_div_2:
-    # RESTRICCIÓN: Solo el Super Administrador tiene el selector directo de cambio rápido de división.
-    # Los usuarios normales y administradores de división deben volver al lobby para cambiar de sección.
     if st.session_state.es_super_admin:
         nueva_div = st.selectbox("Cambiar División Activa (Super Admin)", DIVISIONES_DISPONIBLES, index=DIVISIONES_DISPONIBLES.index(st.session_state.division_activa))
         if nueva_div != st.session_state.division_activa:
