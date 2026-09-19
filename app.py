@@ -69,12 +69,18 @@ DATOS_INICIALES_CONFIG = pd.DataFrame({
     "Nombre Real Vinculado": [""]
 })
 
+DATOS_SUPER_ADMIN_INIT = pd.DataFrame({
+    "Usuario": ["superadmin"],
+    "Contraseña": ["admin123"],
+    "Rol": ["superadmin"]
+})
+
 DIVISIONES_DISPONIBLES = [
     "Valorant A", "Valorant B", "Valorant C", 
     "Valorant Femenino", "Overwatch A", "Overwatch B", "CS"
 ]
 
-# --- CONEXIÓN Y CREACIÓN AUTOMÁTICA MASIVA ---
+# --- CONEXIÓN Y CREACIÓN AUTOMÁTICA MASIVA EN GOOGLE SHEETS ---
 @st.cache_resource
 def conectar_google_sheets():
     try:
@@ -84,7 +90,14 @@ def conectar_google_sheets():
         client = gspread.authorize(creds)
         spreadsheet = client.open("crea el proyecto en formato hoja de calculo como...")
         
-        # Inicializar automáticamente las pestañas para TODAS las divisiones de golpe
+        # 1. Crear la hoja global para el Super Administrador
+        try:
+            spreadsheet.worksheet("SuperAdmin_Config")
+        except gspread.exceptions.WorksheetNotFound:
+            ws_sa = spreadsheet.add_worksheet(title="SuperAdmin_Config", rows="10", cols="5")
+            ws_sa.update([DATOS_SUPER_ADMIN_INIT.columns.values.tolist()] + DATOS_SUPER_ADMIN_INIT.values.tolist())
+
+        # 2. Inicializar automáticamente las pestañas para TODAS las divisiones
         for div in DIVISIONES_DISPONIBLES:
             prefix = div.replace(" ", "_")
             for tipo, df_init in [
@@ -166,24 +179,33 @@ if 'es_super_admin' not in st.session_state: st.session_state.es_super_admin = F
 # PORTADA DE BIENVENIDA / LOBBY
 # ==========================================
 if st.session_state.division_activa is None:
-    # Menú Super Admin oculto y pequeño en la esquina superior
+    # Menú Super Admin pequeño, discreto y oculto en la esquina superior derecha
     col_top_l, col_top_r = st.columns([6, 1])
     with col_top_r:
         with st.expander("🔑 Admin"):
             with st.form("form_login_super_admin"):
-                sa_user = st.text_input("Usuario", value="superadmin")
-                sa_pass = st.text_input("Contraseña", type="password")
+                sa_user = st.text_input("Usuario SA", value="superadmin")
+                sa_pass = st.text_input("Contraseña SA", type="password")
                 if st.form_submit_button("Entrar"):
-                    if sa_user.strip() == "superadmin" and sa_pass.strip() == "admin123":
+                    # Valida directamente desde la base de datos (hoja SuperAdmin_Config)
+                    try:
+                        sheet_sa = spreadsheet.worksheet("SuperAdmin_Config")
+                        df_sa_live = pd.DataFrame(sheet_sa.get_all_records())
+                    except:
+                        df_sa_live = DATOS_SUPER_ADMIN_INIT
+
+                    match_sa = df_sa_live[(df_sa_live["Usuario"].astype(str).str.lower() == sa_user.strip().lower()) & 
+                                          (df_sa_live["Contraseña"].astype(str) == sa_pass.strip())]
+                    if not match_sa.empty:
                         st.session_state.es_super_admin = True
                         st.session_state.autenticado = True
                         st.session_state.rol_usuario = "admin"
                         st.session_state.nombre_usuario = "Super Administrador"
                         st.session_state.division_activa = DIVISIONES_DISPONIBLES[0]
-                        st.success("¡Acceso concedido!")
+                        st.success("¡Acceso de Super Admin concedido!")
                         st.rerun()
                     else:
-                        st.error("Datos incorrectos")
+                        st.error("Credenciales de Base de Datos incorrectas.")
 
     st.markdown(f"""
         <div class="hero-container" style="background: linear-gradient(rgba(11, 16, 23, 0.88), rgba(17, 26, 36, 0.92)), url('{URL_LOGO_EQUIPO}'); background-size: cover; background-position: center;">
@@ -197,7 +219,7 @@ if st.session_state.division_activa is None:
     
     st.markdown("<h3 style='text-align: center; margin: 20px 0;'>Selecciona una División:</h3>", unsafe_allow_html=True)
     
-    # Tarjetas interactivas con diseño limpio y botón directo debajo
+    # Tarjetas interactivas con botones claros debajo
     cols = st.columns(3)
     for idx, div_nombre in enumerate(DIVISIONES_DISPONIBLES):
         col_target = cols[idx % 3]
@@ -235,7 +257,7 @@ with c_div_1:
 
 with c_div_2:
     if st.session_state.es_super_admin:
-        nueva_div = st.selectbox("Cambiar División", DIVISIONES_DISPONIBLES, index=DIVISIONES_DISPONIBLES.index(st.session_state.division_activa))
+        nueva_div = st.selectbox("Cambiar División (Super Admin)", DIVISIONES_DISPONIBLES, index=DIVISIONES_DISPONIBLES.index(st.session_state.division_activa))
         if nueva_div != st.session_state.division_activa:
             st.session_state.division_activa = nueva_div
             st.rerun()
