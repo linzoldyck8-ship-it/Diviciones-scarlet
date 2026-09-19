@@ -106,7 +106,7 @@ with tab_roster:
         cc.info(f"**Controladores:**\n{', '.join(AGENTES_POR_ROL['Controlador'])}")
         cd.info(f"**Centinelas:**\n{', '.join(AGENTES_POR_ROL['Centinela'])}")
 
-    # Tabla Principal (Actualización en tiempo real con on_change)
+    # Tabla Principal
     st.markdown("**Planilla de Control General**")
     configuracion_columnas = {
         "Rol Principal": st.column_config.SelectboxColumn("Rol Principal", options=OPCIONES_ROLES),
@@ -118,14 +118,7 @@ with tab_roster:
         "Agentes Principales": st.column_config.TextColumn("Agentes Principales (Solo editable abajo ⬇️)", disabled=True),
     }
     
-    def actualizar_roster():
-        df_edit = st.session_state["editor_roster_principal"]
-        if "Strikes" not in df_edit.columns:
-            df_edit["Strikes"] = st.session_state.df_roster["Strikes"]
-        df_edit["Strikes"] = df_edit["Strikes"].fillna(0).astype(int)
-        st.session_state.df_roster = df_edit
-
-    st.data_editor(
+    df_roster_editado = st.data_editor(
         st.session_state.df_roster,
         num_rows="dynamic",
         use_container_width=True,
@@ -133,14 +126,22 @@ with tab_roster:
         column_order=["Riot ID (Nick#TAG)", "Nombre Real", "Rol Principal", "Rol Secundario", "Agentes Principales", "Rango / Cima", "Cargo", "Estado", "Actividad", "Contacto"],
         column_config=configuracion_columnas,
         height=350,
-        key="editor_roster_principal",
-        on_change=actualizar_roster
+        key="editor_roster_principal"
     )
+    
+    if st.button("💾 Guardar Cambios de la Tabla"):
+        df_temp = df_roster_editado.copy()
+        if "Strikes" not in df_temp.columns:
+            df_temp["Strikes"] = st.session_state.df_roster["Strikes"]
+        df_temp["Strikes"] = df_temp["Strikes"].fillna(0).astype(int)
+        st.session_state.df_roster = df_temp
+        st.success("✅ ¡Cambios guardados con éxito en la base de datos!")
+        st.rerun()
 
-    # --- GESTOR INTELIGENTE DE AGENTES (CAMBIO INMEDIATO) ---
+    # --- GESTOR INTELIGENTE DE AGENTES ---
     st.markdown("---")
     st.markdown("### 🎭 Gestor Dinámico de Agentes")
-    st.caption("Selecciona un jugador por su Riot ID y marca sus agentes. Los cambios se aplican al instante.")
+    st.caption("Selecciona un jugador por su Riot ID. El sistema detectará sus roles y te mostrará solo los agentes correspondientes.")
     
     if len(riot_ids_activos) > 0:
         c_sel, c_form = st.columns([1, 2])
@@ -165,17 +166,17 @@ with tab_roster:
                     agentes_actuales = [a.strip() for a in str(agentes_str).split(",")] if pd.notna(agentes_str) and str(agentes_str).strip() != "" else []
                     agentes_actuales = [a for a in agentes_actuales if a in opciones_validas]
                     
-                    def actualizar_agentes_callback():
-                        nuevos = st.session_state[f"multi_agentes_{jugador_agentes}"]
-                        st.session_state.df_roster.at[idx, "Agentes Principales"] = ", ".join(nuevos)
-
-                    st.multiselect(
+                    nuevos_agentes = st.multiselect(
                         f"2. Agentes disponibles para los roles de {jugador_agentes} ({rol_1} / {rol_2}):",
                         options=opciones_validas,
                         default=agentes_actuales,
-                        key=f"multi_agentes_{jugador_agentes}",
-                        on_change=actualizar_agentes_callback
+                        key=f"multi_agentes_{jugador_agentes}"
                     )
+                    
+                    if st.button("💾 Guardar Pool de Agentes"):
+                        st.session_state.df_roster.at[idx, "Agentes Principales"] = ", ".join(nuevos_agentes)
+                        st.success(f"✅ ¡Agentes actualizados para {jugador_agentes}!")
+                        st.rerun()
 
 # ==========================================
 # PESTAÑA 2: ASISTENCIA 
@@ -216,21 +217,21 @@ with tab_historial:
         df_disc_view = st.session_state.df_roster[["Nombre Real", "Estado", "Rol Principal", "Strikes"]].copy()
         df_disc_view = df_disc_view[df_disc_view["Nombre Real"].astype(str).str.strip() != ""]
         
-        def actualizar_strikes_callback():
-            edited_disc = st.session_state["editor_disciplina_strikes"]
-            for index, row in edited_disc.iterrows():
-                idx_roster = st.session_state.df_roster.index[st.session_state.df_roster['Nombre Real'] == row['Nombre Real']].tolist()
-                if idx_roster:
-                    st.session_state.df_roster.at[idx_roster[0], 'Strikes'] = row['Strikes']
-
-        st.data_editor(
+        edited_disc = st.data_editor(
             df_disc_view,
             use_container_width=True,
             hide_index=True,
             disabled=["Nombre Real", "Estado", "Rol Principal"],
-            key="editor_disciplina_strikes",
-            on_change=actualizar_strikes_callback
+            key="editor_disciplina_strikes"
         )
+        
+        if st.button("💾 Guardar Cambios de Strikes"):
+            for index, row in edited_disc.iterrows():
+                idx_roster = st.session_state.df_roster.index[st.session_state.df_roster['Nombre Real'] == row['Nombre Real']].tolist()
+                if idx_roster:
+                    st.session_state.df_roster.at[idx_roster[0], 'Strikes'] = row['Strikes']
+            st.success("✅ ¡Strikes actualizados correctamente!")
+            st.rerun()
 
         st.markdown("---")
         st.markdown("**Registro de Incidencias**")
