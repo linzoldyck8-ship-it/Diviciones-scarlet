@@ -7,7 +7,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Scarlet Roster - Sistema Seguro en Tiempo Real", page_icon="🔥", layout="wide")
 
-# --- ESTILOS CORPORATIVOS Y BLOQUEO RADICAL DE EXTENSIONES ---
+# --- ESTILOS CORPORATIVOS ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
@@ -20,31 +20,7 @@ st.markdown("""
     .stButton>button:hover { background-color: #ff4655; color: #0f1923; }
     .stSelectbox label, .stTextInput label, .stMultiSelect label { color: #ece8e1; font-weight: 600; font-size: 0.9rem; }
     div[data-testid="stMetricValue"] { color: #ff4655; font-weight: 700; }
-
-    /* CLASE CSS PARA OCULTAR CARACTERES DE CONTRASEÑA EN MODO SEGURO SIN ACTIVAR EXTENSIONES */
-    input.fake-password {
-        -webkit-text-security: disc !important;
-        text-security: disc !important;
-    }
     </style>
-
-    <!-- SCRIPT DE JAVASCRIPT PARA BLOQUEAR AUTOCOMPLETADO Y GESTORES DE CORREO -->
-    <script>
-    function desactivarAutocompletado() {
-        const inputs = document.querySelectorAll('input');
-        inputs.forEach(input => {
-            input.setAttribute('autocomplete', 'off');
-            input.setAttribute('autocorrect', 'off');
-            input.setAttribute('autocapitalize', 'off');
-            input.setAttribute('spellcheck', 'false');
-            input.setAttribute('data-lpignore', 'true');
-            input.setAttribute('data-form-type', 'other');
-        });
-    }
-    window.addEventListener('DOMContentLoaded', desactivarAutocompletado);
-    const observer = new MutationObserver(desactivarAutocompletado);
-    observer.observe(document.body, { childList: true, subtree: true });
-    </script>
 """, unsafe_allow_html=True)
 
 # --- DATOS INICIALES PREDETERMINADOS ---
@@ -180,11 +156,7 @@ if not st.session_state.autenticado:
         st.markdown("### Acceso Administrador")
         with st.form("form_login_admin"):
             user_admin = st.text_input("Usuario Administrador", key="input_admin_user")
-            
-            st.markdown("Contraseña", unsafe_allow_html=True)
-            pass_admin = st.text_input("ContraseñaAdminOculta", label_visibility="collapsed", key="input_admin_pass_custom")
-            st.markdown('<script>document.querySelector(\'input[aria-label="ContraseñaAdminOculta"]\').classList.add("fake-password");</script>', unsafe_allow_html=True)
-            
+            pass_admin = st.text_input("Contraseña", type="password", key="input_admin_pass")
             submit_admin = st.form_submit_button("Entrar como Admin")
             
             if submit_admin:
@@ -205,11 +177,7 @@ if not st.session_state.autenticado:
         st.markdown("### Iniciar Sesión (Jugadores)")
         with st.form("form_login_jugador"):
             user_player = st.text_input("Tu Usuario", key="input_player_user")
-            
-            st.markdown("Tu Contraseña", unsafe_allow_html=True)
-            pass_player = st.text_input("TuContrasenaPlayerOculta", label_visibility="collapsed", key="input_player_pass_custom")
-            st.markdown('<script>document.querySelector(\'input[aria-label="TuContrasenaPlayerOculta"]\').classList.add("fake-password");</script>', unsafe_allow_html=True)
-            
+            pass_player = st.text_input("Tu Contraseña", type="password", key="input_player_pass")
             submit_player = st.form_submit_button("Iniciar Sesión")
             
             if submit_player:
@@ -245,14 +213,8 @@ if not st.session_state.autenticado:
                 reg_estado = st.selectbox("Estado Asignado", OPCIONES_ESTADO)
                 reg_discord = st.text_input("Usuario de Discord / Contacto")
                 reg_usuario = st.text_input("Elige tu Nombre de Usuario nuevo")
-                
-                st.markdown("Elige tu Contraseña", unsafe_allow_html=True)
-                reg_pass = st.text_input("RegPassOculta", label_visibility="collapsed", key="input_reg_pass_custom")
-                st.markdown('<script>document.querySelector(\'input[aria-label="RegPassOculta"]\').classList.add("fake-password");</script>', unsafe_allow_html=True)
-                
-                st.markdown("Confirma tu Contraseña", unsafe_allow_html=True)
-                reg_pass_conf = st.text_input("RegPassConfOculta", label_visibility="collapsed", key="input_reg_pass_conf_custom")
-                st.markdown('<script>document.querySelector(\'input[aria-label="RegPassConfOculta"]\').classList.add("fake-password");</script>', unsafe_allow_html=True)
+                reg_pass = st.text_input("Elige tu Contraseña", type="password", key="input_reg_pass")
+                reg_pass_conf = st.text_input("Confirma tu Contraseña", type="password", key="input_reg_pass_conf")
             
             submit_nuevo_jugador = st.form_submit_button("Completar Registro y Entrar al Roster")
             
@@ -740,11 +702,7 @@ if st.session_state.rol_usuario == "admin":
         
         with st.form("form_emergencia_reset", clear_on_submit=True):
             st.markdown("Para autorizar este vaciado total, ingresa tu **contraseña de administrador** actual:")
-            
-            st.markdown("Contraseña de Administrador de Confirmación", unsafe_allow_html=True)
-            pass_confirmacion_emergencia = st.text_input("PassEmergenciaOculta", label_visibility="collapsed", key="input_emergencia_pass_custom")
-            st.markdown('<script>document.querySelector(\'input[aria-label="PassEmergenciaOculta"]\').classList.add("fake-password");</script>', unsafe_allow_html=True)
-            
+            pass_confirmacion_emergencia = st.text_input("Contraseña de Administrador de Confirmación", type="password", key="input_emergencia_pass")
             btn_ejecutar_emergencia = st.form_submit_button("🔥 VACIAR Y REINICIAR TODA LA BASE DE DATOS")
             
             if btn_ejecutar_emergencia:
