@@ -355,7 +355,7 @@ else:
 
 # --- CONFIGURACIÓN DE URL DE LOGO DEL EQUIPO ---
 # Puedes cambiar esta URL por la imagen oficial del logo de tu organización
-URL_LOGO_EQUIPO = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60"
+URL_LOGO_EQUIPO = "https://cdn.discordapp.com/attachments/1272709315039592469/1275623434063314984/SCARLET.png?ex=6aaf32e6&is=6aade166&hm=4889e788d8f71a5e470db02c4c8f42b95fb19fcdce9be96f7fabab8b6fec25e4&"
 
 # --- BARRA DE NAVEGACIÓN SUPERIOR ESTILO NAVBAR CORPORATIVO ---
 st.markdown("""
