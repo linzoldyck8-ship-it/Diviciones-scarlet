@@ -23,23 +23,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- CONEXIÓN CON GOOGLE SHEETS ---
-@st.cache_resource
-def conectar_google_sheets():
-    try:
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds_dict = dict(st.secrets["gcp_service_account"])
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-        client = gspread.authorize(creds)
-        sheet = client.open("crea el proyecto en formato hoja de calculo como...").worksheet("Control General")
-        return sheet
-    except Exception as e:
-        return None
-
-sheet = conectar_google_sheets()
-
-# Datos predeterminados por si la hoja de Google Sheets está vacía
-DATOS_INICIALES = pd.DataFrame({
+# --- DATOS INICIALES PREDETERMINADOS ---
+DATOS_INICIALES_ROSTER = pd.DataFrame({
     "ID": [1, 2, 3, 4, 5, 6, 7],
     "Riot ID (Nick#TAG)": ["Mazinhooo#lovsf", "Lionora#ZERO", "BestiaDelTrap#ARK", "leO#deus", "ELNIÑOMARAVILLA#14y", "Lotenesquepedir#boka", "Shuten#2006"],
     "Nombre Real": ["Maximiliano", "Lientur", "Facundo", "Leonardo", "Felipe", "Ian", "Leonel"],
@@ -54,38 +39,91 @@ DATOS_INICIALES = pd.DataFrame({
     "Notas / Observaciones": ["", "", "", "", "", "", ""]
 })
 
-def guardar_datos_en_sheets(df):
-    if sheet is not None:
+# --- CONEXIÓN Y CREACIÓN AUTOMÁTICA DE MULTI-HOJAS ---
+@st.cache_resource
+def conectar_google_sheets():
+    try:
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        creds_dict = dict(st.secrets["gcp_service_account"])
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        client = gspread.authorize(creds)
+        
+        # Abre el documento principal
+        spreadsheet = client.open("crea el proyecto en formato hoja de calculo como...")
+        
+        # 1. Pestaña Control General (Roster)
+        try:
+            sheet_roster = spreadsheet.worksheet("Control General")
+        except gspread.exceptions.WorksheetNotFound:
+            sheet_roster = spreadsheet.add_worksheet(title="Control General", rows="100", cols="15")
+            data_to_upload = [DATOS_INICIALES_ROSTER.columns.values.tolist()] + DATOS_INICIALES_ROSTER.values.tolist()
+            sheet_roster.update(data_to_upload)
+
+        # 2. Pestaña Asistencia
+        try:
+            sheet_asistencia = spreadsheet.worksheet("Asistencia")
+        except gspread.exceptions.WorksheetNotFound:
+            sheet_asistencia = spreadsheet.add_worksheet(title="Asistencia", rows="100", cols="35")
+            df_asistencia_init = pd.DataFrame(columns=["Nombre Real", "Mes", "Días Hábiles"] + [str(i) for i in range(1, 32)])
+            sheet_asistencia.update([df_asistencia_init.columns.values.tolist()])
+
+        # 3. Pestaña Disciplina
+        try:
+            sheet_disciplina = spreadsheet.worksheet("Disciplina")
+        except gspread.exceptions.WorksheetNotFound:
+            sheet_disciplina = spreadsheet.add_worksheet(title="Disciplina", rows="100", cols="10")
+            df_disc_init = pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])
+            sheet_disciplina.update([df_disc_init.columns.values.tolist()])
+            
+        return spreadsheet, sheet_roster, sheet_asistencia, sheet_disciplina
+    except Exception as e:
+        st.error(f"Error crítico conectando a Google Sheets: {e}")
+        return None, None, None, None
+
+spreadsheet, sheet_roster, sheet_asistencia, sheet_disciplina = conectar_google_sheets()
+
+# --- FUNCIONES DE CARGA Y GUARDADO GENERALES ---
+def guardar_en_sheet(sheet_obj, df):
+    if sheet_obj is not None:
         try:
             df_clean = df.fillna("")
-            # Asegura que las columnas coincidan con las de tu Sheets
             data_to_upload = [df_clean.columns.values.tolist()] + df_clean.values.tolist()
-            sheet.clear()
-            sheet.update(data_to_upload)
+            sheet_obj.clear()
+            sheet_obj.update(data_to_upload)
         except Exception as e:
-            st.error(f"Error al guardar en Google Sheets: {e}")
+            st.error(f"Error al sincronizar con Google Sheets: {e}")
 
-def cargar_datos():
-    if sheet is not None:
+def cargar_roster():
+    if sheet_roster is not None:
         try:
-            data = sheet.get_all_records()
-            if not data:  # Si la hoja está vacía
-                guardar_datos_en_sheets(DATOS_INICIALES)
-                return DATOS_INICIALES.copy()
+            data = sheet_roster.get_all_records()
+            if not data:
+                guardar_en_sheet(sheet_roster, DATOS_INICIALES_ROSTER)
+                return DATOS_INICIALES_ROSTER.copy()
             df = pd.DataFrame(data)
-            if df.empty:
-                return DATOS_INICIALES.copy()
-            return df
-        except Exception as e:
-            st.warning("⚠️ No se pudieron leer los registros de Sheets, cargando base temporal.")
-            return DATOS_INICIALES.copy()
-    return DATOS_INICIALES.copy()
+            return DATOS_INICIALES_ROSTER.copy() if df.empty else df
+        except:
+            return DATOS_INICIALES_ROSTER.copy()
+    return DATOS_INICIALES_ROSTER.copy()
 
+def cargar_incidencias():
+    if sheet_disciplina is not None:
+        try:
+            data = sheet_disciplina.get_all_records()
+            df = pd.DataFrame(data)
+            if df.empty or "Fecha" not in df.columns:
+                return pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])
+            return df
+        except:
+            return pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])
+    return pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])
+
+# --- ESTADOS DE LA SESIÓN ---
 if 'df_roster' not in st.session_state:
-    st.session_state.df_roster = cargar_datos()
+    st.session_state.df_roster = cargar_roster()
 
 if 'df_incidencias' not in st.session_state:
-    st.session_state.df_incidencias = pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])
+    st.session_state.df_incidencias = cargar_incidencias()
 
 # --- DICCIONARIOS Y LISTAS DESPLEGABLES ---
 AGENTES_POR_ROL = {
@@ -110,12 +148,12 @@ tab_roster, tab_asistencia, tab_historial, tab_stats = st.tabs([
 # PESTAÑA 1: ROSTER
 # ==========================================
 with tab_roster:
-    st.title("🔥 Gestión de Roster - Sincronizado con Google Sheets")
+    st.title("🔥 Gestión de Roster - Sincronizado")
     
-    if sheet is None:
-        st.error("⚠️ No se pudo conectar con Google Sheets. Verifica los secrets.")
+    if spreadsheet is None:
+        st.error("⚠️ No se pudo conectar con Google Sheets. Verifica tus secretos.")
     else:
-        st.success("🟢 Conectado en tiempo real con Google Sheets.")
+        st.success("🟢 Conexión activa con Google Sheets (Multi-hoja habilitada).")
 
     jugadores_activos_temp = [j for j in st.session_state.df_roster["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
     
@@ -147,22 +185,15 @@ with tab_roster:
         key="editor_roster_principal"
     )
     
-    # Guardado automático transparente en Sheets cada vez que modificas la tabla principal
     if not df_roster_editado.equals(st.session_state.df_roster):
         st.session_state.df_roster = df_roster_editado
-        guardar_datos_en_sheets(st.session_state.df_roster)
+        guardar_en_sheet(sheet_roster, st.session_state.df_roster)
         st.rerun()
 
-    col_btn1, col_btn2 = st.columns([1, 4])
-    with col_btn1:
-        if st.button("💾 Sincronizar Manualmente"):
-            guardar_datos_en_sheets(st.session_state.df_roster)
-            st.success("✅ ¡Datos guardados en Google Sheets!")
-    with col_btn2:
-        if st.button("🔄 Recargar desde Google Sheets"):
-            st.session_state.df_roster = cargar_datos()
-            st.success("🔄 ¡Datos actualizados!")
-            st.rerun()
+    if st.button("🔄 Recargar Roster desde Sheets"):
+        st.session_state.df_roster = cargar_roster()
+        st.success("🔄 ¡Datos de Roster actualizados!")
+        st.rerun()
 
     # --- GESTOR DINÁMICO DE AGENTES ---
     st.markdown("---")
@@ -204,39 +235,81 @@ with tab_roster:
                         nuevos_str = ", ".join(nuevos_agentes)
                         if agentes_str != nuevos_str:
                             st.session_state.df_roster.at[idx, "Agentes Principales"] = nuevos_str
-                            guardar_datos_en_sheets(st.session_state.df_roster)
+                            guardar_en_sheet(sheet_roster, st.session_state.df_roster)
                             st.rerun()
 
 # ==========================================
 # PESTAÑA 2: ASISTENCIA 
 # ==========================================
 with tab_asistencia:
-    st.title("📅 Asistencia")
+    st.title("📅 Asistencia - Sincronizado con Google Sheets")
     jugadores_activos = [j for j in st.session_state.df_roster["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
     
     if len(jugadores_activos) == 0:
         st.warning("Agrega jugadores en la pestaña 'Roster' para ver la asistencia.")
     else:
-        mes_seleccionado = st.selectbox("Mes", ["Septiembre", "Octubre", "Noviembre", "Diciembre"])
+        mes_seleccionado = st.selectbox("Seleccionar Mes", ["Septiembre", "Octubre", "Noviembre", "Diciembre"])
+        
+        # Intentar cargar asistencia guardada desde Google Sheets
+        df_asistencia_guardada = pd.DataFrame()
+        if sheet_asistencia is not None:
+            try:
+                data_asis = sheet_asistencia.get_all_records()
+                if data_asis:
+                    df_asistencia_guardada = pd.DataFrame(data_asis)
+            except:
+                pass
+
         dias_mes = [str(i) for i in range(1, 32)]
+        
+        # Construir matriz limpia para el mes seleccionado
         df_mes = pd.DataFrame(index=jugadores_activos, columns=dias_mes).fillna("-")
         df_mes["Días Hábiles"] = 22
-        
+        df_mes["Mes"] = mes_seleccionado
+        df_mes = df_mes.reset_index().rename(columns={"index": "Nombre Real"})
+
+        # Si ya existen datos guardados previamente para este mes, los combinamos
+        if not df_asistencia_guardada.empty and "Mes" in df_asistencia_guardada.columns and "Nombre Real" in df_asistencia_guardada.columns:
+            df_mes_filtrado = df_asistencia_guardada[df_asistencia_guardada["Mes"] == mes_seleccionado]
+            for idx, row in df_mes_filtrado.iterrows():
+                nombre = row["Nombre Real"]
+                if nombre in df_mes["Nombre Real"].values:
+                    for col in dias_mes + ["Días Hábiles"]:
+                        if col in row and row[col] != "":
+                            df_mes.loc[df_mes["Nombre Real"] == nombre, col] = row[col]
+
+        df_mes = df_mes.set_index("Nombre Real")
+
         def calcular_porcentaje(row):
-            dias = int(row["Días Hábiles"])
+            try:
+                dias = int(row["Días Hábiles"])
+            except:
+                dias = 22
             if dias == 0: return "0%"
             asistencia = sum(row[dias_mes] == "P") + sum(row[dias_mes] == "J") + (sum(row[dias_mes] == "T") * 0.8)
             return f"{min((asistencia / dias) * 100, 100):.0f}%"
 
         df_editado = st.data_editor(df_mes, use_container_width=True, key="editor_asistencia_mes")
         df_editado["% Asistencia"] = df_editado.apply(calcular_porcentaje, axis=1)
-        st.dataframe(df_editado[["Días Hábiles", "% Asistencia"]], use_container_width=True)
+        st.dataframe(df_editado[["Mes", "Días Hábiles", "% Asistencia"]], use_container_width=True)
+
+        # Botón para guardar cambios de asistencia en Google Sheets de forma permanente
+        if st.button("💾 Guardar Cambios de Asistencia en Sheets"):
+            df_para_guardar = df_editado.reset_index()
+            # Si hay registros de otros meses en la nube, los unimos para no perderlos
+            if not df_asistencia_guardada.empty:
+                otros_meses = df_asistencia_guardada[df_asistencia_guardada["Mes"] != mes_seleccionado]
+                df_final_asis = pd.concat([otros_meses, df_para_guardar], ignore_index=True)
+            else:
+                df_final_asis = df_para_guardar
+            guardar_en_sheet(sheet_asistencia, df_final_asis)
+            st.success("✅ ¡Asistencia guardada correctamente en Google Sheets!")
 
 # ==========================================
 # PESTAÑA 3: DISCIPLINA
 # ==========================================
 with tab_historial:
-    st.title("🛡️ Panel de Disciplina y Conducta")
+    st.title("🛡️ Panel de Disciplina - Sincronizado")
     
     jugadores_activos = [j for j in st.session_state.df_roster["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
     
@@ -257,7 +330,7 @@ with tab_historial:
                     jugador_sel = st.selectbox("Jugador Implicado", jugadores_activos)
                     detalles = st.text_area("Notas / Observaciones detalladas")
                 
-                if st.form_submit_button("Guardar Registro"):
+                if st.form_submit_button("Guardar y Sincronizar Registro"):
                     nueva_fila = pd.DataFrame([{
                         "Fecha": str(fecha),
                         "Jugador": jugador_sel,
@@ -266,10 +339,12 @@ with tab_historial:
                         "Detalles": detalles
                     }])
                     st.session_state.df_incidencias = pd.concat([st.session_state.df_incidencias, nueva_fila], ignore_index=True)
-                    st.success(f"✅ Incidencia registrada correctamente para {jugador_sel}.")
+                    guardar_en_sheet(sheet_disciplina, st.session_state.df_incidencias)
+                    st.success(f"✅ Incidencia registrada y guardada en Google Sheets para {jugador_sel}.")
+                    st.rerun()
             
             st.markdown("---")
-            st.markdown("### Historial Completo de Incidencias")
+            st.markdown("### Historial Completo de Incidencias (Nube)")
             if not st.session_state.df_incidencias.empty:
                 st.dataframe(st.session_state.df_incidencias, use_container_width=True, hide_index=True)
             else:
