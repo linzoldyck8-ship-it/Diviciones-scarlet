@@ -57,6 +57,7 @@ if 'df_roster' not in st.session_state:
     })
 
 jugadores_activos = [j for j in st.session_state.df_roster["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
+riot_ids_activos = [r for r in st.session_state.df_roster["Riot ID (Nick#TAG)"].tolist() if str(r).strip() != "" and str(r).lower() != "nan"]
 
 # --- PESTAÑAS PRINCIPALES ---
 tab_roster, tab_asistencia, tab_historial, tab_stats = st.tabs([
@@ -135,16 +136,16 @@ with tab_roster:
     # --- GESTOR INTELIGENTE DE AGENTES ---
     st.markdown("---")
     st.markdown("### 🎭 Gestor Dinámico de Agentes")
-    st.caption("Selecciona un jugador. El sistema detectará sus roles y te mostrará solo los agentes correspondientes.")
+    st.caption("Selecciona un jugador por su Riot ID. El sistema detectará sus roles y te mostrará solo los agentes correspondientes.")
     
-    if len(jugadores_activos) > 0:
+    if len(riot_ids_activos) > 0:
         c_sel, c_form = st.columns([1, 2])
         with c_sel:
-            jugador_agentes = st.selectbox("1. Selecciona al Jugador:", [""] + jugadores_activos)
+            jugador_agentes = st.selectbox("1. Selecciona al Riot ID:", [""] + riot_ids_activos)
         
         if jugador_agentes != "":
             with c_form:
-                idx = st.session_state.df_roster[st.session_state.df_roster["Nombre Real"] == jugador_agentes].index[0]
+                idx = st.session_state.df_roster[st.session_state.df_roster["Riot ID (Nick#TAG)"] == jugador_agentes].index[0]
                 rol_1 = str(st.session_state.df_roster.at[idx, "Rol Principal"])
                 rol_2 = str(st.session_state.df_roster.at[idx, "Rol Secundario"])
                 
