@@ -27,13 +27,10 @@ st.markdown("""
 @st.cache_resource
 def conectar_google_sheets():
     try:
-        # Configuración mediante los secrets de Streamlit
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_dict = dict(st.secrets["gcp_service_account"])
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         client = gspread.authorize(creds)
-        
-        # Abre la hoja de cálculo por su nombre o enlace (asegúrate de compartirla con el email de la service account)
         sheet = client.open("crea el proyecto en formato hoja de calculo como...").worksheet("Control General")
         return sheet
     except Exception as e:
@@ -41,31 +38,30 @@ def conectar_google_sheets():
 
 sheet = conectar_google_sheets()
 
-# Función para cargar datos desde Google Sheets
 def cargar_datos():
     if sheet is not None:
         data = sheet.get_all_records()
         df = pd.DataFrame(data)
         if not df.empty:
             return df
-    # Fallback por defecto si no hay conexión activa aún
     return pd.DataFrame(columns=[
         "ID", "Riot ID (Nick#TAG)", "Nombre Real", "Rol Principal", "Rol Secundario", 
         "Agentes Principales", "Rango / Cima", "Cargo en Equipo", "Estado", 
         "Actividad", "Contacto / Discord", "Notas / Observaciones"
     ])
 
-# Función para guardar el DataFrame completo de vuelta a Google Sheets
 def guardar_datos_en_sheets(df):
     if sheet is not None:
-        # Limpiar valores NaN para evitar errores en gspread
         df_clean = df.fillna("")
         sheet.clear()
         sheet.update([df_clean.columns.values.tolist()] + df_clean.values.tolist())
 
-# Inicializar sesión con los datos de Google Sheets
 if 'df_roster' not in st.session_state:
     st.session_state.df_roster = cargar_datos()
+
+# Inicializar un registro de incidencias en sesión vinculado a los jugadores
+if 'df_incidencias' not in st.session_state:
+    st.session_state.df_incidencias = pd.DataFrame(columns=["Fecha", "Jugador", "Tipo", "Sanción", "Detalles"])
 
 # --- DICCIONARIOS Y LISTAS DESPLEGABLES ---
 AGENTES_POR_ROL = {
@@ -87,13 +83,13 @@ tab_roster, tab_asistencia, tab_historial, tab_stats = st.tabs([
 ])
 
 # ==========================================
-# PESTAÑA 1: ROSTER (Sincronizado con Sheets)
+# PESTAÑA 1: ROSTER
 # ==========================================
 with tab_roster:
     st.title("🔥 Gestión de Roster - Sincronizado con Google Sheets")
     
     if sheet is None:
-        st.error("⚠️ No se pudo conectar automáticamente con Google Sheets. Verifica tus secretos en Streamlit Cloud (`gcp_service_account`). Mostrando modo local temporal.")
+        st.error("⚠️ No se pudo conectar con Google Sheets. Verifica los secrets.")
     else:
         st.success("🟢 Conectado en tiempo real con Google Sheets.")
 
@@ -107,36 +103,6 @@ with tab_roster:
     
     st.markdown("---")
     
-    # Gráficos dinámicos basados en la hoja de cálculo
-    c_g1, c_g2 = st.columns(2)
-    with c_g1:
-        if not st.session_state.df_roster.empty and 'Rol Principal' in st.session_state.df_roster.columns:
-            rol_counts = st.session_state.df_roster['Rol Principal'].value_counts().reset_index()
-            rol_counts.columns = ['Rol', 'Cantidad']
-            fig_roles = px.bar(rol_counts, x='Rol', y='Cantidad', title="Distribución por Rol Principal", color_discrete_sequence=['#ff4655'])
-            fig_roles.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='#ffffff', height=240, margin=dict(t=30, b=10, l=10, r=10))
-            st.plotly_chart(fig_roles, use_container_width=True)
-            
-    with c_g2:
-        if not st.session_state.df_roster.empty and 'Estado' in st.session_state.df_roster.columns:
-            estado_counts = st.session_state.df_roster['Estado'].value_counts().reset_index()
-            estado_counts.columns = ['Estado', 'Cantidad']
-            fig_estado = px.pie(estado_counts, names='Estado', values='Cantidad', title="Estado Actual del Roster", color_discrete_sequence=['#ff4655', '#ece8e1', '#283442', '#52606d'])
-            fig_estado.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='#ffffff', height=240, margin=dict(t=30, b=10, l=10, r=10))
-            st.plotly_chart(fig_estado, use_container_width=True)
-
-    st.markdown("---")
-    
-    # Diccionario de Agentes 
-    with st.expander("📚 Diccionario de Agentes por Rol (Referencia)"):
-        ca, cb, cc, cd = st.columns(4)
-        ca.info(f"**Duelistas:**\n{', '.join(AGENTES_POR_ROL['Duelista'])}")
-        cb.info(f"**Iniciadores:**\n{', '.join(AGENTES_POR_ROL['Iniciador'])}")
-        cc.info(f"**Controladores:**\n{', '.join(AGENTES_POR_ROL['Controlador'])}")
-        cd.info(f"**Centinelas:**\n{', '.join(AGENTES_POR_ROL['Centinela'])}")
-
-    # Tabla Principal conectada exactamente a tus columnas de Sheets
-    st.markdown("**Planilla de Control General (Edición Directa)**")
     configuracion_columnas = {
         "Rol Principal": st.column_config.SelectboxColumn("Rol Principal", options=OPCIONES_ROLES),
         "Rol Secundario": st.column_config.SelectboxColumn("Rol Secundario", options=OPCIONES_ROLES),
@@ -157,25 +123,22 @@ with tab_roster:
         key="editor_roster_principal"
     )
     
-    # Botón de Sincronización Manual y Automática con Google Sheets
     col_btn1, col_btn2 = st.columns([1, 4])
     with col_btn1:
         if st.button("💾 Sincronizar con Sheets"):
             st.session_state.df_roster = df_roster_editado
             guardar_datos_en_sheets(st.session_state.df_roster)
-            st.success("✅ ¡Datos guardados en Google Sheets con éxito!")
+            st.success("✅ ¡Datos guardados en Google Sheets!")
             st.rerun()
     with col_btn2:
         if st.button("🔄 Recargar desde Google Sheets"):
             st.session_state.df_roster = cargar_datos()
-            st.success("🔄 ¡Datos actualizados desde la nube!")
+            st.success("🔄 ¡Datos actualizados!")
             st.rerun()
 
     # --- GESTOR DINÁMICO DE AGENTES ---
     st.markdown("---")
     st.markdown("### 🎭 Gestor Dinámico de Agentes")
-    st.caption("Selecciona un jugador para marcar sus agentes en tiempo real.")
-    
     riot_ids_actuales = [r for r in st.session_state.df_roster["Riot ID (Nick#TAG)"].tolist() if str(r).strip() != "" and str(r).lower() != "nan"]
     
     if len(riot_ids_actuales) > 0:
@@ -197,7 +160,7 @@ with tab_roster:
                     opciones_validas = list(set(opciones_validas))
                     
                     if not opciones_validas:
-                        st.warning("⚠️ Asigna al menos un Rol válido en la tabla superior para este jugador para cargar sus agentes.")
+                        st.warning("⚠️ Asigna al menos un Rol válido en la tabla superior para este jugador.")
                     else:
                         agentes_str = st.session_state.df_roster.at[idx, "Agentes Principales"]
                         agentes_actuales = [a.strip() for a in str(agentes_str).split(",")] if pd.notna(agentes_str) and str(agentes_str).strip() != "" else []
@@ -213,7 +176,7 @@ with tab_roster:
                         if st.button("💾 Guardar Pool de Agentes en Sheets"):
                             st.session_state.df_roster.at[idx, "Agentes Principales"] = ", ".join(nuevos_agentes)
                             guardar_datos_en_sheets(st.session_state.df_roster)
-                            st.success(f"✅ ¡Pool de agentes actualizado para {jugador_agentes} y guardado en Google Sheets!")
+                            st.success(f"✅ ¡Actualizado para {jugador_agentes}!")
                             st.rerun()
 
 # ==========================================
@@ -221,8 +184,6 @@ with tab_roster:
 # ==========================================
 with tab_asistencia:
     st.title("📅 Asistencia")
-    st.caption("Control de asistencia mensual integrado con los nombres del roster principal.")
-    
     jugadores_activos = [j for j in st.session_state.df_roster["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
     
     if len(jugadores_activos) == 0:
@@ -241,39 +202,77 @@ with tab_asistencia:
 
         df_editado = st.data_editor(df_mes, use_container_width=True, key="editor_asistencia_mes")
         df_editado["% Asistencia"] = df_editado.apply(calcular_porcentaje, axis=1)
-        st.markdown("**Resumen Mensual**")
         st.dataframe(df_editado[["Días Hábiles", "% Asistencia"]], use_container_width=True)
 
 # ==========================================
-# PESTAÑA 3: DISCIPLINA
+# PESTAÑA 3: DISCIPLINA (Con Sub-pestañas)
 # ==========================================
 with tab_historial:
     st.title("🛡️ Panel de Disciplina y Conducta")
-    st.info("💡 Basado en la pestaña 'Historial Conducta' de tu proyecto.")
     
     jugadores_activos = [j for j in st.session_state.df_roster["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
     
-    if len(jugadores_activos) > 0:
-        with st.form("form_anotacion"):
-            c1, c2 = st.columns(2)
-            with c1:
-                fecha = st.date_input("Fecha")
-                tipo = st.selectbox("Tipo de Incidencia", ["Positiva", "Negativa", "Advertencia"])
-                sancion = st.selectbox("Sanción", ["Ninguna", "Strike 1", "Strike 2", "Expulsión"])
-            with c2:
-                jugador_sel = st.selectbox("Jugador Implicado", jugadores_activos)
-                detalles = st.text_area("Notas / Observaciones")
-            if st.form_submit_button("Guardar Incidencia"):
-                st.success(f"Incidencia registrada correctamente para {jugador_sel}.")
-    else:
+    if len(jugadores_activos) == 0:
         st.warning("Agrega jugadores en la pestaña 'Roster' para iniciar el control de disciplina.")
+    else:
+        # Sub-pestañas internas de disciplina
+        sub_gen, sub_ind = st.tabs(["📋 Historial General e Ingreso", "👤 Anotaciones por Jugador"])
+        
+        with sub_gen:
+            st.markdown("### Registrar Nueva Incidencia o Anotación")
+            with st.form("form_anotacion"):
+                c1, c2 = st.columns(2)
+                with c1:
+                    fecha = st.date_input("Fecha")
+                    tipo = st.selectbox("Tipo de Incidencia", ["Positiva", "Negativa", "Advertencia"])
+                    sancion = st.selectbox("Sanción", ["Ninguna", "Strike 1", "Strike 2", "Expulsión"])
+                with c2:
+                    jugador_sel = st.selectbox("Jugador Implicado", jugadores_activos)
+                    detalles = st.text_area("Notas / Observaciones detalladas")
+                
+                if st.form_submit_button("Guardar Registro"):
+                    nueva_fila = pd.DataFrame([{
+                        "Fecha": str(fecha),
+                        "Jugador": jugador_sel,
+                        "Tipo": tipo,
+                        "Sanción": sancion,
+                        "Detalles": detalles
+                    }])
+                    st.session_state.df_incidencias = pd.concat([st.session_state.df_incidencias, nueva_fila], ignore_index=True)
+                    st.success(f"✅ Incidencia registrada correctamente para {jugador_sel}.")
+            
+            st.markdown("---")
+            st.markdown("### Historial Completo de Incidencias")
+            if not st.session_state.df_incidencias.empty:
+                st.dataframe(st.session_state.df_incidencias, use_container_width=True, hide_index=True)
+            else:
+                st.info("No hay incidencias registradas todavía.")
+
+        with sub_ind:
+            st.markdown("### Expediente Individual por Jugador")
+            jugador_individual = st.selectbox("Selecciona un jugador para ver sus notas exclusivas:", jugadores_activos, key="select_jugador_ind")
+            
+            if not st.session_state.df_incidencias.empty:
+                df_filtrado = st.session_state.df_incidencias[st.session_state.df_incidencias["Jugador"] == jugador_individual]
+                
+                # Métrica rápida de faltas del jugador
+                col_i1, col_i2 = st.columns(2)
+                col_i1.metric(f"TOTAL ANOTACIONES DE {jugador_individual.upper()}", len(df_filtrado))
+                col_i2.metric("SANCIONES ACTIVAS", len(df_filtrado[df_filtrado["Sanción"] != "Ninguna"]))
+                
+                st.markdown("---")
+                if not df_filtrado.empty:
+                    st.dataframe(df_filtrado[["Fecha", "Tipo", "Sanción", "Detalles"]], use_container_width=True, hide_index=True)
+                else:
+                    st.info(f"✨ El jugador {jugador_individual} no tiene ninguna anotación ni incidencia registrada en su historial.")
+            else:
+                st.info("Aún no se han registrado incidencias en el sistema.")
 
 # ==========================================
 # PESTAÑA 4: TRACKER Y STATS
 # ==========================================
 with tab_stats:
     st.title("📈 Tracker y Estadísticas (Stats Premier)")
-    
     jugadores_activos = [j for j in st.session_state.df_roster["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
     
     if len(jugadores_activos) > 0:
@@ -298,4 +297,5 @@ with tab_stats:
         if img_upload:
             st.image(img_upload, use_column_width=True, caption=f"Última actualización de stats para {jugador_stat}")
     else:
+        st.warning("Agrega jugadores en la pestaña 'Roster'.")
         st.warning("Agrega jugadores en la pestaña 'Roster'.")
