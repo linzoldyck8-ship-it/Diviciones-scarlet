@@ -10,6 +10,9 @@ st.set_page_config(page_title="Scarlet Multi-Divisiones", page_icon="🔥", layo
 # URL OFICIAL DEL LOGO GENERAL DEL EQUIPO
 URL_LOGO_EQUIPO = "https://cdn.discordapp.com/attachments/1272709315039592469/1275623434063314984/SCARLET.png?ex=6aaf32e6&is=6aade166&hm=4889e788d8f71a5e470db02c4c8f42b95fb19fcdce9be96f7fabab8b6fec25e4&"
 
+# CONTRASEÑA GLOBAL DE SUPER ADMINISTRADOR
+CLAVE_SUPER_ADMIN = "super_secret_2026"
+
 # URLs DE LOS LOGOS DE CADA JUEGO (Puedes modificarlas aquí libremente)
 LOGOS_DIVISIONES = {
     "Valorant A": "https://images.seeklogo.com/logo-png/37/1/valorant-logo-png_seeklogo-379976.png",
@@ -105,17 +108,23 @@ st.markdown("""
         border-radius: 4px;
     }
 
-    /* Tarjetas estilizadas de divisiones en la portada */
+    /* Tarjetas estilizadas de divisiones en la portada con logo ajustado */
     .division-card {
-        background-size: cover;
-        background-position: center;
+        background-size: 50% !important;
+        background-repeat: no-repeat !important;
+        background-position: center 25px !important;
+        background-color: #111a24;
         border-radius: 12px;
         border: 1px solid rgba(255, 70, 85, 0.4);
-        padding: 20px 10px;
+        padding: 25px 10px 15px 10px;
         text-align: center;
         box-shadow: 0 6px 20px rgba(0,0,0,0.5);
         transition: all 0.3s ease;
         margin-bottom: 15px;
+        min-height: 160px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
     }
     .division-card:hover {
         transform: translateY(-5px);
@@ -273,7 +282,7 @@ if 'division_autenticada' not in st.session_state: st.session_state.division_aut
 
 
 # ==========================================
-# PORTADA DE BIENVENIDA CON TARJETAS ESTILIZADAS Y LOGOS DE FONDO
+# PORTADA DE BIENVENIDA CON TARJETAS ESTILIZADAS Y LOGOS DE FONDO AJUSTADOS
 # ==========================================
 if st.session_state.division_activa is None:
     st.markdown(f"""
@@ -288,7 +297,6 @@ if st.session_state.division_activa is None:
     
     st.markdown("<h3 style='text-align: center; margin: 30px 0 20px 0;'>Selecciona la División a la que deseas ingresar:</h3>", unsafe_allow_html=True)
     
-    # Mostrar las divisiones en filas de tarjetas elegantes con fondo del logo del juego y minilogo al lado del texto
     cols = st.columns(3)
     for idx, div_nombre in enumerate(DIVISIONES_DISPONIBLES):
         col_target = cols[idx % 3]
@@ -296,9 +304,8 @@ if st.session_state.division_activa is None:
         
         with col_target:
             st.markdown(f"""
-                <div class="division-card" style="background: linear-gradient(rgba(11, 16, 23, 0.85), rgba(17, 26, 36, 0.90)), url('{logo_url}'); background-size: cover; background-position: center;">
-                    <img src="{logo_url}" width="35" style="border-radius: 50%; margin-bottom: 8px; border: 1px solid #ff4655;">
-                    <h4 style="color: #ffffff; margin-bottom: 15px; font-weight: 600; letter-spacing: 0.5px;">{div_nombre}</h4>
+                <div class="division-card" style="background-image: linear-gradient(rgba(17, 26, 36, 0.92), rgba(17, 26, 36, 0.95)), url('{logo_url}');">
+                    <h4 style="color: #ffffff; margin: 0; font-weight: 600; letter-spacing: 0.5px;">{div_nombre}</h4>
                 </div>
             """, unsafe_allow_html=True)
             if st.button(f"Entrar a {div_nombre}", key=f"btn_card_{idx}"):
@@ -345,13 +352,13 @@ with c_div_3:
 
 
 # ==========================================
-# PANTALLA DE LOGIN / REGISTRO INDEPENDIENTE POR DIVISIÓN
+# PANTALLA DE LOGIN / REGISTRO / SUPER ADMIN POR DIVISIÓN
 # ==========================================
 if not st.session_state.autenticado:
     st.title(f"SCARLET ROSTER — {st.session_state.division_activa.upper()}")
     st.markdown(f"Base de datos y credenciales exclusivas para **{st.session_state.division_activa}**. Inicie sesión o regístrese.")
     
-    tab_login_admin, tab_login_player, tab_reg_player = st.tabs(["Administrador", "Inicio de Sesión (Jugador)", "Nuevo Registro"])
+    tab_login_admin, tab_login_super, tab_login_player, tab_reg_player = st.tabs(["Administrador", "Super Admin", "Inicio de Sesión (Jugador)", "Nuevo Registro"])
     
     with tab_login_admin:
         st.markdown(f"### Credenciales de Administrador ({st.session_state.division_activa})")
@@ -373,6 +380,24 @@ if not st.session_state.autenticado:
                     st.rerun()
                 else:
                     st.error(f"Credenciales inválidas para la división {st.session_state.division_activa}.")
+
+    with tab_login_super:
+        st.markdown(f"### Acceso Global de Super Administrador")
+        st.markdown("Ingrese la contraseña maestra para acceder a esta división con privilegios completos de administrador.")
+        with st.form("form_login_super_admin"):
+            pass_super = st.text_input("Contraseña Maestra de Super Admin", type="password", key="input_super_pass")
+            submit_super = st.form_submit_button("ACCEDER COMO SUPER ADMIN")
+            
+            if submit_super:
+                if pass_super.strip() == CLAVE_SUPER_ADMIN:
+                    st.session_state.autenticado = True
+                    st.session_state.rol_usuario = "admin"
+                    st.session_state.nombre_usuario = "Super Administrador"
+                    st.session_state.division_autenticada = st.session_state.division_activa
+                    st.success(f"Acceso de Super Administrador concedido en {st.session_state.division_activa}. Redirigiendo...")
+                    st.rerun()
+                else:
+                    st.error("Contraseña de Super Administrador incorrecta.")
 
     with tab_login_player:
         st.markdown(f"### Credenciales de Jugador ({st.session_state.division_activa})")
@@ -884,8 +909,8 @@ elif st.session_state.menu_activo == "Config" and st.session_state.rol_usuario =
     st.warning("Restablece toda la base de datos de esta división a valores iniciales de fábrica.")
     
     with st.form("form_emergencia_reset", clear_on_submit=True):
-        st.markdown("Ingrese contraseña de administrador para autorizar:")
-        pass_confirmacion_emergencia = st.text_input("Contraseña de Admin", type="password", key="input_emergencia_pass")
+        st.markdown("Ingrese contraseña de administrador o de Super Admin para autorizar:")
+        pass_confirmacion_emergencia = st.text_input("Contraseña", type="password", key="input_emergencia_pass")
         btn_ejecutar_emergencia = st.form_submit_button("VACIAR Y REINICIAR DIVISIÓN")
         
         if btn_ejecutar_emergencia:
@@ -894,7 +919,9 @@ elif st.session_state.menu_activo == "Config" and st.session_state.rol_usuario =
             else:
                 match_admin = df_config_actual[(df_config_actual["Contraseña"].astype(str) == pass_confirmacion_emergencia.strip()) & 
                                                (df_config_actual["Rol"].astype(str).str.lower() == "admin")]
-                if match_admin.empty:
+                es_super = (pass_confirmacion_emergencia.strip() == CLAVE_SUPER_ADMIN)
+                
+                if match_admin.empty and not es_super:
                     st.error("Contraseña incorrecta. Operación cancelada.")
                 else:
                     try:
