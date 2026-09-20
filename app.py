@@ -709,7 +709,6 @@ elif st.session_state.menu_activo == "Tracker":
                 nick_str = str(nick_seleccionado).strip()
                 division_actual = st.session_state.division_activa
                 
-                # Enlaces externos
                 if "Valorant" in division_actual:
                     if "#" in nick_str:
                         url_tracker = f"https://tracker.gg/valorant/profile/riot/{nick_str.replace('#', '%23')}/overview"
@@ -737,27 +736,32 @@ elif st.session_state.menu_activo == "Tracker":
         # 1. Cargar base de datos de capturas existente
         df_capturas = cargar_o_crear_tabla(tb_capturas, pd.DataFrame(columns=["Nick", "Imagen_B64"]))
         
-        # 2. Mostrar la captura si ya existe en la base de datos
+        # 2. Mostrar la captura si ya existe y botón para borrar
         captura_previa = df_capturas[df_capturas["Nick"] == nick_seleccionado]
         if not captura_previa.empty:
             b64_string = captura_previa.iloc[0]["Imagen_B64"]
             try:
                 img_bytes = base64.b64decode(b64_string)
                 st.image(img_bytes, use_container_width=True, caption=f"Captura guardada de {nick_seleccionado}")
+                
+                # --- NUEVO BOTÓN PARA ELIMINAR ---
+                if st.button("🗑️ Eliminar esta captura"):
+                    df_actualizado = df_capturas[df_capturas["Nick"] != nick_seleccionado]
+                    guardar_en_bd(tb_capturas, df_actualizado)
+                    st.rerun()
             except Exception:
                 st.error("Error al procesar la imagen almacenada.")
         else:
             st.info("No hay captura registrada para este jugador.")
 
         # 3. Subir y guardar nueva captura
+        st.markdown("<small>💡 **Para usar Ctrl+V sin abrir el explorador:** Haz clic izquierdo en cualquier espacio vacío del fondo oscuro de la página (lejos del botón) y luego presiona `Ctrl + V`.</small>", unsafe_allow_html=True)
         img_upload = st.file_uploader("Actualizar / Cargar nueva captura", type=["png", "jpg", "jpeg"])
         if img_upload: 
             with st.spinner("Guardando captura en la base de datos..."):
-                # Convertir la imagen a formato texto (Base64)
                 img_bytes = img_upload.getvalue()
                 b64_encoded = base64.b64encode(img_bytes).decode("utf-8")
                 
-                # Actualizar el DataFrame y guardar en Supabase
                 nueva_captura = pd.DataFrame([{"Nick": nick_seleccionado, "Imagen_B64": b64_encoded}])
                 df_actualizado = pd.concat([df_capturas[df_capturas["Nick"] != nick_seleccionado], nueva_captura], ignore_index=True)
                 
