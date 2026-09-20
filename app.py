@@ -709,36 +709,79 @@ elif st.session_state.menu_activo == "Tracker":
                 nick_str = str(nick_seleccionado).strip()
                 division_actual = st.session_state.division_activa
                 
-                # Enlace para Valorant (Requiere # en el ID)
                 if "Valorant" in division_actual:
                     if "#" in nick_str:
                         url_tracker = f"https://tracker.gg/valorant/profile/riot/{nick_str.replace('#', '%23')}/overview"
                         st.link_button("VER PERFIL EXTERNO", url_tracker, use_container_width=True)
                     else:
                         st.info("Falta '#' en el ID (Ej: Jugador#TAG)")
-                
-                # Enlace para Overwatch (Battle.net cambia # por - en la URL)
                 elif "Overwatch" in division_actual:
                     if "#" in nick_str or "-" in nick_str:
                         url_tracker = f"https://tracker.gg/overwatch/profile/battlenet/{nick_str.replace('#', '-')}/overview"
                         st.link_button("VER PERFIL EXTERNO", url_tracker, use_container_width=True)
                     else:
                         st.info("Falta '#' en el BattleTag (Ej: Jugador#1234)")
-                
-                # Enlace para Counter-Strike (FACEIT)
                 elif "CS" in division_actual:
                     url_tracker = f"https://www.faceit.com/es/players/{nick_str}"
                     st.link_button("VER PERFIL EN FACEIT", url_tracker, use_container_width=True)
-                    
             else:
                 st.info("ID no configurado correctamente.")
                 
+        # --- LÓGICA DE ALMACENAMIENTO DIRECTO EN BASE DE DATOS ---
         st.markdown(f"**Captura de Rendimiento — {nick_seleccionado}**")
-        img_upload = st.file_uploader("Cargar captura", type=["png", "jpg", "jpeg"])
+        
+        import base64
+        tb_capturas = f"{st.session_state.division_activa.replace(' ', '_').lower()}_capturas"
+        
+        # 1. Cargar base de datos de capturas existente
+        df_capturas = cargar_o_crear_tabla(tb_capturas, pd.DataFrame(columns=["Nick", "Imagen_B64"]))
+        
+        # 2. Mostrar la captura si ya existe y botón para borrar
+        captura_previa = df_capturas[df_capturas["Nick"] == nick_seleccionado]
+        if not captura_previa.empty:
+            b64_string = captura_previa.iloc[0]["Imagen_B64"]
+            try:
+                img_bytes = base64.b64decode(b64_string)
+                st.image(img_bytes, use_container_width=True, caption=f"Captura guardada de {nick_seleccionado}")
+                
+                # --- BOTÓN PARA ELIMINAR ---
+                if st.button("🗑️ Eliminar esta captura"):
+                    df_actualizado = df_capturas[df_capturas["Nick"] != nick_seleccionado]
+                    guardar_en_bd(tb_capturas, df_actualizado)
+                    st.rerun()
+            except Exception:
+                st.error("Error al procesar la imagen almacenada.")
+        else:
+            st.info("No hay captura registrada para este jugador.")
+
+        # --- SOLUCIÓN AL BUCLE: Llave dinámica en el Session State ---
+        if "file_uploader_key" not in st.session_state:
+            st.session_state["file_uploader_key"] = 0
+
+        # 3. Subir y guardar nueva captura
+        st.markdown("<small>💡 **Para usar Ctrl+V sin abrir el explorador:** Haz clic izquierdo en cualquier espacio vacío del fondo oscuro de la página (lejos del botón) y luego presiona `Ctrl + V`.</small>", unsafe_allow_html=True)
+        
+        # El file_uploader ahora usa la llave dinámica
+        img_upload = st.file_uploader(
+            "Actualizar / Cargar nueva captura", 
+            type=["png", "jpg", "jpeg"], 
+            key=str(st.session_state["file_uploader_key"])
+        )
+        
         if img_upload: 
-            st.image(img_upload, use_column_width=True, caption=f"Registro analítico para {nick_seleccionado}")
-
-
+            with st.spinner("Guardando captura en la base de datos..."):
+                img_bytes = img_upload.getvalue()
+                b64_encoded = base64.b64encode(img_bytes).decode("utf-8")
+                
+                nueva_captura = pd.DataFrame([{"Nick": nick_seleccionado, "Imagen_B64": b64_encoded}])
+                df_actualizado = pd.concat([df_capturas[df_capturas["Nick"] != nick_seleccionado], nueva_captura], ignore_index=True)
+                
+                guardar_en_bd(tb_capturas, df_actualizado)
+                
+                # Incrementamos la llave para vaciar el campo de subida de archivos
+                st.session_state["file_uploader_key"] += 1
+                st.success("¡Captura actualizada!")
+                st.rerun()
 # ==========================================
 # SECCIÓN 5: CONFIGURACIÓN Y BORRADOS (SOLO ADMIN)
 # ==========================================
