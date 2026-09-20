@@ -546,11 +546,12 @@ if st.session_state.menu_activo == "Roster":
     col4.metric("BANCA", len(df_roster_actual[df_roster_actual['Estado'] == 'Banca']) if not df_roster_actual.empty else 0)
     st.markdown("---")
     
-    if st.session_state.rol_usuario == "admin":
+   if st.session_state.rol_usuario == "admin":
         configuracion_columnas = {
             "Rol Principal": st.column_config.SelectboxColumn("Rol Principal", options=datos_juego_actual["Roles"]),
             "Rol Secundario": st.column_config.SelectboxColumn("Rol Secundario", options=datos_juego_actual["Roles"]),
-            "Personajes / Agentes": st.column_config.SelectboxColumn("Personajes / Agentes", options=datos_juego_actual["Personajes"]),
+            # Se cambia a TextColumn para no restringir la visualización a un solo elemento
+            "Personajes / Agentes": st.column_config.TextColumn("Personajes / Agentes (Asignar abajo)"),
             "Rango / Cima": st.column_config.SelectboxColumn("Rango / Cima", options=datos_juego_actual["Rangos"]),
             "Cargo en Equipo": st.column_config.SelectboxColumn("Cargo en Equipo", options=["Capitan", "Sub capitan", "Player", "Manager", "Coach", ""]),
             "Estado": st.column_config.SelectboxColumn("Estado", options=["Titular", "Banca", "Sexto player", "En Prueba", "Inactivo", ""]),
@@ -567,28 +568,30 @@ if st.session_state.menu_activo == "Roster":
             st.success("Roster sincronizado con la Base de Datos correctamente.")
             st.rerun()
 
-        st.markdown("### Analítica Ejecutiva del Plantel")
-        if not df_roster_editado.empty:
-            df_validos_graf = df_roster_editado[df_roster_editado["Nombre Real"].astype(str).str.strip() != ""].copy()
-            if not df_validos_graf.empty:
-                g_col1, g_col2, g_col3 = st.columns(3)
-                with g_col1:
-                    df_roles = df_validos_graf["Rol Principal"].value_counts().reset_index()
-                    df_roles.columns = ["Rol", "Cantidad"]
-                    st.plotly_chart(px.pie(df_roles, names="Rol", values="Cantidad", title="Distribución por Rol", hole=0.5, color_discrete_sequence=px.colors.sequential.Reds).update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#e2e8f0"), use_container_width=True)
-                with g_col2:
-                    df_estados = df_validos_graf["Estado"].value_counts().reset_index()
-                    df_estados.columns = ["Estado", "Cantidad"]
-                    st.plotly_chart(px.bar(df_estados, x="Estado", y="Cantidad", title="Estado Actual", color="Estado", color_discrete_sequence=px.colors.sequential.Burg).update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#e2e8f0"), use_container_width=True)
-                with g_col3:
-                    df_rangos = df_validos_graf["Rango / Cima"].value_counts().reset_index()
-                    df_rangos.columns = ["Rango", "Cantidad"]
-                    st.plotly_chart(px.bar(df_rangos, x="Rango", y="Cantidad", title="Desglose por Rango", color="Rango", color_discrete_sequence=px.colors.sequential.Sunsetdark).update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#e2e8f0"), use_container_width=True)
-            else: st.info("Faltan datos para graficar.")
-    else:
-        st.info("Modo Visualización.")
-        st.dataframe(df_roster_actual, use_container_width=True, hide_index=True)
-
+        # --- NUEVO PANEL PARA ASIGNACIÓN MÚLTIPLE DE PERSONAJES ---
+        st.markdown("### 🎭 Panel de Pool de Personajes (Múltiple)")
+        if jugadores_activos_temp:
+            c_p1, c_p2, c_p3 = st.columns([1.5, 2, 1])
+            with c_p1:
+                jug_seleccionado = st.selectbox("Seleccionar Jugador:", jugadores_activos_temp, key="sel_multi_char")
+            with c_p2:
+                if jug_seleccionado:
+                    # Extraer los personajes actuales para marcarlos automáticamente
+                    char_str = df_roster_editado.loc[df_roster_editado["Nombre Real"] == jug_seleccionado, "Personajes / Agentes"].astype(str).values[0]
+                    lista_actual = [c.strip() for c in char_str.split(",")] if char_str and char_str.lower() != "nan" else []
+                    lista_valida = [c for c in lista_actual if c in datos_juego_actual["Personajes"]]
+                    
+                    # Multiselect dinámico según la división activa
+                    nuevos_personajes = st.multiselect("Seleccionar todos los que domina:", options=datos_juego_actual["Personajes"], default=lista_valida)
+            with c_p3:
+                st.markdown("<br>", unsafe_allow_html=True)
+                if jug_seleccionado and st.button("💾 Asignar Personajes", use_container_width=True):
+                    # Guardar la lista como texto separado por comas en la tabla
+                    df_roster_editado.loc[df_roster_editado["Nombre Real"] == jug_seleccionado, "Personajes / Agentes"] = ", ".join(nuevos_personajes)
+                    guardar_en_bd(tb_roster, df_roster_editado)
+                    st.success("¡Personajes asignados y guardados!")
+                    st.rerun()
+        st.markdown("---")
 
 # ==========================================
 # SECCIÓN 2: ASISTENCIA 
