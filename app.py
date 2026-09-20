@@ -533,16 +533,24 @@ df_config_actual = cargar_configuracion_fresco(tb_config)
 # ==========================================
 # SECCIÓN 1: ROSTER
 # ==========================================
-elif st.session_state.menu_activo == "Roster":
+if st.session_state.menu_activo == "Roster":
     st.title(f"Gestión de Roster — {st.session_state.division_activa}")
-    
     df_roster_actual = st.session_state[key_roster_state]
+    
+    jugadores_activos_temp = [j for j in df_roster_actual["Nombre Real"].tolist() if str(j).strip() != "" and str(j).lower() != "nan"]
+    
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("TOTAL JUGADORES", len(jugadores_activos_temp))
+    col2.metric("TITULARES", len(df_roster_actual[df_roster_actual['Estado'] == 'Titular']) if not df_roster_actual.empty else 0)
+    col3.metric("SEXTO PLAYER", len(df_roster_actual[df_roster_actual['Estado'] == 'Sexto player']) if not df_roster_actual.empty else 0)
+    col4.metric("BANCA", len(df_roster_actual[df_roster_actual['Estado'] == 'Banca']) if not df_roster_actual.empty else 0)
+    st.markdown("---")
     
     if st.session_state.rol_usuario == "admin":
         configuracion_columnas = {
             "Rol Principal": st.column_config.SelectboxColumn("Rol Principal", options=datos_juego_actual["Roles"]),
             "Rol Secundario": st.column_config.SelectboxColumn("Rol Secundario", options=datos_juego_actual["Roles"]),
-            "Personajes / Agentes": st.column_config.TextColumn("Personajes / Agentes"),
+            "Personajes / Agentes": st.column_config.SelectboxColumn("Personajes / Agentes", options=datos_juego_actual["Personajes"]),
             "Rango / Cima": st.column_config.SelectboxColumn("Rango / Cima", options=datos_juego_actual["Rangos"]),
             "Cargo en Equipo": st.column_config.SelectboxColumn("Cargo en Equipo", options=["Capitan", "Sub capitan", "Player", "Manager", "Coach", ""]),
             "Estado": st.column_config.SelectboxColumn("Estado", options=["Titular", "Banca", "Sexto player", "En Prueba", "Inactivo", ""]),
@@ -558,7 +566,27 @@ elif st.session_state.menu_activo == "Roster":
             guardar_en_bd(tb_roster, df_roster_editado)
             st.success("Roster sincronizado con la Base de Datos correctamente.")
             st.rerun()
+
+        st.markdown("### Analítica Ejecutiva del Plantel")
+        if not df_roster_editado.empty:
+            df_validos_graf = df_roster_editado[df_roster_editado["Nombre Real"].astype(str).str.strip() != ""].copy()
+            if not df_validos_graf.empty:
+                g_col1, g_col2, g_col3 = st.columns(3)
+                with g_col1:
+                    df_roles = df_validos_graf["Rol Principal"].value_counts().reset_index()
+                    df_roles.columns = ["Rol", "Cantidad"]
+                    st.plotly_chart(px.pie(df_roles, names="Rol", values="Cantidad", title="Distribución por Rol", hole=0.5, color_discrete_sequence=px.colors.sequential.Reds).update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#e2e8f0"), use_container_width=True)
+                with g_col2:
+                    df_estados = df_validos_graf["Estado"].value_counts().reset_index()
+                    df_estados.columns = ["Estado", "Cantidad"]
+                    st.plotly_chart(px.bar(df_estados, x="Estado", y="Cantidad", title="Estado Actual", color="Estado", color_discrete_sequence=px.colors.sequential.Burg).update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#e2e8f0"), use_container_width=True)
+                with g_col3:
+                    df_rangos = df_validos_graf["Rango / Cima"].value_counts().reset_index()
+                    df_rangos.columns = ["Rango", "Cantidad"]
+                    st.plotly_chart(px.bar(df_rangos, x="Rango", y="Cantidad", title="Desglose por Rango", color="Rango", color_discrete_sequence=px.colors.sequential.Sunsetdark).update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#e2e8f0"), use_container_width=True)
+            else: st.info("Faltan datos para graficar.")
     else:
+        st.info("Modo Visualización.")
         st.dataframe(df_roster_actual, use_container_width=True, hide_index=True)
 
 
