@@ -546,7 +546,7 @@ if st.session_state.menu_activo == "Roster":
     col4.metric("BANCA", len(df_roster_actual[df_roster_actual['Estado'] == 'Banca']) if not df_roster_actual.empty else 0)
     st.markdown("---")
     
-   if st.session_state.rol_usuario == "admin":
+if st.session_state.rol_usuario == "admin":
         configuracion_columnas = {
             "Rol Principal": st.column_config.SelectboxColumn("Rol Principal", options=datos_juego_actual["Roles"]),
             "Rol Secundario": st.column_config.SelectboxColumn("Rol Secundario", options=datos_juego_actual["Roles"]),
