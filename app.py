@@ -737,7 +737,6 @@ elif st.session_state.menu_activo == "Tracker":
         img_upload = st.file_uploader("Cargar captura", type=["png", "jpg", "jpeg"])
      if img_upload:st.image(img_upload, use_container_width=True, caption=f"Registro analítico para {nick_seleccionado}")
 
-
 # ==========================================
 # SECCIÓN 5: CONFIGURACIÓN Y BORRADOS (SOLO ADMIN)
 # ==========================================
