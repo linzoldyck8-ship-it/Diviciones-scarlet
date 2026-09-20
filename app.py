@@ -702,15 +702,41 @@ elif st.session_state.menu_activo == "Tracker":
         with c_sel:
             default_idx = nicks_lista.index(df_validos_tracker[df_validos_tracker["Nombre Real"].astype(str).str.lower() == st.session_state.nombre_usuario.lower()].iloc[0]["Nick / ID"]) if st.session_state.rol_usuario == "jugador" and not df_validos_tracker[df_validos_tracker["Nombre Real"].astype(str).str.lower() == st.session_state.nombre_usuario.lower()].empty else 0
             nick_seleccionado = st.selectbox("Seleccionar Integrante", nicks_lista, index=default_idx)
+        
         with c_btn:
             st.markdown("<br>", unsafe_allow_html=True)
-            if pd.notna(nick_seleccionado) and "#" in str(nick_seleccionado):
-                st.link_button("VER PERFIL EXTERNO", f"https://tracker.gg/valorant/profile/riot/{str(nick_seleccionado).replace('#', '%23')}/overview", use_container_width=True)
+            if pd.notna(nick_seleccionado) and str(nick_seleccionado).strip() != "":
+                nick_str = str(nick_seleccionado).strip()
+                division_actual = st.session_state.division_activa
+                
+                # Enlace para Valorant (Requiere # en el ID)
+                if "Valorant" in division_actual:
+                    if "#" in nick_str:
+                        url_tracker = f"https://tracker.gg/valorant/profile/riot/{nick_str.replace('#', '%23')}/overview"
+                        st.link_button("VER PERFIL EXTERNO", url_tracker, use_container_width=True)
+                    else:
+                        st.info("Falta '#' en el ID (Ej: Jugador#TAG)")
+                
+                # Enlace para Overwatch (Battle.net cambia # por - en la URL)
+                elif "Overwatch" in division_actual:
+                    if "#" in nick_str or "-" in nick_str:
+                        url_tracker = f"https://tracker.gg/overwatch/profile/battlenet/{nick_str.replace('#', '-')}/overview"
+                        st.link_button("VER PERFIL EXTERNO", url_tracker, use_container_width=True)
+                    else:
+                        st.info("Falta '#' en el BattleTag (Ej: Jugador#1234)")
+                
+                # Enlace para Counter-Strike (FACEIT)
+                elif "CS" in division_actual:
+                    url_tracker = f"https://www.faceit.com/es/players/{nick_str}"
+                    st.link_button("VER PERFIL EN FACEIT", url_tracker, use_container_width=True)
+                    
             else:
                 st.info("ID no configurado correctamente.")
+                
         st.markdown(f"**Captura de Rendimiento — {nick_seleccionado}**")
         img_upload = st.file_uploader("Cargar captura", type=["png", "jpg", "jpeg"])
-        if img_upload: st.image(img_upload, use_column_width=True, caption=f"Registro analítico para {nick_seleccionado}")
+        if img_upload: 
+            st.image(img_upload, use_column_width=True, caption=f"Registro analítico para {nick_seleccionado}")
 
 
 # ==========================================
