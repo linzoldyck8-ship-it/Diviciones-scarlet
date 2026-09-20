@@ -547,10 +547,11 @@ if st.session_state.menu_activo == "Roster":
     st.markdown("---")
     
     if st.session_state.rol_usuario == "admin":
-        configuracion_columnas = {
+       configuracion_columnas = {
             "Rol Principal": st.column_config.SelectboxColumn("Rol Principal", options=datos_juego_actual["Roles"]),
             "Rol Secundario": st.column_config.SelectboxColumn("Rol Secundario", options=datos_juego_actual["Roles"]),
-            "Personajes / Agentes": st.column_config.SelectboxColumn("Personajes / Agentes", options=datos_juego_actual["Personajes"]),
+            # Cambiado a TextColumn para escribir múltiples personajes separados por comas
+            "Personajes / Agentes": st.column_config.TextColumn("Personajes / Agentes"),
             "Rango / Cima": st.column_config.SelectboxColumn("Rango / Cima", options=datos_juego_actual["Rangos"]),
             "Cargo en Equipo": st.column_config.SelectboxColumn("Cargo en Equipo", options=["Capitan", "Sub capitan", "Player", "Manager", "Coach", ""]),
             "Estado": st.column_config.SelectboxColumn("Estado", options=["Titular", "Banca", "Sexto player", "En Prueba", "Inactivo", ""]),
