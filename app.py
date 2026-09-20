@@ -744,7 +744,7 @@ elif st.session_state.menu_activo == "Tracker":
                 img_bytes = base64.b64decode(b64_string)
                 st.image(img_bytes, use_container_width=True, caption=f"Captura guardada de {nick_seleccionado}")
                 
-                # --- NUEVO BOTÓN PARA ELIMINAR ---
+                # --- BOTÓN PARA ELIMINAR ---
                 if st.button("🗑️ Eliminar esta captura"):
                     df_actualizado = df_capturas[df_capturas["Nick"] != nick_seleccionado]
                     guardar_en_bd(tb_capturas, df_actualizado)
@@ -754,9 +754,20 @@ elif st.session_state.menu_activo == "Tracker":
         else:
             st.info("No hay captura registrada para este jugador.")
 
+        # --- SOLUCIÓN AL BUCLE: Llave dinámica en el Session State ---
+        if "file_uploader_key" not in st.session_state:
+            st.session_state["file_uploader_key"] = 0
+
         # 3. Subir y guardar nueva captura
         st.markdown("<small>💡 **Para usar Ctrl+V sin abrir el explorador:** Haz clic izquierdo en cualquier espacio vacío del fondo oscuro de la página (lejos del botón) y luego presiona `Ctrl + V`.</small>", unsafe_allow_html=True)
-        img_upload = st.file_uploader("Actualizar / Cargar nueva captura", type=["png", "jpg", "jpeg"])
+        
+        # El file_uploader ahora usa la llave dinámica
+        img_upload = st.file_uploader(
+            "Actualizar / Cargar nueva captura", 
+            type=["png", "jpg", "jpeg"], 
+            key=str(st.session_state["file_uploader_key"])
+        )
+        
         if img_upload: 
             with st.spinner("Guardando captura en la base de datos..."):
                 img_bytes = img_upload.getvalue()
@@ -766,9 +777,11 @@ elif st.session_state.menu_activo == "Tracker":
                 df_actualizado = pd.concat([df_capturas[df_capturas["Nick"] != nick_seleccionado], nueva_captura], ignore_index=True)
                 
                 guardar_en_bd(tb_capturas, df_actualizado)
-                st.success("¡Captura actualizada y guardada permanentemente!")
+                
+                # Incrementamos la llave para vaciar el campo de subida de archivos
+                st.session_state["file_uploader_key"] += 1
+                st.success("¡Captura actualizada!")
                 st.rerun()
-
 # ==========================================
 # SECCIÓN 5: CONFIGURACIÓN Y BORRADOS (SOLO ADMIN)
 # ==========================================
