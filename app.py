@@ -547,7 +547,7 @@ if st.session_state.menu_activo == "Roster":
     st.markdown("---")
     
     if st.session_state.rol_usuario == "admin":
-configuracion_columnas = {
+configuracion_columnas ={
             "Rol Principal": st.column_config.SelectboxColumn("Rol Principal", options=datos_juego_actual["Roles"]),
             "Rol Secundario": st.column_config.SelectboxColumn("Rol Secundario", options=datos_juego_actual["Roles"]),
             # Cambiado a TextColumn para escribir múltiples personajes separados por comas
