@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Scarlet Esports - Multi-Divisiones</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="top-nav">
+        <div class="logo">⛩️ SCARLET ESPORTS ORGANIZATION</div>
+    </header>
+
+    <div style="max-width: 1100px; margin: 40px auto; padding: 0 20px; text-align: center;">
+        <div class="card" style="padding: 40px;">
+            <h1 style="color: #ff4655; font-size: 2.2rem; margin-bottom: 10px;">SELECCIONA TU DIVISIÓN</h1>
+            <p style="color: #94a3b8;">Plataforma institucional de gestión de planteles, asistencia y analítica.</p>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 30px;">
+            {% for div in divisiones %}
+            <div class="division-card" onclick="window.location.href='/division/{{ div }}'">
+                <h3 style="color: #fff; margin-bottom: 15px;">{{ div }}</h3>
+                <a href="/division/{{ div }}" class="btn-primary" style="text-decoration: none; display: inline-block;">Entrar a Roster</a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+</html>
