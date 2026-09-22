@@ -1,26 +1,34 @@
 import os
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 import pandas as pd
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "scarlet_secret_key_2026")
 
-# CONEXIÓN SEGURA A SUPABASE (DIFERIDA)
+# CONEXIÓN SEGURA A SUPABASE
 engine = None
 
 def get_db():
     global engine
     if engine is None:
-        raw_url = os.environ.get("SUPABASE_DB_URL", "")
+        raw_url = os.environ.get("SUPABASE_DB_URL", "").strip()
+        
+        # Corregir si accidentalmente inicia con http/https
+        if raw_url.startswith("https://"):
+            raw_url = raw_url.replace("https://", "postgresql://", 1)
+        elif raw_url.startswith("http://"):
+            raw_url = raw_url.replace("http://", "postgresql://", 1)
+
         if not raw_url:
             raw_url = "postgresql://postgres:password@localhost:5432/postgres"
             
+        # Asegurar driver psycopg2 para SQLAlchemy
         if raw_url.startswith("postgresql://"):
             raw_url = raw_url.replace("postgresql://", "postgresql+psycopg2://", 1)
-        if ".supabase.co" in raw_url and "pooler.supabase.com" not in raw_url:
-            raw_url = raw_url.replace("db.", "").replace(".supabase.co", ".pooler.supabase.com:6543")
-        if "?sslmode=" not in raw_url and "sslmode" not in raw_url:
+            
+        # Asegurar modo SSL para Supabase
+        if "sslmode" not in raw_url:
             separator = "&" if "?" in raw_url else "?"
             raw_url = f"{raw_url}{separator}sslmode=require"
             
@@ -200,3 +208,4 @@ def reset_division():
 
 if __name__ == '__main__':
     app.run(debug=True)
+    
