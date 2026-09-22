@@ -1,286 +1,275 @@
+import json
 import os
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
-import pandas as pd
-from sqlalchemy import create_engine
+from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "scarlet_secret_key_2026")
+app.secret_key = 'scarlet_secret_key_super_segura_2026'
 
-engine = None
-
-def get_db():
-    global engine
-    if engine is None:
-        raw_url = os.environ.get("SUPABASE_DB_URL", "").strip()
-        if raw_url.startswith("https://"):
-            raw_url = raw_url.replace("https://", "postgresql://", 1)
-        elif raw_url.startswith("http://"):
-            raw_url = raw_url.replace("http://", "postgresql://", 1)
-
-        if not raw_url:
-            raw_url = "postgresql://postgres:password@localhost:5432/postgres"
-
-        raw_url = raw_url.replace("?pgbouncer=true", "").replace("&pgbouncer=true", "")
-        raw_url = raw_url.replace("?pgbouncer=false", "").replace("&pgbouncer=false", "")
-            
-        if raw_url.startswith("postgresql://"):
-            raw_url = raw_url.replace("postgresql://", "postgresql+psycopg2://", 1)
-            
-        if "sslmode" not in raw_url:
-            separator = "&" if "?" in raw_url else "?"
-            raw_url = f"{raw_url}{separator}sslmode=require"
-            
-        engine = create_engine(raw_url, pool_pre_ping=True)
-    return engine
-
-DIVISIONES_DISPONIBLES = [
-    "Valorant A", "Valorant B", "Valorant C", "Valorant Femenino",
-    "Overwatch A", "Overwatch B", "CS"
-]
-
-GAME_DATA = {
-    "Valorant": {
-        "Roles": ["Duelista", "Iniciador", "Controlador", "Centinela", "Flex"],
-        "Rangos": ["Hierro", "Bronce", "Plata", "Oro", "Platino", "Diamante", "Ascendente", "Inmortal", "Radiante"],
-        "Personajes": ["Jett", "Reyna", "Phoenix", "Raze", "Neon", "Iso", "Sova", "Fade", "Skye", "Breach", "KAY/O", "Gekko", "Omen", "Brimstone", "Viper", "Astra", "Harbor", "Clove", "Cypher", "Killjoy", "Sage", "Chamber", "Deadlock"]
-    },
-    "Overwatch": {
-        "Roles": ["Tanque", "Daño (DPS)", "Apoyo (Support)", "Flex"],
-        "Rangos": ["Bronce", "Plata", "Oro", "Platino", "Esmeralda", "Diamante", "Maestro", "Gran Maestro", "Campeón", "Top 500"],
-        "Personajes": ["Reinhardt", "Winston", "D.Va", "Sigma", "Zarya", "Ramattra", "Tracer", "Genji", "Widowmaker", "Cassidy", "Pharah", "Sombra", "Sojourn", "Mercy", "Ana", "Lúcio", "Kiriko", "Zenyatta", "Baptiste", "Illari"]
-    },
-    "CS": {
-        "Roles": ["Entry Fragger", "AWPer", "Support", "IGL", "Lurker", "Flex"],
-        "Rangos": ["FACEIT Nivel 1-5", "FACEIT Nivel 6-10", "GC Nivel 1-10", "GC Nivel 11-20"],
-        "Personajes": ["Fuerzas Antiterroristas (CT)", "Fuerzas Terroristas (T)"]
-    }
+# CLAVES DE ADMINISTRADOR POR CADA DIVISIÓN (Puedes modificarlas aquí)
+ADMIN_PASSWORDS = {
+    'Valorant A': 'adminValA123',
+    'Valorant B': 'adminValB123',
+    'Valorant C': 'adminValC123',
+    'Valorant Femenino': 'adminValFem123',
+    'Overwatch A': 'adminOwA123',
+    'Overwatch B': 'adminOwB123',
+    'CS': 'adminCS123',
 }
 
-def get_prefix(div_name):
-    if not div_name:
-        return "valorant_a"
-    return div_name.replace(" ", "_").lower()
 
-def get_game_data(div_name):
-    if not div_name: return GAME_DATA["Valorant"]
-    if "Overwatch" in div_name: return GAME_DATA["Overwatch"]
-    if "CS" in div_name: return GAME_DATA["CS"]
-    return GAME_DATA["Valorant"]
+def get_path(filename):
+  return os.path.join('data', filename)
 
-def is_admin():
-    return session.get('role') == 'admin'
+
+def cargar_json(filename, default_value):
+  path = get_path(filename)
+  if not os.path.exists(path):
+    return default_value
+  try:
+    with open(path, 'r', encoding='utf-8') as f:
+      return json.load(f)
+  except Exception:
+    return default_value
+
+
+def guardar_json(filename, data):
+  os.makedirs('data', exist_ok=True)
+  path = get_path(filename)
+  with open(path, 'w', encoding='utf-8') as f:
+    json.dump(data, f, indent=4, ensure_ascii=False)
+
 
 @app.route('/')
 def index():
-    return render_template('index.html', divisiones=DIVISIONES_DISPONIBLES)
+  return render_template('index.html')
 
-@app.route('/division/<nombre>')
-def seleccionar_division(nombre):
-    if nombre in DIVISIONES_DISPONIBLES:
-        session['division'] = nombre
-    return redirect(url_for('dashboard'))
 
 @app.route('/dashboard')
 def dashboard():
-    division = session.get('division')
-    if not division:
-        return redirect(url_for('index'))
-    return render_template('dashboard.html', 
-                           division=division, 
-                           user=session.get('user'), 
-                           role=session.get('role', 'invitado'), 
-                           game_info=get_game_data(division))
-
-@app.route('/api/login', methods=['POST'])
-def login():
-    division = session.get('division')
-    if not division:
-        return jsonify({'error': 'No has seleccionado división'}), 400
-    
-    data = request.json or {}
-    prefix = get_prefix(division)
-    usuario = data.get('usuario', '').strip().lower()
-    password = data.get('password', '').strip()
-
-    try:
-        df_cfg = pd.read_sql_query(f'SELECT * FROM "{prefix}_config"', get_db())
-        df_bl = pd.read_sql_query(f'SELECT * FROM "{prefix}_blacklist"', get_db())
-
-        match = df_cfg[(df_cfg['usuario'].astype(str).str.lower() == usuario) & (df_cfg['password'].astype(str) == password)]
-        if match.empty:
-            return jsonify({'error': 'Usuario o contraseña incorrectos.'}), 401
-
-        nombre_real = match.iloc[0]['nombre_real']
-        rol = match.iloc[0]['rol']
-
-        if rol != 'admin' and not df_bl.empty and not df_bl[df_bl['nombre_real'].astype(str).str.lower() == nombre_real.lower()].empty:
-            return jsonify({'error': 'ACCESO DENEGADO: Te encuentras en la Lista Negra.'}), 403
-
-        session['user'] = nombre_real
-        session['role'] = rol
-        return jsonify({'message': 'Login exitoso', 'role': rol, 'user': nombre_real})
-    except Exception as e:
-        return jsonify({'error': f'Error en base de datos: {str(e)}'}), 500
-
-@app.route('/api/logout')
-def logout():
-    session.clear()
+  division = request.args.get('division')
+  if not division:
     return redirect(url_for('index'))
 
-@app.route('/api/roster', methods=['GET', 'POST'])
-def api_roster():
-    division = session.get('division')
-    if not division: return jsonify([]), 200
-    prefix = get_prefix(division)
+  user = session.get('user')
+  role = session.get('role')  # 'admin' o 'player'
+  user_division = session.get('division')
 
-    if request.method == 'GET':
-        try:
-            df = pd.read_sql_query(f'SELECT * FROM "{prefix}_roster"', get_db())
-            return jsonify(df.to_dict(orient='records'))
-        except Exception:
-            return jsonify([])
+  # Si no hay sesión o la sesión es de otra división -> Redirigir al inicio para autenticarse
+  if not user or user_division != division:
+    return redirect(url_for('index'))
 
-    if request.method == 'POST':
-        if not is_admin(): return jsonify({'error': 'No autorizado'}), 403
-        try:
-            pd.DataFrame(request.json).to_sql(f"{prefix}_roster", get_db(), if_exists='replace', index=False)
-            return jsonify({'message': 'Roster guardado correctamente'})
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
+  return render_template('dashboard.html', division=division, user=user, role=role)
 
-@app.route('/api/asistencia', methods=['GET', 'POST'])
-def api_asistencia():
-    division = session.get('division')
-    if not division: return jsonify([]), 200
-    prefix = get_prefix(division)
-
-    if request.method == 'GET':
-        try:
-            df = pd.read_sql_query(f'SELECT * FROM "{prefix}_asistencia"', get_db())
-            return jsonify(df.to_dict(orient='records'))
-        except Exception:
-            return jsonify([])
-
-    if request.method == 'POST':
-        if not is_admin(): return jsonify({'error': 'No autorizado'}), 403
-        try:
-            pd.DataFrame(request.json).to_sql(f"{prefix}_asistencia", get_db(), if_exists='replace', index=False)
-            return jsonify({'message': 'Asistencia actualizada'})
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-
-@app.route('/api/anotaciones', methods=['GET', 'POST', 'DELETE'])
-def api_anotaciones():
-    division = session.get('division')
-    if not division: return jsonify([]), 200
-    prefix = get_prefix(division)
-
-    if request.method == 'GET':
-        try:
-            df = pd.read_sql_query(f'SELECT * FROM "{prefix}_anotaciones"', get_db())
-            return jsonify(df.to_dict(orient='records'))
-        except Exception:
-            return jsonify([])
-
-    if request.method == 'POST':
-        if not is_admin(): return jsonify({'error': 'No autorizado'}), 403
-        try:
-            pd.DataFrame(request.json).to_sql(f"{prefix}_anotaciones", get_db(), if_exists='replace', index=False)
-            return jsonify({'message': 'Anotaciones guardadas'})
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-
-    if request.method == 'DELETE':
-        if not is_admin(): return jsonify({'error': 'No autorizado'}), 403
-        try:
-            pd.DataFrame(columns=["jugador", "tipo", "detalle", "fecha", "autor"]).to_sql(f"{prefix}_anotaciones", get_db(), if_exists='replace', index=False)
-            return jsonify({'message': 'Todas las anotaciones borradas correctamente'})
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-
-@app.route('/api/tracker', methods=['GET', 'POST'])
-def api_tracker():
-    division = session.get('division')
-    if not division: return jsonify([]), 200
-    prefix = get_prefix(division)
-
-    if request.method == 'GET':
-        try:
-            df = pd.read_sql_query(f'SELECT * FROM "{prefix}_tracker"', get_db())
-            return jsonify(df.to_dict(orient='records'))
-        except Exception:
-            return jsonify([])
-
-    if request.method == 'POST':
-        if not is_admin(): return jsonify({'error': 'No autorizado'}), 403
-        try:
-            pd.DataFrame(request.json).to_sql(f"{prefix}_tracker", get_db(), if_exists='replace', index=False)
-            return jsonify({'message': 'Tracker y capturas actualizadas'})
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-
-@app.route('/api/reset_division', methods=['POST'])
-def reset_division():
-    if not is_admin(): return jsonify({'error': 'No autorizado'}), 403
-    password = request.json.get('password')
-    division = session.get('division')
-    prefix = get_prefix(division)
-    
-    try:
-        df_cfg = pd.read_sql_query(f'SELECT * FROM "{prefix}_config"', get_db())
-        if df_cfg[(df_cfg['password'].astype(str) == password) & (df_cfg['rol'] == 'admin')].empty:
-            return jsonify({'error': 'Contraseña incorrecta'}), 401
-
-        pd.DataFrame(columns=["nick", "nombre_real", "rol_principal", "rol_secundario", "personaje", "rango", "cargo", "estado", "actividad", "contacto", "notas"]).to_sql(f"{prefix}_roster", get_db(), if_exists='replace', index=False)
-        return jsonify({'message': 'División reseteada.'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/register', methods=['POST'])
-def api_register():
-    data = request.get_json()
-    usuario = data.get('usuario')
-    nombre = data.get('nombre')
-    password = data.get('password')
-    
-    # Cargar usuarios existentes
-    usuarios = cargar_json('data/users.json') if os.path.exists('data/users.json') else {}
-    
-    if usuario in usuarios:
-        return jsonify({"error": "El usuario ya existe. Usa la pestaña 'Iniciar Sesión'."}), 400
-
-    # Guardar nuevo usuario
-    usuarios[usuario] = {
-        "password": password,
-        "nombre": nombre,
-        "role": "user"
-    }
-    guardar_json('data/users.json', usuarios)
-    
-    session['user'] = usuario
-    session['role'] = 'user'
-    return jsonify({"message": "Registro exitoso"})
 
 @app.route('/api/login', methods=['POST'])
 def api_login():
-    data = request.get_json()
-    usuario = data.get('usuario')
-    password = data.get('password')
+  data = request.get_json()
+  usuario = data.get('usuario', '').strip()
+  password = data.get('password', '')
+  division = data.get('division', '').strip()
 
-    # Usuario Master / Admin
-    if usuario == "admin" and password == "admin123":  # Cambia admin123 por tu clave
-        session['user'] = 'admin'
-        session['role'] = 'admin'
-        return jsonify({"message": "OK"})
+  if not division:
+    return jsonify({'error': 'División no especificada'}), 400
 
-    usuarios = cargar_json('data/users.json') if os.path.exists('data/users.json') else {}
+  div_key = division.replace(' ', '_')
 
-    if usuario in usuarios and usuarios[usuario]['password'] == password:
-        session['user'] = usuario
-        session['role'] = usuarios[usuario].get('role', 'user')
-        return jsonify({"message": "OK"})
+  # 1. Comprobar si entra como Administrador de la división
+  admin_pass = ADMIN_PASSWORDS.get(division, 'admin123')
+  if (usuario == 'admin' or usuario == f'admin_{div_key}') and (
+      password == admin_pass or password == 'admin123'
+  ):
+    session['user'] = f'Admin ({division})'
+    session['role'] = 'admin'
+    session['division'] = division
+    return jsonify({'message': 'OK', 'role': 'admin'})
 
-    return jsonify({"error": "Usuario o contraseña incorrectos"}), 401
+  # 2. Comprobar si entra como Player registrado
+  users = cargar_json(f'users_{div_key}.json', {})
+  if usuario in users and users[usuario].get('password') == password:
+    session['user'] = usuario
+    session['role'] = 'player'
+    session['division'] = division
+    return jsonify({'message': 'OK', 'role': 'player'})
+
+  return jsonify({'error': 'Usuario o contraseña incorrectos'}), 401
+
+
+@app.route('/api/register', methods=['POST'])
+def api_register():
+  data = request.get_json()
+  nick = data.get('nick', '').strip()
+  nombre_real = data.get('nombre_real', '').strip()
+  rol_principal = data.get('rol_principal', '').strip()
+  rol_secundario = data.get('rol_secundario', '').strip()
+  personaje = data.get('personaje', '').strip()
+  rango = data.get('rango', '').strip()
+  contacto = data.get('contacto', '').strip()
+  password = data.get('password', '')
+  division = data.get('division', '').strip()
+
+  if not nick or not password or not division:
+    return jsonify({'error': 'Nick, contraseña y división son obligatorios'}), 400
+
+  div_key = division.replace(' ', '_')
+
+  # Guardar Usuario
+  users_file = f'users_{div_key}.json'
+  users = cargar_json(users_file, {})
+
+  if nick in users:
+    return (
+        jsonify({
+            'error': (
+                'El Nick / ID ya está registrado en esta división. Inicia'
+                ' sesión.'
+            )
+        }),
+        400,
+    )
+
+  users[nick] = {
+      'password': password,
+      'nombre_real': nombre_real,
+      'rol_principal': rol_principal,
+      'rol_secundario': rol_secundario,
+      'personaje': personaje,
+      'rango': rango,
+      'contacto': contacto,
+      'role': 'player',
+  }
+  guardar_json(users_file, users)
+
+  # Agregar automáticamente al Roster de la división
+  roster_file = f'roster_{div_key}.json'
+  roster = cargar_json(roster_file, [])
+
+  if not any(j.get('nick') == nick for j in roster):
+    roster.append({
+        'nick': nick,
+        'nombre_real': nombre_real,
+        'rol_principal': rol_principal,
+        'rol_secundario': rol_secundario,
+        'personaje': personaje,
+        'rango': rango,
+        'estado': 'En Prueba',
+        'contacto': contacto,
+    })
+    guardar_json(roster_file, roster)
+
+  # Iniciar sesión automáticamente en Modo Player
+  session['user'] = nick
+  session['role'] = 'player'
+  session['division'] = division
+
+  return jsonify({'message': 'Registro exitoso', 'division': division})
+
+
+@app.route('/api/logout')
+def api_logout():
+  session.clear()
+  return redirect(url_for('index'))
+
+
+# ENDPOINTS DE DATOS POR DIVISIÓN
+@app.route('/api/roster', methods=['GET', 'POST'])
+def api_roster():
+  division = session.get('division')
+  if not division:
+    return jsonify({'error': 'No autorizado'}), 401
+
+  div_key = division.replace(' ', '_')
+  filename = f'roster_{div_key}.json'
+
+  if request.method == 'POST':
+    if session.get('role') != 'admin':
+      return jsonify({'error': 'Solo el Administrador puede modificar'}), 403
+    guardar_json(filename, request.get_json())
+    return jsonify({'message': 'Roster actualizado'})
+
+  return jsonify(cargar_json(filename, []))
+
+
+@app.route('/api/asistencia', methods=['GET', 'POST'])
+def api_asistencia():
+  division = session.get('division')
+  if not division:
+    return jsonify({'error': 'No autorizado'}), 401
+
+  div_key = division.replace(' ', '_')
+  filename = f'asistencia_{div_key}.json'
+
+  if request.method == 'POST':
+    if session.get('role') != 'admin':
+      return jsonify({'error': 'Solo el Administrador puede modificar'}), 403
+    guardar_json(filename, request.get_json())
+    return jsonify({'message': 'Asistencia guardada'})
+
+  return jsonify(cargar_json(filename, []))
+
+
+@app.route('/api/anotaciones', methods=['GET', 'POST', 'DELETE'])
+def api_anotaciones():
+  division = session.get('division')
+  if not division:
+    return jsonify({'error': 'No autorizado'}), 401
+
+  div_key = division.replace(' ', '_')
+  filename = f'anotaciones_{div_key}.json'
+
+  if request.method == 'DELETE':
+    if session.get('role') != 'admin':
+      return jsonify({'error': 'Solo el Administrador puede modificar'}), 403
+    guardar_json(filename, [])
+    return jsonify({'message': 'Anotaciones eliminadas'})
+
+  if request.method == 'POST':
+    if session.get('role') != 'admin':
+      return jsonify({'error': 'Solo el Administrador puede modificar'}), 403
+    guardar_json(filename, request.get_json())
+    return jsonify({'message': 'Anotaciones actualizadas'})
+
+  return jsonify(cargar_json(filename, []))
+
+
+@app.route('/api/tracker', methods=['GET', 'POST'])
+def api_tracker():
+  division = session.get('division')
+  if not division:
+    return jsonify({'error': 'No autorizado'}), 401
+
+  div_key = division.replace(' ', '_')
+  filename = f'tracker_{div_key}.json'
+
+  if request.method == 'POST':
+    if session.get('role') != 'admin':
+      return jsonify({'error': 'Solo el Administrador puede modificar'}), 403
+    guardar_json(filename, request.get_json())
+    return jsonify({'message': 'Tracker actualizado'})
+
+  return jsonify(cargar_json(filename, []))
+
+
+@app.route('/api/reset_division', methods=['POST'])
+def api_reset_division():
+  division = session.get('division')
+  if session.get('role') != 'admin':
+    return jsonify({'error': 'No autorizado'}), 403
+
+  div_key = division.replace(' ', '_')
+  data = request.get_json()
+  password = data.get('password')
+
+  admin_pass = ADMIN_PASSWORDS.get(division, 'admin123')
+  if password != admin_pass and password != 'admin123':
+    return jsonify({'error': 'Contraseña incorrecta'}), 401
+
+  guardar_json(f'roster_{div_key}.json', [])
+  guardar_json(f'asistencia_{div_key}.json', [])
+  guardar_json(f'anotaciones_{div_key}.json', [])
+  guardar_json(f'tracker_{div_key}.json', [])
+
+  return jsonify({'message': 'División reseteada'})
+
 
 if __name__ == '__main__':
-    app.run(debug=True)
+  app.run(debug=True)
