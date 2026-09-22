@@ -91,7 +91,6 @@ def dashboard():
                            role=session.get('role', 'invitado'), 
                            game_info=get_game_data(division))
 
-# --- API LOGIN & REGISTRO ---
 @app.route('/api/login', methods=['POST'])
 def login():
     division = session.get('division')
@@ -128,7 +127,6 @@ def logout():
     session.clear()
     return redirect(url_for('index'))
 
-# --- API ROSTER ---
 @app.route('/api/roster', methods=['GET', 'POST'])
 def api_roster():
     division = session.get('division')
@@ -143,15 +141,13 @@ def api_roster():
             return jsonify([])
 
     if request.method == 'POST':
-        if not is_admin():
-            return jsonify({'error': 'Solo administradores pueden modificar el roster'}), 403
+        if not is_admin(): return jsonify({'error': 'No autorizado'}), 403
         try:
             pd.DataFrame(request.json).to_sql(f"{prefix}_roster", get_db(), if_exists='replace', index=False)
-            return jsonify({'message': 'Roster actualizado correctamente'})
+            return jsonify({'message': 'Roster guardado correctamente'})
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
-# --- API ASISTENCIA ---
 @app.route('/api/asistencia', methods=['GET', 'POST'])
 def api_asistencia():
     division = session.get('division')
@@ -166,16 +162,14 @@ def api_asistencia():
             return jsonify([])
 
     if request.method == 'POST':
-        if not is_admin():
-            return jsonify({'error': 'Acceso denegado. Se requiere rol de administrador.'}), 403
+        if not is_admin(): return jsonify({'error': 'No autorizado'}), 403
         try:
             pd.DataFrame(request.json).to_sql(f"{prefix}_asistencia", get_db(), if_exists='replace', index=False)
-            return jsonify({'message': 'Asistencia guardada correctamente'})
+            return jsonify({'message': 'Asistencia actualizada'})
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
-# --- API ANOTACIONES Y SANCIONES ---
-@app.route('/api/anotaciones', methods=['GET', 'POST'])
+@app.route('/api/anotaciones', methods=['GET', 'POST', 'DELETE'])
 def api_anotaciones():
     division = session.get('division')
     if not division: return jsonify([]), 200
@@ -189,15 +183,21 @@ def api_anotaciones():
             return jsonify([])
 
     if request.method == 'POST':
-        if not is_admin():
-            return jsonify({'error': 'Acceso denegado. Se requiere rol de administrador.'}), 403
+        if not is_admin(): return jsonify({'error': 'No autorizado'}), 403
         try:
             pd.DataFrame(request.json).to_sql(f"{prefix}_anotaciones", get_db(), if_exists='replace', index=False)
-            return jsonify({'message': 'Anotaciones guardadas correctamente'})
+            return jsonify({'message': 'Anotaciones guardadas'})
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
-# --- API TRACKER ---
+    if request.method == 'DELETE':
+        if not is_admin(): return jsonify({'error': 'No autorizado'}), 403
+        try:
+            pd.DataFrame(columns=["jugador", "tipo", "detalle", "fecha", "autor"]).to_sql(f"{prefix}_anotaciones", get_db(), if_exists='replace', index=False)
+            return jsonify({'message': 'Todas las anotaciones borradas correctamente'})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
 @app.route('/api/tracker', methods=['GET', 'POST'])
 def api_tracker():
     division = session.get('division')
@@ -212,18 +212,16 @@ def api_tracker():
             return jsonify([])
 
     if request.method == 'POST':
-        if not is_admin():
-            return jsonify({'error': 'Acceso denegado. Se requiere rol de administrador.'}), 403
+        if not is_admin(): return jsonify({'error': 'No autorizado'}), 403
         try:
             pd.DataFrame(request.json).to_sql(f"{prefix}_tracker", get_db(), if_exists='replace', index=False)
-            return jsonify({'message': 'Tracker actualizado correctamente'})
+            return jsonify({'message': 'Tracker y capturas actualizadas'})
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
 @app.route('/api/reset_division', methods=['POST'])
 def reset_division():
-    if not is_admin():
-        return jsonify({'error': 'Solo los administradores pueden resetear la división'}), 403
+    if not is_admin(): return jsonify({'error': 'No autorizado'}), 403
     password = request.json.get('password')
     division = session.get('division')
     prefix = get_prefix(division)
@@ -231,10 +229,10 @@ def reset_division():
     try:
         df_cfg = pd.read_sql_query(f'SELECT * FROM "{prefix}_config"', get_db())
         if df_cfg[(df_cfg['password'].astype(str) == password) & (df_cfg['rol'] == 'admin')].empty:
-            return jsonify({'error': 'Contraseña de administrador incorrecta'}), 401
+            return jsonify({'error': 'Contraseña incorrecta'}), 401
 
         pd.DataFrame(columns=["nick", "nombre_real", "rol_principal", "rol_secundario", "personaje", "rango", "cargo", "estado", "actividad", "contacto", "notas"]).to_sql(f"{prefix}_roster", get_db(), if_exists='replace', index=False)
-        return jsonify({'message': 'División reseteada exitosamente.'})
+        return jsonify({'message': 'División reseteada.'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
