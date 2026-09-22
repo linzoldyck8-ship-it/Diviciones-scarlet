@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Roster - {{ division }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="top-nav">
+        <div class="logo">⛩️ SCARLET — {{ division.upper() }}</div>
+        <div>
+            {% if user %}
+            <span style="margin-right: 15px;">👤 {{ user }} ({{ role.upper() }})</span>
+            <a href="/api/logout" style="color: #ff4655; text-decoration: none; font-weight: bold;">Cerrar Sesión</a>
+            {% else %}
+            <span style="color: #94a3b8;">Modo Invitado</span>
+            {% endif %}
+            <a href="/" style="margin-left: 20px; color: #fff; text-decoration: none;">🏠 Inicio</a>
+        </div>
+    </header>
+
+    <div style="max-width: 1200px; margin: 30px auto; padding: 0 20px;">
+        {% if not user %}
+        <div class="card" style="max-width: 500px; margin: 0 auto;">
+            <h2 style="color: #ff4655; margin-bottom: 15px; text-align: center;">Iniciar Sesión en {{ division }}</h2>
+            <form id="login-form" onsubmit="iniciarSesion(event)">
+                <div style="margin-bottom: 15px;">
+                    <label>Usuario:</label>
+                    <input type="text" id="login-user" required>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label>Contraseña:</label>
+                    <input type="password" id="login-pass" required>
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%;">Ingresar</button>
+            </form>
+        </div>
+        {% else %}
+
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2>📊 Plantel Roster Titular</h2>
+                {% if role == 'admin' %}
+                <button class="btn-primary" style="background: #b02a37;" onclick="vaciarDivision()">🗑️ Reset División</button>
+                {% endif %}
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nick / ID</th>
+                        <th>Nombre Real</th>
+                        <th>Rol Principal</th>
+                        <th>Agente / Héroe</th>
+                        <th>Rango</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-roster">
+                </tbody>
+            </table>
+        </div>
+
+        {% endif %}
+    </div>
+
+    <script>
+        async function iniciarSesion(e) {
+            e.preventDefault();
+            const usuario = document.getElementById('login-user').value;
+            const password = document.getElementById('login-pass').value;
+
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ usuario, password })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                location.reload();
+            } else {
+                alert('❌ ' + data.error);
+            }
+        }
+
+        async function cargarRoster() {
+            const res = await fetch('/api/roster');
+            const data = await res.json();
+            const tbody = document.getElementById('tbody-roster');
+            if(!tbody) return;
+
+            tbody.innerHTML = '';
+            data.forEach(p => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td><b>${p.nick || ''}</b></td>
+                        <td>${p.nombre_real || ''}</td>
+                        <td>${p.rol_principal || ''}</td>
+                        <td>${p.personaje || ''}</td>
+                        <td>${p.rango || ''}</td>
+                        <td><span style="color: #2ea043; font-weight: bold;">${p.estado || 'Titular'}</span></td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function vaciarDivision() {
+            const password = prompt("Ingrese la contraseña de administrador para confirmar el borrado total:");
+            if(!password) return;
+
+            const res = await fetch('/api/reset_division', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ password })
+            });
+
+            const data = await res.json();
+            if(res.ok) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('❌ ' + data.error);
+            }
+        }
+
+        window.onload = cargarRoster;
+    </script>
+</body>
+</html>
