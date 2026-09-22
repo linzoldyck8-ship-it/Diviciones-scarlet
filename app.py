@@ -22,6 +22,10 @@ def get_db():
 
         if not raw_url:
             raw_url = "postgresql://postgres:password@localhost:5432/postgres"
+
+        # Eliminar pgbouncer=true ya que psycopg2 no lo soporta
+        raw_url = raw_url.replace("?pgbouncer=true", "").replace("&pgbouncer=true", "")
+        raw_url = raw_url.replace("?pgbouncer=false", "").replace("&pgbouncer=false", "")
             
         # Asegurar driver psycopg2 para SQLAlchemy
         if raw_url.startswith("postgresql://"):
