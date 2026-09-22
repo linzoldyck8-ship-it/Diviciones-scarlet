@@ -208,4 +208,3 @@ def reset_division():
 
 if __name__ == '__main__':
     app.run(debug=True)
-    
