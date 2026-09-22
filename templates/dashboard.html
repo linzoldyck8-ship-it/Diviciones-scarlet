@@ -2,257 +2,417 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Roster - {{ division }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - {{ division }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #0d0f12; color: #e1e6ed; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .navbar { background-color: #161a22; border-bottom: 2px solid #8b0000; }
+        .nav-tabs .nav-link { color: #a0aab8; border: none; font-weight: 600; padding: 12px 20px; }
+        .nav-tabs .nav-link.active { background-color: #8b0000; color: #ffffff; border-radius: 6px 6px 0 0; }
+        .card-custom { background-color: #161a22; border: 1px solid #2a313d; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .table-custom { color: #d0d7de; }
+        .table-custom th { background-color: #21262d; color: #ff4d4d; border-bottom: 2px solid #8b0000; }
+        .table-custom td { border-color: #2a313d; vertical-align: middle; }
+        .badge-admin { background-color: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; }
+        .badge-user { background-color: #0d6efd; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; }
+        .btn-scarlet { background-color: #8b0000; color: white; font-weight: 600; }
+        .btn-scarlet:hover { background-color: #a70000; color: white; }
+    </style>
 </head>
 <body>
-    <header class="top-nav">
-        <div class="logo">⛩️ SCARLET — {{ division.upper() }}</div>
-        <div>
-            {% if user %}
-            <span style="margin-right: 15px;">👤 {{ user }} (<strong>{{ role.upper() }}</strong>)</span>
-            <a href="/api/logout" style="color: #ff4655; text-decoration: none; font-weight: bold;">Cerrar Sesión</a>
+
+    <!-- Header Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark px-4">
+        <a class="navbar-brand font-weight-bold" href="/"><i class="fa-solid fa-shield-halved text-danger me-2"></i>SCARLET — {{ division }}</a>
+        <div class="ms-auto d-flex align-items-center gap-3">
+            {% if role == 'admin' %}
+                <span class="badge-admin"><i class="fa-solid fa-user-gear me-1"></i> MODO ADMIN</span>
+            {% else %}
+                <span class="badge-user"><i class="fa-solid fa-eye me-1"></i> MODO LECTURA</span>
             {% endif %}
-            <a href="/" style="margin-left: 20px; color: #fff; text-decoration: none;">🏠 Inicio</a>
+            <span class="text-light fw-bold">{{ user if user else 'Invitado' }}</span>
+            {% if role != 'invitado' %}
+                <a href="/api/logout" class="btn btn-outline-danger btn-sm"><i class="fa-solid fa-right-from-bracket"></i> Salir</a>
+            {% else %}
+                <a href="/" class="btn btn-outline-light btn-sm"><i class="fa-solid fa-arrow-left"></i> Cambiar División</a>
+            {% endif %}
         </div>
-    </header>
+    </nav>
 
-    <div style="max-width: 1200px; margin: 30px auto; padding: 0 20px;">
-        {% if not user %}
-        <!-- PESTAÑAS LOGIN / REGISTRO -->
-        <div class="card" style="max-width: 550px; margin: 0 auto;">
-            <div style="display: flex; justify-content: space-around; margin-bottom: 25px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
-                <button id="btn-tab-login" onclick="switchAuthTab('login')" class="btn-primary" style="background: var(--accent-red);">Iniciar Sesión</button>
-                <button id="btn-tab-register" onclick="switchAuthTab('register')" class="btn-primary" style="background: #334155;">Crear Perfil / Registro</button>
+    <div class="container-fluid mt-4 px-4">
+        <!-- Navegación por Pestañas -->
+        <ul class="nav nav-tabs mb-4" id="dashboardTabs" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active" id="roster-tab" data-bs-toggle="tab" data-bs-target="#roster-pane" type="button"><i class="fa-solid fa-users me-2"></i>Roster Titular</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" id="asistencia-tab" data-bs-toggle="tab" data-bs-target="#asistencia-pane" type="button"><i class="fa-solid fa-calendar-check me-2"></i>Asistencia Mensual</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" id="anotaciones-tab" data-bs-toggle="tab" data-bs-target="#anotaciones-pane" type="button"><i class="fa-solid fa-clipboard-list me-2"></i>Anotaciones & Sanciones</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" id="tracker-tab" data-bs-toggle="tab" data-bs-target="#tracker-pane" type="button"><i class="fa-solid fa-chart-line me-2"></i>Tracker / Stats</button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="dashboardTabsContent">
+            
+            <!-- 1. ROSTER TITULAR -->
+            <div class="tab-pane fade show active" id="roster-pane" role="tabpanel">
+                <div class="card card-custom p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="m-0 text-danger"><i class="fa-solid fa-user-group me-2"></i>Plantel Roster Titular</h4>
+                        {% if role == 'admin' %}
+                            <div>
+                                <button class="btn btn-scarlet btn-sm me-2" onclick="mostrarModalAgregarJugador()"><i class="fa-solid fa-plus me-1"></i>Agregar Jugador</button>
+                                <button class="btn btn-outline-danger btn-sm" onclick="resetearDivision()"><i class="fa-solid fa-trash me-1"></i>Reset División</button>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-custom table-hover">
+                            <thead>
+                                <tr>
+                                    <th>NICK / ID</th>
+                                    <th>NOMBRE REAL</th>
+                                    <th>ROL PRINCIPAL</th>
+                                    <th>ROL SECUNDARIO</th>
+                                    <th>AGENTE / HÉROE</th>
+                                    <th>RANGO</th>
+                                    <th>ESTADO</th>
+                                    <th>CONTACTO</th>
+                                    {% if role == 'admin' %}<th>ACCIONES</th>{% endif %}
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-roster"></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
-            <!-- FORMULARIO LOGIN -->
-            <form id="form-login" onsubmit="iniciarSesion(event)">
-                <h3 style="color: #ff4655; text-align: center; margin-bottom: 15px;">Iniciar Sesión en {{ division }}</h3>
-                <p style="text-align: center; color: #94a3b8; font-size: 0.85rem; margin-bottom: 15px;">
-                    💡 <em>Administradores usen usuario <b>admin</b> / contraseña <b>admin123</b></em>
-                </p>
-                <div style="margin-bottom: 15px;">
-                    <label>Usuario:</label>
-                    <input type="text" id="login-user" required placeholder="Tu usuario">
-                </div>
-                <div style="margin-bottom: 20px;">
-                    <label>Contraseña:</label>
-                    <input type="password" id="login-pass" required placeholder="Tu contraseña">
-                </div>
-                <button type="submit" class="btn-primary" style="width: 100%;">Ingresar</button>
-            </form>
-
-            <!-- FORMULARIO REGISTRO COMPLETO -->
-            <form id="form-register" onsubmit="registrarJugador(event)" style="display: none;">
-                <h3 style="color: #ff4655; text-align: center; margin-bottom: 15px;">Registro de Perfil de Jugador</h3>
-                
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-                    <div>
-                        <label>Nombre Real *:</label>
-                        <input type="text" id="reg-nombre" required placeholder="Ej: Juan Pérez">
+            <!-- 2. ASISTENCIA MENSUAL -->
+            <div class="tab-pane fade" id="asistencia-pane" role="tabpanel">
+                <div class="card card-custom p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="m-0 text-danger"><i class="fa-solid fa-calendar-days me-2"></i>Control de Asistencia</h4>
+                        <div class="d-flex gap-2">
+                            <input type="month" id="filtro-mes" class="form-control form-control-sm bg-dark text-light border-secondary" value="2026-09" onchange="cargarAsistencia()">
+                            {% if role == 'admin' %}
+                                <button class="btn btn-scarlet btn-sm" onclick="guardarAsistencia()"><i class="fa-solid fa-floppy-disk me-1"></i>Guardar Asistencia</button>
+                            {% endif %}
+                        </div>
                     </div>
-                    <div>
-                        <label>Nick / ID *:</label>
-                        <input type="text" id="reg-nick" required placeholder="Ej: Shadow#1234">
+                    <div class="table-responsive">
+                        <table class="table table-custom table-hover">
+                            <thead>
+                                <tr>
+                                    <th>JUGADOR</th>
+                                    <th>FECHA</th>
+                                    <th>ESTADO</th>
+                                    <th>OBSERVACIÓN</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-asistencia"></tbody>
+                        </table>
                     </div>
                 </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-                    <div>
-                        <label>Usuario (para entrar) *:</label>
-                        <input type="text" id="reg-usuario" required placeholder="Usuario único">
-                    </div>
-                    <div>
-                        <label>Contraseña *:</label>
-                        <input type="password" id="reg-pass" required placeholder="Contraseña">
-                    </div>
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-                    <div>
-                        <label>Rol Principal *:</label>
-                        <select id="reg-rol1" required>
-                            {% for r in game_info.Roles %}
-                            <option value="{{ r }}">{{ r }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div>
-                        <label>Rol Secundario:</label>
-                        <select id="reg-rol2">
-                            <option value="">Ninguno</option>
-                            {% for r in game_info.Roles %}
-                            <option value="{{ r }}">{{ r }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-                    <div>
-                        <label>Agente / Personaje Main *:</label>
-                        <select id="reg-personaje" required>
-                            {% for p in game_info.Personajes %}
-                            <option value="{{ p }}">{{ p }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div>
-                        <label>Rango Actual *:</label>
-                        <select id="reg-rango" required>
-                            {% for r in game_info.Rangos %}
-                            <option value="{{ r }}">{{ r }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-
-                <div style="margin-bottom: 20px;">
-                    <label>Contacto (Discord / WhatsApp):</label>
-                    <input type="text" id="reg-contacto" placeholder="Ej: discord_tag ó +56912345678">
-                </div>
-
-                <button type="submit" class="btn-primary" style="width: 100%;">Crear Perfil y Unirse al Roster</button>
-            </form>
-        </div>
-        {% else %}
-
-        <!-- ROSTER DE JUGADORES -->
-        <div class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h2>📊 Plantel Roster Titular ({{ division }})</h2>
-                {% if role == 'admin' %}
-                <button class="btn-primary" style="background: #b02a37;" onclick="vaciarDivision()">🗑️ Reset División</button>
-                {% endif %}
             </div>
 
-            <table>
-                <thead>
-                    <tr>
-                        <th>Nick / ID</th>
-                        <th>Nombre Real</th>
-                        <th>Rol Principal</th>
-                        <th>Rol Secundario</th>
-                        <th>Agente / Héroe</th>
-                        <th>Rango</th>
-                        <th>Estado</th>
-                        <th>Contacto</th>
-                    </tr>
-                </thead>
-                <tbody id="tbody-roster"></tbody>
-            </table>
-        </div>
+            <!-- 3. ANOTACIONES Y SANCIONES -->
+            <div class="tab-pane fade" id="anotaciones-pane" role="tabpanel">
+                <div class="card card-custom p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="m-0 text-danger"><i class="fa-solid fa-file-pen me-2"></i>Registro de Anotaciones y Sanciones</h4>
+                        {% if role == 'admin' %}
+                            <button class="btn btn-scarlet btn-sm" onclick="agregarAnotacion()"><i class="fa-solid fa-plus me-1"></i>Nueva Anotación</button>
+                        {% endif %}
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-custom table-hover">
+                            <thead>
+                                <tr>
+                                    <th>JUGADOR</th>
+                                    <th>TIPO</th>
+                                    <th>DETALLE / MOTIVO</th>
+                                    <th>FECHA</th>
+                                    <th>REGISTRADO POR</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-anotaciones"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
 
-        {% endif %}
+            <!-- 4. TRACKER / STATS -->
+            <div class="tab-pane fade" id="tracker-pane" role="tabpanel">
+                <div class="card card-custom p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="m-0 text-danger"><i class="fa-solid fa-trophy me-2"></i>Estadísticas y Tracker.gg</h4>
+                        {% if role == 'admin' %}
+                            <button class="btn btn-scarlet btn-sm" onclick="guardarTracker()"><i class="fa-solid fa-rotate me-1"></i>Actualizar Stats</button>
+                        {% endif %}
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-custom table-hover">
+                            <thead>
+                                <tr>
+                                    <th>JUGADOR</th>
+                                    <th>RANGO ACTUAL</th>
+                                    <th>K/D RATIO</th>
+                                    <th>WIN RATE (%)</th>
+                                    <th>ENLACE TRACKER</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-tracker"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        function switchAuthTab(tab) {
-            const fLogin = document.getElementById('form-login');
-            const fReg = document.getElementById('form-register');
-            const bLogin = document.getElementById('btn-tab-login');
-            const bReg = document.getElementById('btn-tab-register');
+        const ES_ADMIN = {{ 'true' if role == 'admin' else 'false' }};
+        let globalRoster = [];
 
-            if (tab === 'login') {
-                fLogin.style.display = 'block';
-                fReg.style.display = 'none';
-                bLogin.style.background = 'var(--accent-red)';
-                bReg.style.background = '#334155';
-            } else {
-                fLogin.style.display = 'none';
-                fReg.style.display = 'block';
-                bLogin.style.background = '#334155';
-                bReg.style.background = 'var(--accent-red)';
-            }
-        }
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarRoster();
+            cargarAsistencia();
+            cargarAnotaciones();
+            cargarTracker();
+        });
 
-        async function iniciarSesion(e) {
-            e.preventDefault();
-            const res = await fetch('/api/login', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    usuario: document.getElementById('login-user').value,
-                    password: document.getElementById('login-pass').value
-                })
-            });
-            const data = await res.json();
-            if (res.ok) location.reload();
-            else alert('❌ ' + data.error);
-        }
-
-        async function registrarJugador(e) {
-            e.preventDefault();
-            const payload = {
-                nombre_real: document.getElementById('reg-nombre').value,
-                nick: document.getElementById('reg-nick').value,
-                usuario: document.getElementById('reg-usuario').value,
-                password: document.getElementById('reg-pass').value,
-                rol_principal: document.getElementById('reg-rol1').value,
-                rol_secundario: document.getElementById('reg-rol2').value,
-                personaje: document.getElementById('reg-personaje').value,
-                rango: document.getElementById('reg-rango').value,
-                contacto: document.getElementById('reg-contacto').value
-            };
-
-            const res = await fetch('/api/register', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(payload)
-            });
-            const data = await res.json();
-            if (res.ok) {
-                alert('✅ ' + data.message + ' Ahora puedes iniciar sesión.');
-                switchAuthTab('login');
-            } else {
-                alert('❌ ' + data.error);
-            }
-        }
-
+        // --- 1. ROSTER ---
         async function cargarRoster() {
-            const tbody = document.getElementById('tbody-roster');
-            if(!tbody) return;
-
             const res = await fetch('/api/roster');
-            const data = await res.json();
+            globalRoster = await res.json();
+            const tbody = document.getElementById('tabla-roster');
             tbody.innerHTML = '';
 
-            if (data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#94a3b8;">No hay jugadores en el roster aún.</td></tr>';
-                return;
-            }
-
-            data.forEach(p => {
+            globalRoster.forEach((j, idx) => {
                 tbody.innerHTML += `
                     <tr>
-                        <td><b>${p.nick || '-'}</b></td>
-                        <td>${p.nombre_real || '-'}</td>
-                        <td><span style="background: rgba(255,70,85,0.2); padding: 4px 8px; border-radius: 4px;">${p.rol_principal || '-'}</span></td>
-                        <td>${p.rol_secundario || '-'}</td>
-                        <td>${p.personaje || '-'}</td>
-                        <td>${p.rango || '-'}</td>
-                        <td><span style="color: #2ea043; font-weight: bold;">${p.estado || 'Titular'}</span></td>
-                        <td>${p.contacto || '-'}</td>
+                        <td class="fw-bold">${j.nick || '-'}</td>
+                        <td>${j.nombre_real || '-'}</td>
+                        <td><span class="badge bg-secondary">${j.rol_principal || '-'}</span></td>
+                        <td>${j.rol_secundario || '-'}</td>
+                        <td>${j.personaje || '-'}</td>
+                        <td>${j.rango || '-'}</td>
+                        <td><span class="badge ${j.estado === 'Titular' ? 'bg-success' : 'bg-warning'}">${j.estado || 'En Prueba'}</span></td>
+                        <td>${j.contacto || '-'}</td>
+                        ${ES_ADMIN ? `<td><button class="btn btn-outline-danger btn-sm" onclick="eliminarJugador(${idx})"><i class="fa-solid fa-trash"></i></button></td>` : ''}
                     </tr>
                 `;
             });
         }
 
-        async function vaciarDivision() {
-            const password = prompt("Ingrese contraseña de administrador para reiniciar el roster:");
-            if(!password) return;
-            const res = await fetch('/api/reset_division', {
+        async function eliminarJugador(idx) {
+            if (!confirm('¿Seguro que deseas eliminar a este jugador del Roster?')) return;
+            globalRoster.splice(idx, 1);
+            await fetch('/api/roster', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ password })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(globalRoster)
             });
-            const data = await res.json();
-            if(res.ok) { alert(data.message); location.reload(); }
-            else alert('❌ ' + data.error);
+            cargarRoster();
         }
 
-        window.onload = cargarRoster;
+        // --- 2. ASISTENCIA ---
+        async function cargarAsistencia() {
+            const res = await fetch('/api/asistencia');
+            const datos = await res.json();
+            const tbody = document.getElementById('tabla-asistencia');
+            tbody.innerHTML = '';
+
+            if (datos.length === 0 && globalRoster.length > 0) {
+                globalRoster.forEach(j => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${j.nick} (${j.nombre_real})</td>
+                            <td><input type="date" class="form-control form-control-sm bg-dark text-light border-secondary" value="${new Date().toISOString().split('T')[0]}" ${!ES_ADMIN ? 'disabled' : ''}></td>
+                            <td>
+                                <select class="form-select form-select-sm bg-dark text-light border-secondary" ${!ES_ADMIN ? 'disabled' : ''}>
+                                    <option value="Presente">Presente</option>
+                                    <option value="Ausente">Ausente</option>
+                                    <option value="Justificado">Justificado</option>
+                                    <option value="Atraso">Atraso</option>
+                                </select>
+                            </td>
+                            <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary" placeholder="Sin observaciones" ${!ES_ADMIN ? 'disabled' : ''}></td>
+                        </tr>
+                    `;
+                });
+            } else {
+                datos.forEach(a => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${a.jugador}</td>
+                            <td>${a.fecha}</td>
+                            <td><span class="badge ${a.estado === 'Presente' ? 'bg-success' : 'bg-danger'}">${a.estado}</span></td>
+                            <td>${a.observacion || '-'}</td>
+                        </tr>
+                    `;
+                });
+            }
+        }
+
+        async function guardarAsistencia() {
+            const rows = document.querySelectorAll('#tabla-asistencia tr');
+            const lista = [];
+            rows.forEach(r => {
+                const inputs = r.querySelectorAll('input, select');
+                if (inputs.length >= 3) {
+                    lista.push({
+                        jugador: r.children[0].innerText,
+                        fecha: inputs[0].value,
+                        estado: inputs[1].value,
+                        observacion: inputs[2].value
+                    });
+                }
+            });
+
+            const res = await fetch('/api/asistencia', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(lista)
+            });
+            const dat = await res.json();
+            alert(dat.message || dat.error);
+        }
+
+        // --- 3. ANOTACIONES & SANCIONES ---
+        async function cargarAnotaciones() {
+            const res = await fetch('/api/anotaciones');
+            const datos = await res.json();
+            const tbody = document.getElementById('tabla-anotaciones');
+            tbody.innerHTML = '';
+
+            datos.forEach(a => {
+                let badgeClass = 'bg-info';
+                if (a.tipo === 'Sanción' || a.tipo === 'Negativa') badgeClass = 'bg-danger';
+                if (a.tipo === 'Positiva') badgeClass = 'bg-success';
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${a.jugador}</td>
+                        <td><span class="badge ${badgeClass}">${a.tipo}</span></td>
+                        <td>${a.detalle}</td>
+                        <td>${a.fecha}</td>
+                        <td>${a.autor}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function agregarAnotacion() {
+            const jugador = prompt('Nombre/Nick del Jugador:');
+            if (!jugador) return;
+            const tipo = prompt('Tipo (Positiva / Negativa / Sanción):', 'Positiva');
+            const detalle = prompt('Motivo o Detalle:');
+
+            const resGet = await fetch('/api/anotaciones');
+            let datos = await resGet.json();
+
+            datos.push({
+                jugador: jugador,
+                tipo: tipo,
+                detalle: detalle,
+                fecha: new Date().toISOString().split('T')[0],
+                autor: '{{ user }}'
+            });
+
+            await fetch('/api/anotaciones', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(datos)
+            });
+            cargarAnotaciones();
+        }
+
+        // --- 4. TRACKER ---
+        async function cargarTracker() {
+            const res = await fetch('/api/tracker');
+            const datos = await res.json();
+            const tbody = document.getElementById('tabla-tracker');
+            tbody.innerHTML = '';
+
+            if (datos.length === 0 && globalRoster.length > 0) {
+                globalRoster.forEach(j => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${j.nick}</td>
+                            <td>${j.rango || 'Plata'}</td>
+                            <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary" value="1.0" ${!ES_ADMIN ? 'disabled' : ''}></td>
+                            <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary" value="50%" ${!ES_ADMIN ? 'disabled' : ''}></td>
+                            <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary" placeholder="https://tracker.gg/..." ${!ES_ADMIN ? 'disabled' : ''}></td>
+                        </tr>
+                    `;
+                });
+            } else {
+                datos.forEach(t => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${t.jugador}</td>
+                            <td>${t.rango}</td>
+                            <td>${t.kd}</td>
+                            <td>${t.winrate}</td>
+                            <td><a href="${t.link}" target="_blank" class="text-danger fw-bold"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i>Ver Tracker</a></td>
+                        </tr>
+                    `;
+                });
+            }
+        }
+
+        async function guardarTracker() {
+            const rows = document.querySelectorAll('#tabla-tracker tr');
+            const lista = [];
+            rows.forEach(r => {
+                const inputs = r.querySelectorAll('input');
+                if (inputs.length >= 3) {
+                    lista.push({
+                        jugador: r.children[0].innerText,
+                        rango: r.children[1].innerText,
+                        kd: inputs[0].value,
+                        winrate: inputs[1].value,
+                        link: inputs[2].value
+                    });
+                }
+            });
+
+            const res = await fetch('/api/tracker', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(lista)
+            });
+            const dat = await res.json();
+            alert(dat.message || dat.error);
+            cargarTracker();
+        }
+
+        async function resetearDivision() {
+            const pass = prompt('CONFIRMACIÓN DE SEGURIDAD:\nIngresa la contraseña de administrador para resetear esta división:');
+            if (!pass) return;
+
+            const res = await fetch('/api/reset_division', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: pass })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                alert('División reseteada con éxito.');
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        }
     </script>
 </body>
 </html>
