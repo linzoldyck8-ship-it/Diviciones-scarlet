@@ -236,5 +236,51 @@ def reset_division():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/register', methods=['POST'])
+def api_register():
+    data = request.get_json()
+    usuario = data.get('usuario')
+    nombre = data.get('nombre')
+    password = data.get('password')
+    
+    # Cargar usuarios existentes
+    usuarios = cargar_json('data/users.json') if os.path.exists('data/users.json') else {}
+    
+    if usuario in usuarios:
+        return jsonify({"error": "El usuario ya existe. Usa la pestaña 'Iniciar Sesión'."}), 400
+
+    # Guardar nuevo usuario
+    usuarios[usuario] = {
+        "password": password,
+        "nombre": nombre,
+        "role": "user"
+    }
+    guardar_json('data/users.json', usuarios)
+    
+    session['user'] = usuario
+    session['role'] = 'user'
+    return jsonify({"message": "Registro exitoso"})
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    data = request.get_json()
+    usuario = data.get('usuario')
+    password = data.get('password')
+
+    # Usuario Master / Admin
+    if usuario == "admin" and password == "admin123":  # Cambia admin123 por tu clave
+        session['user'] = 'admin'
+        session['role'] = 'admin'
+        return jsonify({"message": "OK"})
+
+    usuarios = cargar_json('data/users.json') if os.path.exists('data/users.json') else {}
+
+    if usuario in usuarios and usuarios[usuario]['password'] == password:
+        session['user'] = usuario
+        session['role'] = usuarios[usuario].get('role', 'user')
+        return jsonify({"message": "OK"})
+
+    return jsonify({"error": "Usuario o contraseña incorrectos"}), 401
+
 if __name__ == '__main__':
     app.run(debug=True)
