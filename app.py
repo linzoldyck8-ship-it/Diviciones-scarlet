@@ -6,21 +6,26 @@ from sqlalchemy import create_engine
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "scarlet_secret_key_2026")
 
-# CONEXIÓN A SUPABASE
-SUPABASE_DB_URL = os.environ.get("SUPABASE_DB_URL", "postgresql://postgres:password@db.xxx.supabase.co:5432/postgres")
+# CONEXIÓN SEGURA A SUPABASE (DIFERIDA)
+engine = None
 
-def get_engine():
-    raw_url = SUPABASE_DB_URL
-    if raw_url.startswith("postgresql://"):
-        raw_url = raw_url.replace("postgresql://", "postgresql+psycopg2://", 1)
-    if ".supabase.co" in raw_url and "pooler.supabase.com" not in raw_url:
-        raw_url = raw_url.replace("db.", "").replace(".supabase.co", ".pooler.supabase.com:6543")
-    if "?sslmode=" not in raw_url:
-        separator = "&" if "?" in raw_url else "?"
-        raw_url = f"{raw_url}{separator}sslmode=require"
-    return create_engine(raw_url)
-
-engine = get_engine()
+def get_db():
+    global engine
+    if engine is None:
+        raw_url = os.environ.get("SUPABASE_DB_URL", "")
+        if not raw_url:
+            raw_url = "postgresql://postgres:password@localhost:5432/postgres"
+            
+        if raw_url.startswith("postgresql://"):
+            raw_url = raw_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+        if ".supabase.co" in raw_url and "pooler.supabase.com" not in raw_url:
+            raw_url = raw_url.replace("db.", "").replace(".supabase.co", ".pooler.supabase.com:6543")
+        if "?sslmode=" not in raw_url and "sslmode" not in raw_url:
+            separator = "&" if "?" in raw_url else "?"
+            raw_url = f"{raw_url}{separator}sslmode=require"
+            
+        engine = create_engine(raw_url, pool_pre_ping=True)
+    return engine
 
 DIVISIONES_DISPONIBLES = [
     "Valorant A", "Valorant B", "Valorant C", "Valorant Femenino",
@@ -79,8 +84,8 @@ def login():
     usuario = data.get('usuario', '').strip().lower()
     password = data.get('password', '').strip()
 
-    df_cfg = pd.read_sql_table(f"{prefix}_config", engine)
-    df_bl = pd.read_sql_table(f"{prefix}_blacklist", engine)
+    df_cfg = pd.read_sql_table(f"{prefix}_config", get_db())
+    df_bl = pd.read_sql_table(f"{prefix}_blacklist", get_db())
 
     match = df_cfg[(df_cfg['usuario'].astype(str).str.lower() == usuario) & (df_cfg['password'].astype(str) == password)]
     if match.empty:
@@ -105,9 +110,9 @@ def register():
     nombre_real = data.get('nombre_real', '').strip()
     usuario = data.get('usuario', '').strip().lower()
     
-    df_bl = pd.read_sql_table(f"{prefix}_blacklist", engine)
-    df_cfg = pd.read_sql_table(f"{prefix}_config", engine)
-    df_roster = pd.read_sql_table(f"{prefix}_roster", engine)
+    df_bl = pd.read_sql_table(f"{prefix}_blacklist", get_db())
+    df_cfg = pd.read_sql_table(f"{prefix}_config", get_db())
+    df_roster = pd.read_sql_table(f"{prefix}_roster", get_db())
 
     if not df_bl[df_bl['nombre_real'].str.lower() == nombre_real.lower()].empty:
         return jsonify({'error': 'REGISTRO DENEGADO: El jugador está en Lista Negra.'}), 403
@@ -121,10 +126,10 @@ def register():
         "estado": data.get("estado", "En Prueba"), "actividad": "Alta",
         "contacto": data.get("contacto", ""), "notas": ""
     }])
-    pd.concat([df_roster, new_p], ignore_index=True).to_sql(f"{prefix}_roster", engine, if_exists='replace', index=False)
+    pd.concat([df_roster, new_p], ignore_index=True).to_sql(f"{prefix}_roster", get_db(), if_exists='replace', index=False)
 
     new_u = pd.DataFrame([{"usuario": usuario, "password": data.get("password"), "rol": "jugador", "nombre_real": nombre_real}])
-    pd.concat([df_cfg, new_u], ignore_index=True).to_sql(f"{prefix}_config", engine, if_exists='replace', index=False)
+    pd.concat([df_cfg, new_u], ignore_index=True).to_sql(f"{prefix}_config", get_db(), if_exists='replace', index=False)
 
     return jsonify({'message': 'Registrado con éxito.'})
 
@@ -137,50 +142,50 @@ def logout():
 def api_roster():
     prefix = get_prefix(session.get('division'))
     if request.method == 'GET':
-        df = pd.read_sql_table(f"{prefix}_roster", engine)
+        df = pd.read_sql_table(f"{prefix}_roster", get_db())
         return jsonify(df.to_dict(orient='records'))
     if request.method == 'POST' and session.get('role') == 'admin':
-        pd.DataFrame(request.json).to_sql(f"{prefix}_roster", engine, if_exists='replace', index=False)
+        pd.DataFrame(request.json).to_sql(f"{prefix}_roster", get_db(), if_exists='replace', index=False)
         return jsonify({'message': 'Roster actualizado'})
 
 @app.route('/api/disciplina', methods=['GET', 'POST', 'DELETE'])
 def api_disciplina():
     prefix = get_prefix(session.get('division'))
     if request.method == 'GET':
-        df = pd.read_sql_table(f"{prefix}_disciplina", engine)
+        df = pd.read_sql_table(f"{prefix}_disciplina", get_db())
         return jsonify(df.to_dict(orient='records'))
     if request.method == 'POST' and session.get('role') == 'admin':
-        df_curr = pd.read_sql_table(f"{prefix}_disciplina", engine)
+        df_curr = pd.read_sql_table(f"{prefix}_disciplina", get_db())
         df_up = pd.concat([df_curr, pd.DataFrame([request.json])], ignore_index=True)
-        df_up.to_sql(f"{prefix}_disciplina", engine, if_exists='replace', index=False)
+        df_up.to_sql(f"{prefix}_disciplina", get_db(), if_exists='replace', index=False)
         return jsonify({'message': 'Sanción registrada'})
 
 @app.route('/api/capturas', methods=['GET', 'POST'])
 def api_capturas():
     prefix = get_prefix(session.get('division'))
     if request.method == 'GET':
-        df = pd.read_sql_table(f"{prefix}_capturas", engine)
+        df = pd.read_sql_table(f"{prefix}_capturas", get_db())
         return jsonify(df.to_dict(orient='records'))
     if request.method == 'POST':
-        df_curr = pd.read_sql_table(f"{prefix}_capturas", engine)
+        df_curr = pd.read_sql_table(f"{prefix}_capturas", get_db())
         nick = request.json.get('nick')
         df_filtered = df_curr[df_curr['nick'] != nick]
         df_up = pd.concat([df_filtered, pd.DataFrame([request.json])], ignore_index=True)
-        df_up.to_sql(f"{prefix}_capturas", engine, if_exists='replace', index=False)
+        df_up.to_sql(f"{prefix}_capturas", get_db(), if_exists='replace', index=False)
         return jsonify({'message': 'Captura guardada'})
 
 @app.route('/api/reset_division', methods=['POST'])
 def reset_division():
     password = request.json.get('password')
     prefix = get_prefix(session.get('division'))
-    df_cfg = pd.read_sql_table(f"{prefix}_config", engine)
+    df_cfg = pd.read_sql_table(f"{prefix}_config", get_db())
     
     if df_cfg[(df_cfg['password'].astype(str) == password) & (df_cfg['rol'] == 'admin')].empty:
         return jsonify({'error': 'Contraseña incorrecta'}), 401
 
-    pd.DataFrame(columns=["nick", "nombre_real", "rol_principal", "rol_secundario", "personaje", "rango", "cargo", "estado", "actividad", "contacto", "notas"]).to_sql(f"{prefix}_roster", engine, if_exists='replace', index=False)
-    pd.DataFrame(columns=["fecha", "jugador", "tipo", "sancion", "detalles"]).to_sql(f"{prefix}_disciplina", engine, if_exists='replace', index=False)
-    pd.DataFrame(columns=["nick", "imagen_b64"]).to_sql(f"{prefix}_capturas", engine, if_exists='replace', index=False)
+    pd.DataFrame(columns=["nick", "nombre_real", "rol_principal", "rol_secundario", "personaje", "rango", "cargo", "estado", "actividad", "contacto", "notas"]).to_sql(f"{prefix}_roster", get_db(), if_exists='replace', index=False)
+    pd.DataFrame(columns=["fecha", "jugador", "tipo", "sancion", "detalles"]).to_sql(f"{prefix}_disciplina", get_db(), if_exists='replace', index=False)
+    pd.DataFrame(columns=["nick", "imagen_b64"]).to_sql(f"{prefix}_capturas", get_db(), if_exists='replace', index=False)
     return jsonify({'message': 'División reseteada.'})
 
 if __name__ == '__main__':
