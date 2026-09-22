@@ -15,15 +15,16 @@
         .table-custom { color: #e1e6ed; background-color: #161a22; }
         .table-custom th { background-color: #21262d; color: #ff4d4d; border-bottom: 2px solid #8b0000; }
         .table-custom td { background-color: #161a22; color: #ffffff; border-color: #2a313d; vertical-align: middle; }
-        .badge-admin { background-color: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; }
-        .badge-user { background-color: #0d6efd; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; }
-        .btn-scarlet { background-color: #8b0000; color: white; font-weight: 600; }
+        .badge-admin { background-color: #dc3545; color: white; padding: 5px 10px; border-radius: 4px; font-size: 0.85rem; font-weight: bold; }
+        .badge-user { background-color: #0d6efd; color: white; padding: 5px 10px; border-radius: 4px; font-size: 0.85rem; font-weight: bold; }
+        .btn-scarlet { background-color: #8b0000; color: white; font-weight: 600; border: none; }
         .btn-scarlet:hover { background-color: #a70000; color: white; }
         .img-preview { max-width: 80px; max-height: 50px; border-radius: 4px; cursor: pointer; object-fit: cover; border: 1px solid #8b0000; }
     </style>
 </head>
 <body>
 
+    <!-- BARRA DE NAVEGACIÓN SUPERIOR -->
     <nav class="navbar navbar-expand-lg navbar-dark px-4">
         <a class="navbar-brand font-weight-bold" href="/"><i class="fa-solid fa-shield-halved text-danger me-2"></i>SCARLET — {{ division }}</a>
         <div class="ms-auto d-flex align-items-center gap-3">
@@ -32,11 +33,16 @@
             {% else %}
                 <span class="badge-user"><i class="fa-solid fa-eye me-1"></i> MODO LECTURA</span>
             {% endif %}
+
             <span class="text-light fw-bold">{{ user if user else 'Invitado' }}</span>
+
             {% if role != 'invitado' %}
-                <a href="/api/logout" class="btn btn-outline-danger btn-sm"><i class="fa-solid fa-right-from-bracket"></i> Salir</a>
+                <a href="/api/logout" class="btn btn-outline-danger btn-sm"><i class="fa-solid fa-right-from-bracket me-1"></i> Cerrar Sesión</a>
             {% else %}
-                <a href="/" class="btn btn-outline-light btn-sm"><i class="fa-solid fa-arrow-left"></i> Cambiar División</a>
+                <button class="btn btn-scarlet btn-sm" data-bs-toggle="modal" data-bs-target="#loginModal">
+                    <i class="fa-solid fa-right-to-bracket me-1"></i> Iniciar Sesión / Modo Admin
+                </button>
+                <a href="/" class="btn btn-outline-light btn-sm"><i class="fa-solid fa-arrow-left me-1"></i> Cambiar División</a>
             {% endif %}
         </div>
     </nav>
@@ -157,7 +163,7 @@
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div>
                             <h4 class="m-0 text-danger"><i class="fa-solid fa-trophy me-2"></i>Estadísticas y Tracker.gg</h4>
-                            <small class="text-muted"><i class="fa-solid fa-paste me-1"></i>Puedes pegar una captura tomada con Win+Shift+S / Ctrl+Shift+S usando Ctrl+V sobre el botón de captura</small>
+                            <small class="text-muted"><i class="fa-solid fa-paste me-1"></i>Puedes pegar una captura tomada con Win+Shift+S / Ctrl+Shift+S usando Ctrl+V sobre la fila del jugador</small>
                         </div>
                         {% if role == 'admin' %}
                             <button class="btn btn-scarlet btn-sm" onclick="guardarTracker()"><i class="fa-solid fa-floppy-disk me-1"></i>Guardar Stats</button>
@@ -184,7 +190,33 @@
         </div>
     </div>
 
-    <!-- Modal para ver Imagen Completa -->
+    <!-- MODAL DE INICIO DE SESIÓN -->
+    <div class="modal fade" id="loginModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-light border-danger">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title"><i class="fa-solid fa-lock me-2 text-danger"></i>Iniciar Sesión en {{ division }}</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formLoginDashboard" onsubmit="loginDashboard(event)">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Usuario / Nick</label>
+                            <input type="text" id="loginUsuario" class="form-control bg-dark text-light border-secondary" placeholder="Ej: admin" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Contraseña</label>
+                            <input type="password" id="loginPassword" class="form-control bg-dark text-light border-secondary" placeholder="••••••••" required>
+                        </div>
+                        <div id="loginError" class="alert alert-danger p-2 text-center d-none"></div>
+                        <button type="submit" class="btn btn-scarlet w-100 py-2"><i class="fa-solid fa-right-to-bracket me-1"></i> Entrar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PARA VER IMAGEN COMPLETA -->
     <div class="modal fade" id="imageModal" tabindex="-1">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content bg-dark text-light border-danger">
@@ -212,7 +244,7 @@
             cargarAsistencia();
             cargarAnotaciones();
             
-            // Escuchar Ctrl+V para pegar capturas de pantalla
+            // Pegar imágenes con Ctrl+V
             window.addEventListener('paste', e => {
                 if (selectedRowForPaste !== null && e.clipboardData.files.length > 0) {
                     const file = e.clipboardData.files[0];
@@ -227,6 +259,28 @@
                 }
             });
         });
+
+        // FUNCIONALIDAD DE LOGIN
+        async function loginDashboard(e) {
+            e.preventDefault();
+            const usuario = document.getElementById('loginUsuario').value;
+            const password = document.getElementById('loginPassword').value;
+            const errDiv = document.getElementById('loginError');
+
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ usuario, password })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                location.reload();
+            } else {
+                errDiv.innerText = data.error || 'Error al iniciar sesión';
+                errDiv.classList.remove('d-none');
+            }
+        }
 
         // --- 1. ROSTER ---
         async function cargarRoster() {
@@ -367,7 +421,7 @@
             cargarAsistencia();
         }
 
-        // --- 3. ANOTACIONES & SANCIONES ---
+        // --- 3. ANOTACIONES Y SANCIONES ---
         async function cargarAnotaciones() {
             const res = await fetch('/api/anotaciones');
             const datos = await res.json();
@@ -470,7 +524,6 @@
             } else if (DIVISION.includes('CS')) {
                 return `https://tracker.gg/cs2/profile/steam/${encodeURIComponent(cleanNick)}/overview`;
             } else {
-                // Valorant por defecto
                 const parts = cleanNick.split('#');
                 if (parts.length === 2) {
                     return `https://tracker.gg/valorant/profile/riot/${encodeURIComponent(parts[0])}%23${encodeURIComponent(parts[1])}/overview`;
