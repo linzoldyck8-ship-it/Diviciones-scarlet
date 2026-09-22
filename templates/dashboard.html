@@ -10,10 +10,8 @@
         <div class="logo">⛩️ SCARLET — {{ division.upper() }}</div>
         <div>
             {% if user %}
-            <span style="margin-right: 15px;">👤 {{ user }} ({{ role.upper() }})</span>
+            <span style="margin-right: 15px;">👤 {{ user }} (<strong>{{ role.upper() }}</strong>)</span>
             <a href="/api/logout" style="color: #ff4655; text-decoration: none; font-weight: bold;">Cerrar Sesión</a>
-            {% else %}
-            <span style="color: #94a3b8;">Modo Invitado</span>
             {% endif %}
             <a href="/" style="margin-left: 20px; color: #fff; text-decoration: none;">🏠 Inicio</a>
         </div>
@@ -21,25 +19,109 @@
 
     <div style="max-width: 1200px; margin: 30px auto; padding: 0 20px;">
         {% if not user %}
-        <div class="card" style="max-width: 500px; margin: 0 auto;">
-            <h2 style="color: #ff4655; margin-bottom: 15px; text-align: center;">Iniciar Sesión en {{ division }}</h2>
-            <form id="login-form" onsubmit="iniciarSesion(event)">
+        <!-- PESTAÑAS LOGIN / REGISTRO -->
+        <div class="card" style="max-width: 550px; margin: 0 auto;">
+            <div style="display: flex; justify-content: space-around; margin-bottom: 25px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+                <button id="btn-tab-login" onclick="switchAuthTab('login')" class="btn-primary" style="background: var(--accent-red);">Iniciar Sesión</button>
+                <button id="btn-tab-register" onclick="switchAuthTab('register')" class="btn-primary" style="background: #334155;">Crear Perfil / Registro</button>
+            </div>
+
+            <!-- FORMULARIO LOGIN -->
+            <form id="form-login" onsubmit="iniciarSesion(event)">
+                <h3 style="color: #ff4655; text-align: center; margin-bottom: 15px;">Iniciar Sesión en {{ division }}</h3>
+                <p style="text-align: center; color: #94a3b8; font-size: 0.85rem; margin-bottom: 15px;">
+                    💡 <em>Administradores usen usuario <b>admin</b> / contraseña <b>admin123</b></em>
+                </p>
                 <div style="margin-bottom: 15px;">
                     <label>Usuario:</label>
-                    <input type="text" id="login-user" required>
+                    <input type="text" id="login-user" required placeholder="Tu usuario">
                 </div>
                 <div style="margin-bottom: 20px;">
                     <label>Contraseña:</label>
-                    <input type="password" id="login-pass" required>
+                    <input type="password" id="login-pass" required placeholder="Tu contraseña">
                 </div>
                 <button type="submit" class="btn-primary" style="width: 100%;">Ingresar</button>
+            </form>
+
+            <!-- FORMULARIO REGISTRO COMPLETO -->
+            <form id="form-register" onsubmit="registrarJugador(event)" style="display: none;">
+                <h3 style="color: #ff4655; text-align: center; margin-bottom: 15px;">Registro de Perfil de Jugador</h3>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                    <div>
+                        <label>Nombre Real *:</label>
+                        <input type="text" id="reg-nombre" required placeholder="Ej: Juan Pérez">
+                    </div>
+                    <div>
+                        <label>Nick / ID *:</label>
+                        <input type="text" id="reg-nick" required placeholder="Ej: Shadow#1234">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                    <div>
+                        <label>Usuario (para entrar) *:</label>
+                        <input type="text" id="reg-usuario" required placeholder="Usuario único">
+                    </div>
+                    <div>
+                        <label>Contraseña *:</label>
+                        <input type="password" id="reg-pass" required placeholder="Contraseña">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                    <div>
+                        <label>Rol Principal *:</label>
+                        <select id="reg-rol1" required>
+                            {% for r in game_info.Roles %}
+                            <option value="{{ r }}">{{ r }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label>Rol Secundario:</label>
+                        <select id="reg-rol2">
+                            <option value="">Ninguno</option>
+                            {% for r in game_info.Roles %}
+                            <option value="{{ r }}">{{ r }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                    <div>
+                        <label>Agente / Personaje Main *:</label>
+                        <select id="reg-personaje" required>
+                            {% for p in game_info.Personajes %}
+                            <option value="{{ p }}">{{ p }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label>Rango Actual *:</label>
+                        <select id="reg-rango" required>
+                            {% for r in game_info.Rangos %}
+                            <option value="{{ r }}">{{ r }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label>Contacto (Discord / WhatsApp):</label>
+                    <input type="text" id="reg-contacto" placeholder="Ej: discord_tag ó +56912345678">
+                </div>
+
+                <button type="submit" class="btn-primary" style="width: 100%;">Crear Perfil y Unirse al Roster</button>
             </form>
         </div>
         {% else %}
 
+        <!-- ROSTER DE JUGADORES -->
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h2>📊 Plantel Roster Titular</h2>
+                <h2>📊 Plantel Roster Titular ({{ division }})</h2>
                 {% if role == 'admin' %}
                 <button class="btn-primary" style="background: #b02a37;" onclick="vaciarDivision()">🗑️ Reset División</button>
                 {% endif %}
@@ -51,13 +133,14 @@
                         <th>Nick / ID</th>
                         <th>Nombre Real</th>
                         <th>Rol Principal</th>
+                        <th>Rol Secundario</th>
                         <th>Agente / Héroe</th>
                         <th>Rango</th>
                         <th>Estado</th>
+                        <th>Contacto</th>
                     </tr>
                 </thead>
-                <tbody id="tbody-roster">
-                </tbody>
+                <tbody id="tbody-roster"></tbody>
             </table>
         </div>
 
@@ -65,63 +148,108 @@
     </div>
 
     <script>
+        function switchAuthTab(tab) {
+            const fLogin = document.getElementById('form-login');
+            const fReg = document.getElementById('form-register');
+            const bLogin = document.getElementById('btn-tab-login');
+            const bReg = document.getElementById('btn-tab-register');
+
+            if (tab === 'login') {
+                fLogin.style.display = 'block';
+                fReg.style.display = 'none';
+                bLogin.style.background = 'var(--accent-red)';
+                bReg.style.background = '#334155';
+            } else {
+                fLogin.style.display = 'none';
+                fReg.style.display = 'block';
+                bLogin.style.background = '#334155';
+                bReg.style.background = 'var(--accent-red)';
+            }
+        }
+
         async function iniciarSesion(e) {
             e.preventDefault();
-            const usuario = document.getElementById('login-user').value;
-            const password = document.getElementById('login-pass').value;
-
             const res = await fetch('/api/login', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ usuario, password })
+                body: JSON.stringify({
+                    usuario: document.getElementById('login-user').value,
+                    password: document.getElementById('login-pass').value
+                })
             });
+            const data = await res.json();
+            if (res.ok) location.reload();
+            else alert('❌ ' + data.error);
+        }
 
+        async function registrarJugador(e) {
+            e.preventDefault();
+            const payload = {
+                nombre_real: document.getElementById('reg-nombre').value,
+                nick: document.getElementById('reg-nick').value,
+                usuario: document.getElementById('reg-usuario').value,
+                password: document.getElementById('reg-pass').value,
+                rol_principal: document.getElementById('reg-rol1').value,
+                rol_secundario: document.getElementById('reg-rol2').value,
+                personaje: document.getElementById('reg-personaje').value,
+                rango: document.getElementById('reg-rango').value,
+                contacto: document.getElementById('reg-contacto').value
+            };
+
+            const res = await fetch('/api/register', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
             const data = await res.json();
             if (res.ok) {
-                location.reload();
+                alert('✅ ' + data.message + ' Ahora puedes iniciar sesión.');
+                switchAuthTab('login');
             } else {
                 alert('❌ ' + data.error);
             }
         }
 
         async function cargarRoster() {
-            const res = await fetch('/api/roster');
-            const data = await res.json();
             const tbody = document.getElementById('tbody-roster');
             if(!tbody) return;
 
+            const res = await fetch('/api/roster');
+            const data = await res.json();
             tbody.innerHTML = '';
+
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#94a3b8;">No hay jugadores en el roster aún.</td></tr>';
+                return;
+            }
+
             data.forEach(p => {
                 tbody.innerHTML += `
                     <tr>
-                        <td><b>${p.nick || ''}</b></td>
-                        <td>${p.nombre_real || ''}</td>
-                        <td>${p.rol_principal || ''}</td>
-                        <td>${p.personaje || ''}</td>
-                        <td>${p.rango || ''}</td>
+                        <td><b>${p.nick || '-'}</b></td>
+                        <td>${p.nombre_real || '-'}</td>
+                        <td><span style="background: rgba(255,70,85,0.2); padding: 4px 8px; border-radius: 4px;">${p.rol_principal || '-'}</span></td>
+                        <td>${p.rol_secundario || '-'}</td>
+                        <td>${p.personaje || '-'}</td>
+                        <td>${p.rango || '-'}</td>
                         <td><span style="color: #2ea043; font-weight: bold;">${p.estado || 'Titular'}</span></td>
+                        <td>${p.contacto || '-'}</td>
                     </tr>
                 `;
             });
         }
 
         async function vaciarDivision() {
-            const password = prompt("Ingrese la contraseña de administrador para confirmar el borrado total:");
+            const password = prompt("Ingrese contraseña de administrador para reiniciar el roster:");
             if(!password) return;
-
             const res = await fetch('/api/reset_division', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ password })
             });
-
             const data = await res.json();
-            if(res.ok) {
-                alert(data.message);
-                location.reload();
-            } else {
-                alert('❌ ' + data.error);
-            }
+            if(res.ok) { alert(data.message); location.reload(); }
+            else alert('❌ ' + data.error);
         }
 
         window.onload = cargarRoster;
