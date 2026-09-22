@@ -3,7 +3,220 @@
 <head>
     <meta charset="UTF-8">
     <title>Scarlet Esports - Multi-Divisiones</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"><!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCARLET - Selección de División</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #0d0f12; color: #e1e6ed; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .hero-section { text-align: center; padding: 40px 20px 20px; }
+        .hero-title { font-size: 2.2rem; font-weight: 800; color: #ffffff; letter-spacing: 1px; }
+        .hero-subtitle { color: #8a95a5; font-size: 0.95rem; }
+        .card-division { background-color: #161a22; border: 1px solid #2a313d; border-radius: 12px; transition: all 0.3s ease; }
+        .card-division:hover { border-color: #ff4d4d; transform: translateY(-3px); box-shadow: 0 6px 20px rgba(139, 0, 0, 0.3); }
+        .btn-scarlet { background-color: #ff4d4d; color: white; font-weight: 700; border: none; padding: 10px 20px; border-radius: 6px; width: 100%; letter-spacing: 0.5px; }
+        .btn-scarlet:hover { background-color: #e63939; color: white; }
+        .nav-tabs .nav-link { color: #a0aab8; font-weight: 600; border: none; }
+        .nav-tabs .nav-link.active { color: #ff4d4d; background: transparent; border-bottom: 2px solid #ff4d4d; }
+    </style>
+</head>
+<body>
+
+    <div class="container py-4">
+        <!-- ENCABEZADO -->
+        <div class="hero-section">
+            <h1 class="hero-title"><i class="fa-solid fa-shield-halved text-danger me-2"></i>SCARLET</h1>
+            <p class="hero-subtitle">Plataforma institucional de gestión de planteles, asistencia y análisis.</p>
+        </div>
+
+        <!-- TARJETAS DE DIVISIONES -->
+        <div class="row g-4 mt-2 justify-content-center">
+            
+            <div class="col-md-4">
+                <div class="card card-division p-4 text-center">
+                    <h4 class="fw-bold mb-3">Valorant A</h4>
+                    <button class="btn btn-scarlet" onclick="abrirAutenticacion('Valorant A')">ENTRAR A ROSTER</button>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card card-division p-4 text-center">
+                    <h4 class="fw-bold mb-3">Valorant B</h4>
+                    <button class="btn btn-scarlet" onclick="abrirAutenticacion('Valorant B')">ENTRAR A ROSTER</button>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card card-division p-4 text-center">
+                    <h4 class="fw-bold mb-3">Valorant C</h4>
+                    <button class="btn btn-scarlet" onclick="abrirAutenticacion('Valorant C')">ENTRAR A ROSTER</button>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card card-division p-4 text-center">
+                    <h4 class="fw-bold mb-3">Valorant Femenino</h4>
+                    <button class="btn btn-scarlet" onclick="abrirAutenticacion('Valorant Femenino')">ENTRAR A ROSTER</button>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card card-division p-4 text-center">
+                    <h4 class="fw-bold mb-3">Overwatch A</h4>
+                    <button class="btn btn-scarlet" onclick="abrirAutenticacion('Overwatch A')">ENTRAR A ROSTER</button>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card card-division p-4 text-center">
+                    <h4 class="fw-bold mb-3">Overwatch B</h4>
+                    <button class="btn btn-scarlet" onclick="abrirAutenticacion('Overwatch B')">ENTRAR A ROSTER</button>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card card-division p-4 text-center">
+                    <h4 class="fw-bold mb-3">CS</h4>
+                    <button class="btn btn-scarlet" onclick="abrirAutenticacion('CS')">ENTRAR A ROSTER</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- MODAL DE AUTENTICACIÓN OBLIGATORIA (LOGIN / REGISTRO) -->
+    <div class="modal fade" id="authModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-light border-danger">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title" id="authModalTitle"><i class="fa-solid fa-lock text-danger me-2"></i>Acceso Requerido</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    
+                    <!-- PESTAÑAS LOGIN / REGISTRO -->
+                    <ul class="nav nav-tabs mb-4 justify-content-center" id="authTabs" role="tablist">
+                        <li class="nav-item">
+                            <button class="nav-link active" id="login-tab" data-bs-toggle="tab" data-bs-target="#login-pane" type="button">Iniciar Sesión</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" id="register-tab" data-bs-toggle="tab" data-bs-target="#register-pane" type="button">Crear Cuenta</button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <!-- TAB 1: INICIAR SESIÓN -->
+                        <div class="tab-pane fade show active" id="login-pane" role="tabpanel">
+                            <form id="formLogin" onsubmit="ejecutarLogin(event)">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Usuario / Nick</label>
+                                    <input type="text" id="loginUser" class="form-control bg-dark text-light border-secondary" placeholder="Ej: admin o TuNick" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Contraseña</label>
+                                    <input type="password" id="loginPass" class="form-control bg-dark text-light border-secondary" placeholder="••••••••" required>
+                                </div>
+                                <div id="loginMsg" class="alert alert-danger p-2 text-center d-none"></div>
+                                <button type="submit" class="btn btn-scarlet py-2 mt-2"><i class="fa-solid fa-right-to-bracket me-1"></i> Entrar a División</button>
+                            </form>
+                        </div>
+
+                        <!-- TAB 2: CREAR CUENTA -->
+                        <div class="tab-pane fade" id="register-pane" role="tabpanel">
+                            <form id="formRegister" onsubmit="ejecutarRegistro(event)">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Usuario / Nick</label>
+                                    <input type="text" id="regUser" class="form-control bg-dark text-light border-secondary" placeholder="Crea tu usuario" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Nombre Real</label>
+                                    <input type="text" id="regNombre" class="form-control bg-dark text-light border-secondary" placeholder="Tu nombre real" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Contraseña</label>
+                                    <input type="password" id="regPass" class="form-control bg-dark text-light border-secondary" placeholder="Crea tu contraseña" required>
+                                </div>
+                                <div id="regMsg" class="alert alert-info p-2 text-center d-none"></div>
+                                <button type="submit" class="btn btn-scarlet py-2 mt-2"><i class="fa-solid fa-user-plus me-1"></i> Registrarse y Entrar</button>
+                            </form>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let divisionSeleccionada = "";
+        let authModal = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            authModal = new bootstrap.Modal(document.getElementById('authModal'));
+        });
+
+        function abrirAutenticacion(division) {
+            divisionSeleccionada = division;
+            document.getElementById('authModalTitle').innerHTML = `<i class="fa-solid fa-lock text-danger me-2"></i> Acceso a ${division}`;
+            document.getElementById('loginMsg').classList.add('d-none');
+            document.getElementById('regMsg').classList.add('d-none');
+            authModal.show();
+        }
+
+        async function ejecutarLogin(e) {
+            e.preventDefault();
+            const usuario = document.getElementById('loginUser').value.trim();
+            const password = document.getElementById('loginPass').value;
+            const msg = document.getElementById('loginMsg');
+
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ usuario, password, division: divisionSeleccionada })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                window.location.href = `/dashboard?division=${encodeURIComponent(divisionSeleccionada)}`;
+            } else {
+                msg.innerText = data.error || 'Credenciales incorrectas';
+                msg.className = "alert alert-danger p-2 text-center";
+            }
+        }
+
+        async function ejecutarRegistro(e) {
+            e.preventDefault();
+            const usuario = document.getElementById('regUser').value.trim();
+            const nombre = document.getElementById('regNombre').value.trim();
+            const password = document.getElementById('regPass').value;
+            const msg = document.getElementById('regMsg');
+
+            const res = await fetch('/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ usuario, nombre, password, division: divisionSeleccionada })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                msg.innerText = "¡Cuenta creada con éxito! Redirigiendo...";
+                msg.className = "alert alert-success p-2 text-center";
+                setTimeout(() => {
+                    window.location.href = `/dashboard?division=${encodeURIComponent(divisionSeleccionada)}`;
+                }, 1000);
+            } else {
+                msg.innerText = data.error || 'Error al crear la cuenta';
+                msg.className = "alert alert-danger p-2 text-center";
+            }
+        }
+    </script>
+</body>
+</html>
 </head>
 <body>
     <header class="top-nav">
