@@ -1,0 +1,117 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+
+:root {
+    --bg-dark: #0b1017;
+    --card-bg: rgba(22, 34, 45, 0.85);
+    --accent-red: #ff4655;
+    --accent-hover: #da3633;
+    --text-main: #f0f0f5;
+    --text-sub: #94a3b8;
+    --border-color: rgba(255, 70, 85, 0.3);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', sans-serif;
+}
+
+body {
+    background: linear-gradient(135deg, #0b1017 0%, #111a24 100%);
+    color: var(--text-main);
+    min-height: 100vh;
+}
+
+.top-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 35px;
+    background: rgba(11, 16, 23, 0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 2px solid var(--accent-red);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.top-nav .logo {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 1px;
+}
+
+.card {
+    background: var(--card-bg);
+    backdrop-filter: blur(14px);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    margin-bottom: 25px;
+}
+
+.division-card {
+    background: rgba(22, 34, 45, 0.8);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 25px;
+    text-align: center;
+    transition: transform 0.3s, border-color 0.3s;
+    cursor: pointer;
+}
+
+.division-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--accent-red);
+}
+
+.btn-primary {
+    background: var(--accent-red);
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    text-transform: uppercase;
+}
+
+.btn-primary:hover {
+    background: var(--accent-hover);
+    transform: translateY(-2px);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+th {
+    background: rgba(255, 70, 85, 0.15);
+    padding: 12px;
+    border-bottom: 2px solid var(--accent-red);
+    text-align: left;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+}
+
+td {
+    padding: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 0.9rem;
+}
+
+input, select, textarea {
+    width: 100%;
+    padding: 10px;
+    background: rgba(15, 25, 35, 0.9);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: #fff;
+    margin-top: 5px;
+}
