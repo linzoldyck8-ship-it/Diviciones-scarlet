@@ -1,7 +1,5 @@
-streamlit
-pandas
-plotly
-gspread
-oauth2client
-SQLAlchemy
-psycopg2-binary
+Flask==3.0.2
+gunicorn==21.2.0
+pandas==2.2.1
+SQLAlchemy==2.0.28
+psycopg2-binary==2.9.9
