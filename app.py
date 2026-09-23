@@ -52,7 +52,18 @@ def build_tracker_url(division, ign):
         return f"https://csstats.gg/player/{clean_ign}"
     return "#"
 
-# RUTA PRINCIPAL: Muestra la nueva pantalla de bienvenida
+# Función auxiliar para comprobar si un correo está en la blacklist
+def is_blacklisted(email):
+    if not supabase:
+        return False
+    try:
+        res = supabase.table("blacklist").select("*").eq("email", email).execute()
+        if res.data and len(res.data) > 0:
+            return True
+    except Exception:
+        pass
+    return False
+
 @app.route("/")
 def index():
     if "user_id" in session:
@@ -66,7 +77,6 @@ def index():
 
     return render_template("welcome.html")
 
-# RUTA DEL PORTAL: Muestra el Login y Registro (la pantalla anterior)
 @app.route("/portal")
 def portal():
     if "user_id" in session:
@@ -87,6 +97,12 @@ def register():
         return redirect(url_for("portal"))
 
     email = request.form.get("email", "").strip().lower()
+    
+    # Bloquear si está en la blacklist
+    if is_blacklisted(email):
+        flash("Este correo electrónico se encuentra en la lista negra y no puede registrarse.", "danger")
+        return redirect(url_for("portal"))
+
     password = request.form.get("password")
     full_name = request.form.get("full_name", "").strip()
     discord_tag = request.form.get("discord_tag", "").strip()
@@ -131,6 +147,11 @@ def login():
 
     email = request.form.get("email", "").strip().lower()
     password = request.form.get("password")
+
+    # Bloquear acceso si está en la blacklist
+    if is_blacklisted(email):
+        flash("Acceso denegado: Este correo ha sido bloqueado por la administración.", "danger")
+        return redirect(url_for("portal"))
 
     try:
         res = supabase.table("profiles").select("*").eq("email", email).execute()
@@ -216,6 +237,14 @@ def division_dashboard(division_name):
         members = []
         flash(f"Error al cargar datos: {str(e)}", "danger")
 
+    # Obtener lista negra actual para mostrar en el panel de administración
+    blacklist_items = []
+    try:
+        bl_res = supabase.table("blacklist").select("*").execute()
+        blacklist_items = bl_res.data if bl_res.data else []
+    except Exception as e:
+        print("Aviso: No se pudo cargar la blacklist", e)
+
     # Cargar matriz de asistencia para el mes seleccionado
     start_date = f"{selected_year:04d}-{selected_month:02d}-01"
     end_date = f"{selected_year:04d}-{selected_month:02d}-{num_days:02d}"
@@ -279,10 +308,10 @@ def division_dashboard(division_name):
         selected_month_name=MONTH_NAMES.get(selected_month, ""),
         month_names=MONTH_NAMES,
         days_list=days_list,
-        division_image=division_image
+        division_image=division_image,
+        blacklist_items=blacklist_items
     )
 
-# NUEVA RUTA PARA GUARDAR LA IMAGEN DE LA DIVISIÓN
 @app.route("/admin/update-division-image", methods=["POST"])
 def update_division_image():
     if "user_id" not in session or session.get("role") != "admin":
@@ -303,7 +332,6 @@ def update_division_image():
 
     return redirect(url_for("division_dashboard", division_name=target_division))
 
-# GUARDAR MATRIZ COMPLETA DE ASISTENCIA (SOLO ADMINS)
 @app.route("/admin/save-attendance-matrix", methods=["POST"])
 def save_attendance_matrix():
     if "user_id" not in session or session.get("role") != "admin":
@@ -417,10 +445,53 @@ def delete_member():
     target_division = request.form.get("target_division")
 
     try:
+        # Opcional: obtener el correo antes de borrar para añadirlo automáticamente a la blacklist si se desea, 
+        # o simplemente eliminar el perfil. Aquí borramos el perfil como ya lo hacía:
         supabase.table("profiles").delete().eq("id", member_id).execute()
         flash("Integrante eliminado de la división.", "info")
     except Exception as e:
         flash(f"Error al eliminar: {str(e)}", "danger")
+
+    return redirect(url_for("division_dashboard", division_name=target_division))
+
+# NUEVAS RUTAS PARA GESTIONAR LA BLACKLIST (ADMINS Y SUPERADMINS)
+@app.route("/admin/add-to-blacklist", methods=["POST"])
+def add_to_blacklist():
+    if "user_id" not in session or session.get("role") != "admin":
+        flash("Acción denegada.", "danger")
+        return redirect(url_for("portal"))
+
+    target_division = request.form.get("target_division")
+    email = request.form.get("blacklist_email", "").strip().lower()
+
+    if not email:
+        flash("Por favor ingresa un correo válido.", "warning")
+        return redirect(url_for("division_dashboard", division_name=target_division))
+
+    try:
+        supabase.table("blacklist").insert({"email": email}).execute()
+        # Si el usuario ya tenía cuenta creada, la eliminamos también de profiles para expulsarlo inmediatamente
+        supabase.table("profiles").delete().eq("email", email).execute()
+        flash(f"El correo {email} ha sido añadido a la lista negra.", "success")
+    except Exception as e:
+        flash(f"Error o el correo ya está en la lista negra: {str(e)}", "danger")
+
+    return redirect(url_for("division_dashboard", division_name=target_division))
+
+@app.route("/admin/remove-from-blacklist", methods=["POST"])
+def remove_from_blacklist():
+    if "user_id" not in session or session.get("role") != "admin":
+        flash("Acción denegada.", "danger")
+        return redirect(url_for("portal"))
+
+    target_division = request.form.get("target_division")
+    blacklist_id = request.form.get("blacklist_id")
+
+    try:
+        supabase.table("blacklist").delete().eq("id", blacklist_id).execute()
+        flash("Correo eliminado de la lista negra correctamente.", "info")
+    except Exception as e:
+        flash(f"Error al eliminar de la lista negra: {str(e)}", "danger")
 
     return redirect(url_for("division_dashboard", division_name=target_division))
 
