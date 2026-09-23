@@ -376,8 +376,22 @@
                                             <input type="hidden" name="member_id" value="{{ m.id }}">
                                             <input type="hidden" name="target_division" value="{{ division_name }}">
                                             
-                                            <input type="text" name="game_ign" value="{{ m.game_ign }}" class="form-control" style="padding: 4px; font-size: 0.8rem;" required placeholder="Nuevo IGN">
+                                            <label style="font-size: 0.7rem; color: var(--text-muted);">IGN:</label>
+                                            <input type="text" name="game_ign" value="{{ m.game_ign }}" class="form-control" style="padding: 4px; font-size: 0.8rem;" required placeholder="IGN">
+
+                                            <label style="font-size: 0.7rem; color: var(--text-muted);">Nombre Real:</label>
+                                            <input type="text" name="full_name" value="{{ m.full_name }}" class="form-control" style="padding: 4px; font-size: 0.8rem;" placeholder="Nombre Real">
+
+                                            <label style="font-size: 0.7rem; color: var(--text-muted);">Discord:</label>
+                                            <input type="text" name="discord_tag" value="{{ m.discord_tag }}" class="form-control" style="padding: 4px; font-size: 0.8rem;" placeholder="Discord">
+
+                                            <label style="font-size: 0.7rem; color: var(--text-muted);">Rol / Main:</label>
+                                            <input type="text" name="main_role" value="{{ m.main_role or '' }}" class="form-control" style="padding: 4px; font-size: 0.8rem;" placeholder="Rol / Main">
+
+                                            <label style="font-size: 0.7rem; color: var(--text-muted);">Agente / Favorito:</label>
+                                            <input type="text" name="favorite_agent" value="{{ m.favorite_agent or '' }}" class="form-control" style="padding: 4px; font-size: 0.8rem;" placeholder="Agente Favorito">
                                             
+                                            <label style="font-size: 0.7rem; color: var(--text-muted);">Estatus Roster:</label>
                                             <select name="roster_status" class="form-control" style="padding: 4px; font-size: 0.8rem;">
                                                 <option value="Titular" {% if m.roster_status == 'Titular' %}selected{% endif %}>Titular</option>
                                                 <option value="Suplente" {% if m.roster_status == 'Suplente' %}selected{% endif %}>Suplente</option>
@@ -386,9 +400,10 @@
                                                 <option value="Pendiente" {% if m.roster_status == 'Pendiente' %}selected{% endif %}>Pendiente</option>
                                             </select>
 
+                                            <label style="font-size: 0.7rem; color: var(--text-muted);">Anotaciones:</label>
                                             <textarea name="notes" class="form-control" style="padding: 4px; font-size: 0.8rem; height: 38px;" placeholder="Anotaciones...">{{ m.notes or '' }}</textarea>
 
-                                            <button type="submit" class="btn-primary" style="padding: 5px; font-size: 0.75rem;">💾 Guardar Ficha</button>
+                                            <button type="submit" class="btn-primary" style="padding: 5px; font-size: 0.75rem; margin-top: 4px;">💾 Guardar Ficha</button>
                                         </form>
 
                                         <form action="{{ url_for('delete_member') }}" method="POST" style="margin-top: 6px;" onsubmit="return confirm('¿Seguro que deseas eliminar este jugador?');">
