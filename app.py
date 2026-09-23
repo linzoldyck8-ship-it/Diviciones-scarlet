@@ -7,7 +7,6 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "executive_esports_key_2026_secret")
 
 # --- CONFIGURACIÓN DE SUPABASE ---
-# Reemplaza estas dos cadenas con tus credenciales reales de Supabase:
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://vlwsrjptvhbthcbqzmws.supabase.co")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsd3NyanB0dmhidGhjYnF6bXdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk4Mzc4MzgsImV4cCI6MjEwNTQxMzgzOH0.9l369_HN_QsKgaOSKFDnRqrD6xtnsjccQvB-Tl8WqUU")
 
@@ -199,29 +198,42 @@ def division_dashboard(division_name):
         is_super_admin=is_super_admin
     )
 
+# ACTUALIZACIÓN EXCLUSIVA PARA ADMINISTRADORES
 @app.route("/admin/update-member", methods=["POST"])
 def update_member():
+    # 1. Seguridad: Solo los usuarios con rol 'admin' pueden realizar modificaciones
     if "user_id" not in session or session.get("role") != "admin":
-        flash("Acción denegada. Permisos insuficientes.", "danger")
+        flash("Acción denegada: Solo los administradores pueden modificar información.", "danger")
         return redirect(url_for("index"))
 
     member_id = request.form.get("member_id")
     target_division = request.form.get("target_division")
+    game_ign = request.form.get("game_ign", "").strip()
     roster_status = request.form.get("roster_status")
-    attendance = float(request.form.get("attendance", 100))
-    notes = request.form.get("notes")
+    
+    try:
+        attendance = float(request.form.get("attendance", 100))
+    except ValueError:
+        attendance = 100.0
+        
+    notes = request.form.get("notes", "").strip()
+
+    # 2. Recalcula automáticamente el tracker si el Nick ID cambia
+    new_tracker_url = build_tracker_url(target_division, game_ign)
 
     update_payload = {
+        "game_ign": game_ign,
         "roster_status": roster_status,
         "attendance": attendance,
-        "notes": notes
+        "notes": notes,
+        "tracker_url": new_tracker_url
     }
 
     try:
         supabase.table("profiles").update(update_payload).eq("id", member_id).execute()
-        flash("Ficha del jugador actualizada correctamente.", "success")
+        flash("Ficha del jugador, asistencia y anotaciones actualizadas correctamente.", "success")
     except Exception as e:
-        flash(f"Error al actualizar: {str(e)}", "danger")
+        flash(f"Error al actualizar la ficha: {str(e)}", "danger")
 
     return redirect(url_for("division_dashboard", division_name=target_division))
 
