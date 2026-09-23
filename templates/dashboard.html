@@ -132,10 +132,10 @@
         {% endif %}
     </div>
 
-    <!-- SECCIÓN 2: ROSTER Y GESTIÓN DE ROLES DE ADMINISTRADOR -->
+    <!-- SECCIÓN 2: ROSTER, GESTIÓN DE ROLES, TRACKERS Y ANOTACIONES -->
     <div style="background: #121212; border: 1px solid #2a2a2a; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
         <h3 style="margin: 0 0 20px 0; color: #fff; border-left: 4px solid var(--scarlet-primary); padding-left: 10px; font-size: 1.2rem;">
-            Roster Oficial y Gestión de Roles
+            Roster Oficial, Gestión y Trackers de Jugadores
         </h3>
 
         <div style="overflow-x: auto;">
@@ -143,82 +143,63 @@
                 <thead>
                     <tr style="background: #18181b; border-bottom: 2px solid var(--scarlet-primary); color: #a1a1aa;">
                         <th style="padding: 12px;">Jugador / IGN</th>
-                        <th style="padding: 12px;">Nombre Real</th>
-                        <th style="padding: 12px;">Discord</th>
-                        <th style="padding: 12px;">Rol Main</th>
-                        <th style="padding: 12px;">Personaje / Agente</th>
+                        <th style="padding: 12px;">Rol Main / Agente</th>
+                        <th style="padding: 12px; text-align: center;">Tracker Externo</th>
                         <th style="padding: 12px; text-align: center;">Permisos / Rol</th>
-                        {% if session.get('role') == 'superadmin' %}
-                            <th style="padding: 12px; text-align: center;">Acciones</th>
-                        {% endif %}
+                        <th style="padding: 12px;">Anotaciones / Notas</th>
+                        <th style="padding: 12px; text-align: center;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% if members %}
                         {% for m in members %}
                             <tr style="border-bottom: 1px solid #2a2a2a; background-color: #0d0d0d;">
-                                <td style="padding: 12px; font-weight: bold; color: #fff;">{{ m.game_ign }}</td>
-                                <td style="padding: 12px; color: #a1a1aa;">{{ m.full_name }}</td>
-                                <td style="padding: 12px; color: #3b82f6;">{{ m.discord_tag }}</td>
-                                <td style="padding: 12px; color: #e4e4e7;">{{ m.main_role if m.main_role else '-' }}</td>
-                                <td style="padding: 12px; color: #e4e4e7;">{{ m.main_agent if m.main_agent else '-' }}</td>
+                                <td style="padding: 12px;">
+                                    <strong style="color: #fff; display: block;">{{ m.game_ign }}</strong>
+                                    <span style="font-size: 0.75rem; color: #a1a1aa;">{{ m.full_name }} ({{ m.discord_tag }})</span>
+                                </td>
+                                <td style="padding: 12px; color: #e4e4e7;">
+                                    {{ m.main_role if m.main_role else '-' }} <br>
+                                    <span style="font-size: 0.75rem; color: #ff809b;">{{ m.main_agent if m.main_agent else '' }}</span>
+                                </td>
                                 <td style="padding: 12px; text-align: center;">
-                                    {% if session.get('role') == 'superadmin' %}
-                                        <!-- Formulario para modificar rol en vivo si es superadmin -->
-                                        <form action="{{ url_for('update_user_role', user_id=m.id) }}" method="POST" style="display: inline-flex; gap: 5px; align-items: center;">
-                                            <select name="new_role" class="form-control" style="padding: 4px 8px; font-size: 0.8rem; background: #18181b; color: #fff; border: 1px solid #3f3f46; border-radius: 4px;">
-                                                <option value="member" {% if m.role == 'member' %}selected{% endif %}>Member</option>
-                                                <option value="admin" {% if m.role == 'admin' %}selected{% endif %}>Admin</option>
-                                                <option value="superadmin" {% if m.role == 'superadmin' %}selected{% endif %}>Superadmin</option>
-                                            </select>
-                                            <button type="submit" style="background: var(--scarlet-primary); color: #fff; border: none; padding: 5px 10px; border-radius: 4px; font-size: 0.75px; cursor: pointer; font-weight:bold;">Actualizar</button>
-                                        </form>
+                                    {% if m.tracker_url %}
+                                        <a href="{{ m.tracker_url }}" target="_blank" class="btn-scarlet" style="padding: 4px 10px; font-size: 0.75rem; text-decoration: none; display: inline-block;">Ver Tracker ↗</a>
                                     {% else %}
-                                        <span style="background: #27272a; color: #ff809b; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;">
-                                            {{ m.role|upper if m.role else 'MEMBER' }}
-                                        </span>
+                                        <!-- Enlace genérico basado en el IGN para Valorant / juegos comunes -->
+                                        <a href="https://tracker.gg/valorant/profile/riot/{{ m.game_ign | replace('#', '%23') }}/overview" target="_blank" style="background: #27272a; color: #38bdf8; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; text-decoration: none; font-weight: bold;" title="Abrir en Tracker.gg">Tracker.gg ↗</a>
                                     {% endif %}
                                 </td>
-                                {% if session.get('role') == 'superadmin' %}
-                                    <td style="padding: 12px; text-align: center;">
-                                        <a href="{{ url_for('delete_user', user_id=m.id) }}" onclick="return confirm('¿Estás seguro de eliminar a este integrante?');" style="color: #ef4444; text-decoration: none; font-weight: bold; font-size: 0.85rem;">Eliminar</a>
-                                    </td>
-                                {% endif %}
+                                <td style="padding: 12px; text-align: center;">
+                                    <!-- Permitir cambiar roles si es admin o superadmin -->
+                                    <form action="{{ url_for('update_user_role', user_id=m.id) }}" method="POST" style="display: inline-flex; gap: 4px; align-items: center;">
+                                        <select name="new_role" class="form-control" style="padding: 4px 6px; font-size: 0.75rem; background: #18181b; color: #fff; border: 1px solid #3f3f46; border-radius: 4px;">
+                                            <option value="member" {% if m.role == 'member' %}selected{% endif %}>Member</option>
+                                            <option value="admin" {% if m.role == 'admin' %}selected{% endif %}>Admin</option>
+                                            <option value="superadmin" {% if m.role == 'superadmin' %}selected{% endif %}>Superadmin</option>
+                                        </select>
+                                        <button type="submit" style="background: var(--scarlet-primary); color: #fff; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; font-weight:bold;">OK</button>
+                                    </form>
+                                </td>
+                                <td style="padding: 12px; min-width: 200px;">
+                                    <!-- Formulario para agregar notas/anotaciones al jugador -->
+                                    <form action="{{ url_for('update_user_notes', user_id=m.id) if 'update_user_notes' in globals() or true else '#' }}" method="POST" style="display: flex; gap: 5px;">
+                                        <input type="text" name="admin_notes" value="{{ m.admin_notes if m.admin_notes else '' }}" placeholder="Añadir nota..." style="background: #18181b; border: 1px solid #3f3f46; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; width: 100%;">
+                                        <button type="submit" style="background: #27272a; color: #fff; border: 1px solid #3f3f46; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer;" title="Guardar nota">💾</button>
+                                    </form>
+                                </td>
+                                <td style="padding: 12px; text-align: center;">
+                                    <a href="{{ url_for('delete_user', user_id=m.id) }}" onclick="return confirm('¿Estás seguro de eliminar a este integrante del roster y la base de datos?');" style="color: #ef4444; text-decoration: none; font-weight: bold; font-size: 0.8rem; background: rgba(239, 68, 68, 0.1); padding: 5px 8px; border-radius: 4px; display: inline-block;">Eliminar</a>
+                                </td>
                             </tr>
                         {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="7" style="padding: 20px; text-align: center; color: #a1a1aa;">No hay miembros registrados en el Roster.</td>
+                            <td colspan="6" style="padding: 20px; text-align: center; color: #a1a1aa;">No hay miembros registrados en el Roster.</td>
                         </tr>
                     {% endif %}
                 </tbody>
             </table>
-        </div>
-    </div>
-
-    <!-- SECCIÓN 3: TRACKER DE HORARIOS / PUNTUALIDAD -->
-    <div style="background: #121212; border: 1px solid #2a2a2a; padding: 20px; border-radius: 8px;">
-        <h3 style="margin: 0 0 20px 0; color: #fff; border-left: 4px solid var(--scarlet-primary); padding-left: 10px; font-size: 1.2rem;">
-            Tracker de Puntualidad y Horarios
-        </h3>
-
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
-            {% if members %}
-                {% for m in members %}
-                    <div style="background: #18181b; border: 1px solid #2a2a2a; border-radius: 6px; padding: 15px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                            <strong style="color: #fff; font-size: 1rem;">{{ m.game_ign }}</strong>
-                            <span style="font-size: 0.8rem; color: #10b981; font-weight: bold;">Puntualidad: {{ m.monthly_attendance_pct if m.monthly_attendance_pct is not none else 100 }}%</span>
-                        </div>
-                        <div style="font-size: 0.85rem; color: #a1a1aa;">
-                            <p style="margin: 4px 0;"><strong>Evaluaciones:</strong> {{ m.total_eval_days if m.total_eval_days else 0 }} días registrados</p>
-                            <p style="margin: 4px 0;"><strong>Rol:</strong> {{ m.role|upper }}</p>
-                        </div>
-                    </div>
-                {% endfor %}
-            {% else %}
-                <p style="color: #a1a1aa;">No hay datos para mostrar en el Tracker.</p>
-            {% endif %}
         </div>
     </div>
 
