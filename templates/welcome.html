@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bienvenido - Organización Esports</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 90vh; text-align: center;">
+        
+        <div class="corporate-card" style="max-width: 650px; width: 100%; padding: 40px; background: rgba(18, 18, 24, 0.92);">
+            <div style="font-size: 2.5rem; margin-bottom: 10px;">🏆</div>
+            <h1 style="color: #fff; font-size: 2rem; margin-bottom: 10px; font-weight: 800; letter-spacing: 1px;">ORGANIZACIÓN ESPORTS</h1>
+            <p style="color: var(--text-muted); font-size: 1rem; margin-bottom: 30px;">
+                Portal oficial de gestión de rosters, seguimiento de asistencia y control competitivo de divisiones.
+            </p>
+
+            <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+                <a href="{{ url_for('portal') }}" class="btn-primary" style="padding: 12px 30px; font-size: 1rem;">
+                    🚀 Entrar al Portal (Login / Registro)
+                </a>
+            </div>
+        </div>
+
+        <div style="margin-top: 20px; font-size: 0.8rem; color: var(--text-muted);">
+            Sistema de Gestión Interna &copy; 2026
+        </div>
+
+    </div>
+</body>
+</html>
