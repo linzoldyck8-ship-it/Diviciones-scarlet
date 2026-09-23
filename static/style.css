@@ -1,117 +1,136 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
-
-:root {
-    --bg-dark: #0b1017;
-    --card-bg: rgba(22, 34, 45, 0.85);
-    --accent-red: #ff4655;
-    --accent-hover: #da3633;
-    --text-main: #f0f0f5;
-    --text-sub: #94a3b8;
-    --border-color: rgba(255, 70, 85, 0.3);
-}
-
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 body {
-    background: linear-gradient(135deg, #0b1017 0%, #111a24 100%);
-    color: var(--text-main);
-    min-height: 100vh;
+    background-color: #0f172a;
+    color: #f8fafc;
+    padding: 20px;
 }
 
-.top-nav {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px 35px;
-    background: rgba(11, 16, 23, 0.95);
-    backdrop-filter: blur(12px);
-    border-bottom: 2px solid var(--accent-red);
-    position: sticky;
-    top: 0;
-    z-index: 100;
+.container {
+    max-width: 1100px;
+    margin: 0 auto;
 }
 
-.top-nav .logo {
-    font-size: 1.3rem;
-    font-weight: 700;
-    color: #fff;
-    letter-spacing: 1px;
+h1 {
+    text-align: center;
+    margin-bottom: 25px;
+    color: #38bdf8;
 }
 
 .card {
-    background: var(--card-bg);
-    backdrop-filter: blur(14px);
-    border: 1px solid var(--border-color);
+    background-color: #1e293b;
     border-radius: 12px;
     padding: 25px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     margin-bottom: 25px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
 }
 
-.division-card {
-    background: rgba(22, 34, 45, 0.8);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 25px;
-    text-align: center;
-    transition: transform 0.3s, border-color 0.3s;
-    cursor: pointer;
+h2 {
+    margin-bottom: 18px;
+    color: #e2e8f0;
+    border-bottom: 2px solid #334155;
+    padding-bottom: 8px;
 }
 
-.division-card:hover {
-    transform: translateY(-5px);
-    border-color: var(--accent-red);
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 15px;
 }
 
-.btn-primary {
-    background: var(--accent-red);
-    color: #fff;
-    border: none;
-    padding: 10px 20px;
+.col-span-2 {
+    grid-column: span 2;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+label {
+    font-size: 0.9rem;
+    color: #94a3b8;
+}
+
+input, select {
+    padding: 10px;
     border-radius: 6px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: background 0.2s, transform 0.1s;
-    text-transform: uppercase;
+    border: 1px solid #334155;
+    background-color: #0f172a;
+    color: #fff;
+    font-size: 0.95rem;
 }
 
-.btn-primary:hover {
-    background: var(--accent-hover);
-    transform: translateY(-2px);
+input:focus, select:focus {
+    outline: none;
+    border-color: #38bdf8;
+}
+
+.contacto-group {
+    display: flex;
+    gap: 10px;
+}
+
+.contacto-group select {
+    width: 35%;
+}
+
+.contacto-group input {
+    width: 65%;
+}
+
+.btn-submit {
+    grid-column: 1 / -1;
+    padding: 12px;
+    background-color: #0284c7;
+    color: white;
+    font-weight: bold;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background 0.2s;
+    margin-top: 10px;
+}
+
+.btn-submit:hover {
+    background-color: #0369a1;
+}
+
+.table-responsive {
+    overflow-x: auto;
 }
 
 table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 15px;
+    margin-top: 10px;
+    text-align: left;
+}
+
+th, td {
+    padding: 12px;
+    border-bottom: 1px solid #334155;
 }
 
 th {
-    background: rgba(255, 70, 85, 0.15);
-    padding: 12px;
-    border-bottom: 2px solid var(--accent-red);
-    text-align: left;
+    background-color: #0f172a;
+    color: #94a3b8;
+}
+
+.badge {
+    padding: 4px 8px;
+    border-radius: 4px;
     font-size: 0.85rem;
-    text-transform: uppercase;
+    font-weight: bold;
 }
 
-td {
-    padding: 12px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    font-size: 0.9rem;
-}
-
-input, select, textarea {
-    width: 100%;
-    padding: 10px;
-    background: rgba(15, 25, 35, 0.9);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    color: #fff;
-    margin-top: 5px;
-}
+.badge-juego { background-color: #334155; color: #38bdf8; }
+.badge-rango { background-color: #475569; color: #f1f5f9; }
+.badge-estado { background-color: #166534; color: #4ade80; }
