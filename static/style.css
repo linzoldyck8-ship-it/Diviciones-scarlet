@@ -1,7 +1,7 @@
 /* --- CONFIGURACIÓN GENERAL Y FONDO POR URL --- */
 body {
     /* PEGA AQUÍ LA URL DE TU IMAGEN ENTRE LAS COMILLAS */
-    background-image: url('PEGA_AQUÍ_LA_URL_DE_TU_IMAGEN');
+    background-image: url('https://img.magnific.com/fotos-premium/fondo-pantalla-espacio-oscuro-nebulosa-roja-patron-capas-superpuestas-densas_1319560-68699.jpg?semt=ais_hybrid&w=740&q=80');
     
     background-size: cover;          /* Cubre toda la pantalla */
     background-position: center;     /* Centra la imagen */
