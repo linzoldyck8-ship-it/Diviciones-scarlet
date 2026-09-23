@@ -80,6 +80,10 @@ def register():
     main_role = request.form.get("main_role", "").strip()
     favorite_agent = request.form.get("favorite_agent", "").strip()
 
+    if not email or not password:
+        flash("El correo y la contraseña son obligatorios.", "danger")
+        return redirect(url_for("index"))
+
     password_hash = generate_password_hash(password)
     tracker_url = build_tracker_url(division, game_ign)
 
@@ -117,20 +121,26 @@ def login():
     email = request.form.get("email", "").strip().lower()
     password = request.form.get("password")
 
+    if not email or not password:
+        flash("Por favor ingresa correo y contraseña.", "danger")
+        return redirect(url_for("index"))
+
     try:
         res = supabase.table("profiles").select("*").eq("email", email).execute()
-        users = res.data
+        users = res.data if res and hasattr(res, 'data') else []
 
         if users and len(users) > 0:
             user = users[0]
-            if check_password_hash(user["password_hash"], password):
+            stored_hash = user.get("password_hash")
+            
+            if stored_hash and check_password_hash(stored_hash, password):
                 session["user_id"] = user["id"]
-                session["user_name"] = user["full_name"]
+                session["user_name"] = user.get("full_name", "Usuario")
                 session["role"] = user.get("role", "player")
-                session["division"] = user.get("division")
+                session["division"] = user.get("division", DIVISIONS[0])
                 session["admin_division"] = user.get("admin_division")
                 
-                flash(f"Sesión iniciada correctamente. Bienvenido {user['full_name']}.", "success")
+                flash(f"Sesión iniciada correctamente. Bienvenido {user.get('full_name', '')}.", "success")
                 
                 if session["role"] == "admin":
                     target_div = session.get("admin_division", DIVISIONS[0])
@@ -186,7 +196,7 @@ def division_dashboard(division_name):
 
     try:
         res = supabase.table("profiles").select("*").eq("division", division_name).execute()
-        members = res.data if res.data else []
+        members = res.data if res and res.data else []
     except Exception as e:
         members = []
         flash(f"Error al cargar datos: {str(e)}", "danger")
