@@ -6,9 +6,6 @@ from supabase import create_client, Client
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "executive_esports_key_2026_secret")
 
-# Clave secreta requerida para crear cuentas de Administrador
-ADMIN_SECRET_KEY = os.environ.get("ADMIN_SECRET_KEY", "ADMIN1234")
-
 # Variables de entorno Supabase
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
@@ -62,6 +59,7 @@ def index():
 
     return render_template("index.html", divisions=DIVISIONS)
 
+# REGISTRO PÚBLICO: Exclusivamente para Jugadores
 @app.route("/register", methods=["POST"])
 def register():
     email = request.form.get("email", "").strip().lower()
@@ -72,20 +70,11 @@ def register():
     game_ign = request.form.get("game_ign", "").strip()
     main_role = request.form.get("main_role", "").strip()
     favorite_agent = request.form.get("favorite_agent", "").strip()
-    
-    account_type = request.form.get("account_type", "player")
-    admin_key_input = request.form.get("admin_key", "").strip()
-    admin_division = request.form.get("admin_division") if account_type == "admin" else None
-
-    # VALIDACIÓN DE SEGURIDAD MÁXIMA PARA MODO ADMINISTRADOR
-    if account_type == "admin":
-        if admin_key_input != ADMIN_SECRET_KEY:
-            flash("ACCESO DENEGADO: La Clave Maestra de Administrador es incorrecta. Tu cuenta no ha sido creada.", "danger")
-            return redirect(url_for("index"))
 
     password_hash = generate_password_hash(password)
     tracker_url = build_tracker_url(division, game_ign)
 
+    # Todo registro público es 'player' por seguridad
     data = {
         "email": email,
         "password_hash": password_hash,
@@ -99,16 +88,13 @@ def register():
         "attendance": 100,
         "notes": "Registro completado.",
         "tracker_url": tracker_url,
-        "role": account_type,
-        "admin_division": admin_division
+        "role": "player",
+        "admin_division": None
     }
 
     try:
         supabase.table("profiles").insert(data).execute()
-        if account_type == "admin":
-            flash("Cuenta de ADMINISTRADOR creada con éxito. Inicie sesión.", "success")
-        else:
-            flash("Registro exitoso. Procede a iniciar sesión.", "success")
+        flash("Registro de jugador exitoso. Procede a iniciar sesión.", "success")
     except Exception as e:
         flash(f"Error al registrar cuenta: {str(e)}", "danger")
 
@@ -166,7 +152,7 @@ def division_dashboard(division_name):
     user_division = session.get("division")
     admin_division = session.get("admin_division")
 
-    # CONTROL ESTRICTO DE ACCESO
+    # Control de acceso
     if user_role == "admin":
         if admin_division != "TODAS" and admin_division != division_name:
             flash(f"RESTRICCIÓN DE ADMIN: Tu cuenta está asignada a la división '{admin_division}'.", "warning")
@@ -187,6 +173,9 @@ def division_dashboard(division_name):
     active_titulares = sum(1 for m in members if m.get("roster_status") == "Titular")
     avg_attendance = round(sum(float(m.get("attendance", 100)) for m in members) / total_members, 1) if total_members > 0 else 100.0
 
+    is_super_admin = (user_role == "admin" and admin_division == "TODAS")
+    is_current_admin = (user_role == "admin" and (admin_division == division_name or admin_division == "TODAS"))
+
     return render_template(
         "dashboard.html",
         division_name=division_name,
@@ -195,10 +184,11 @@ def division_dashboard(division_name):
         total_members=total_members,
         active_titulares=active_titulares,
         avg_attendance=avg_attendance,
-        is_current_admin=(user_role == "admin" and (admin_division == division_name or admin_division == "TODAS"))
+        is_current_admin=is_current_admin,
+        is_super_admin=is_super_admin
     )
 
-# ACCIÓN DE ADMINISTRADOR: ACTUALIZAR JUGADOR
+# ACTUALIZAR DATOS DE ROSTER
 @app.route("/admin/update-member", methods=["POST"])
 def update_member():
     if "user_id" not in session or session.get("role") != "admin":
@@ -220,13 +210,50 @@ def update_member():
 
     try:
         supabase.table("profiles").update(update_payload).eq("id", member_id).execute()
-        flash("Jugador actualizado correctamente.", "success")
+        flash("Ficha del jugador actualizada correctamente.", "success")
     except Exception as e:
         flash(f"Error al actualizar: {str(e)}", "danger")
 
     return redirect(url_for("division_dashboard", division_name=target_division))
 
-# ACCIÓN DE ADMINISTRADOR: ELIMINAR JUGADOR
+# EXCLUSIVO SUPER ADMIN: OTORGAR O QUITAR PERMISOS DE ADMINISTRADOR
+@app.route("/admin/update-role", methods=["POST"])
+def update_role():
+    if "user_id" not in session or session.get("role") != "admin" or session.get("admin_division") != "TODAS":
+        flash("Acción denegada: Solo el Super Administrador puede gestionar permisos de usuario.", "danger")
+        return redirect(url_for("index"))
+
+    member_id = request.form.get("member_id")
+    target_division = request.form.get("target_division")
+    new_role_type = request.form.get("role_type") # 'player', 'admin', 'superadmin'
+
+    if new_role_type == "player":
+        role_val = "player"
+        admin_div_val = None
+    elif new_role_type == "admin":
+        role_val = "admin"
+        admin_div_val = request.form.get("assigned_admin_division")
+    elif new_role_type == "superadmin":
+        role_val = "admin"
+        admin_div_val = "TODAS"
+    else:
+        role_val = "player"
+        admin_div_val = None
+
+    update_payload = {
+        "role": role_val,
+        "admin_division": admin_div_val
+    }
+
+    try:
+        supabase.table("profiles").update(update_payload).eq("id", member_id).execute()
+        flash("Permisos de usuario actualizados correctamente.", "success")
+    except Exception as e:
+        flash(f"Error al actualizar permisos: {str(e)}", "danger")
+
+    return redirect(url_for("division_dashboard", division_name=target_division))
+
+# ELIMINAR JUGADOR
 @app.route("/admin/delete-member", methods=["POST"])
 def delete_member():
     if "user_id" not in session or session.get("role") != "admin":
