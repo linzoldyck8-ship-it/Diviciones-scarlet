@@ -3,92 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal Corporativo Esports - Autenticación</title>
+    <title>Portal de Integrantes - Esports</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 
-    <nav class="top-nav">
-        <div class="brand-title">
-            ORGANIZACIÓN ESPORTS <span class="brand-badge">PORTAL DE INTEGRANTES</span>
-        </div>
-    </nav>
-
-    <div class="container" style="max-width: 950px; margin-top: 30px;">
-
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            {% for category, message in messages %}
-              <div class="alert alert-{{ category }}">{{ message }}</div>
-            {% endfor %}
-          {% endif %}
-        {% endwith %}
-
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 30px;">
-            
-            <!-- Iniciar Sesión -->
-            <div class="corporate-card">
-                <h3 style="margin-top:0; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">Iniciar Sesión</h3>
-                <form action="{{ url_for('login') }}" method="POST">
-                    <div class="form-group">
-                        <label>Correo Electrónico</label>
-                        <input type="email" name="email" class="form-control" placeholder="tu_correo@ejemplo.com" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Contraseña</label>
-                        <input type="password" name="password" class="form-control" required>
-                    </div>
-                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Ingresar al Panel</button>
-                </form>
-            </div>
-
-            <!-- Registro Seguro de Jugadores -->
-            <div class="corporate-card">
-                <h3 style="margin-top:0; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">Registro de Integrantes</h3>
-                <form action="{{ url_for('register') }}" method="POST">
-                    <div class="form-group">
-                        <label>Nombre Completo</label>
-                        <input type="text" name="full_name" class="form-control" placeholder="Ej: Carlos Mendoza" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Correo Electrónico</label>
-                        <input type="email" name="email" class="form-control" placeholder="correo@ejemplo.com" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Contraseña</label>
-                        <input type="password" name="password" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Discord (Usuario)</label>
-                        <input type="text" name="discord_tag" class="form-control" placeholder="usuario_discord" required>
-                    </div>
-                    <div class="form-group">
-                        <label>División / Juego</label>
-                        <select name="division" class="form-control">
-                            {% for div in divisions %}
-                                <option value="{{ div }}">{{ div }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>IGN (Nombre en juego con Tag)</label>
-                        <input type="text" name="game_ign" class="form-control" placeholder="Player#1234" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Rol Principal (Opcional)</label>
-                        <input type="text" name="main_role" class="form-control" placeholder="Ej: Entry / Tank / Controller">
-                    </div>
-                    <div class="form-group">
-                        <label>Agente / Personaje Main (Opcional)</label>
-                        <input type="text" name="favorite_agent" class="form-control" placeholder="Ej: Jett / Reinhardt">
-                    </div>
-
-                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 15px;">Completar Registro</button>
-                </form>
-            </div>
-
-        </div>
-
+<div class="login-container">
+    <div class="portal-header">
+        <h1 class="portal-title">ORGANIZACIÓN ESPORTS — PORTAL DE INTEGRANTES</h1>
     </div>
+
+    <div class="auth-grid">
+        <!-- FORMULARIO DE INICIAR SESIÓN -->
+        <div class="auth-card">
+            <h2>Iniciar Sesión</h2>
+            <form action="{{ url_for('login') }}" method="POST">
+                <div class="form-group">
+                    <label>Correo Electrónico</label>
+                    <input type="email" name="email" class="form-control" placeholder="tu_correo@ejemplo.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Contraseña</label>
+                    <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn-scarlet-block">Ingresar al Panel</button>
+            </form>
+        </div>
+
+        <!-- FORMULARIO DE REGISTRO -->
+        <div class="auth-card">
+            <h2>Registro de Integrantes</h2>
+            <form action="{{ url_for('register') }}" method="POST">
+                <div class="form-group">
+                    <label>Nombre Completo</label>
+                    <input type="text" name="full_name" class="form-control" placeholder="Ej: Carlos Mendoza" required>
+                </div>
+                <div class="form-group">
+                    <label>Correo Electrónico</label>
+                    <input type="email" name="email" class="form-control" placeholder="correo@ejemplo.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Contraseña</label>
+                    <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+                </div>
+                <div class="form-group">
+                    <label>Discord (Usuario)</label>
+                    <input type="text" name="discord_tag" class="form-control" placeholder="usuario_discord" required>
+                </div>
+                <div class="form-group">
+                    <label>División / Juego</label>
+                    <select name="division" class="form-control" required>
+                        <option value="Valorant A">Valorant A</option>
+                        <option value="Valorant B">Valorant B</option>
+                        <option value="League of Legends">League of Legends</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>IGN (Nombre en juego con Tag)</label>
+                    <input type="text" name="game_ign" class="form-control" placeholder="Player#1234" required>
+                </div>
+                <div class="form-group">
+                    <label>Rol Principal (Opcional)</label>
+                    <input type="text" name="main_role" class="form-control" placeholder="Ej: Entry / Tank / Controller">
+                </div>
+                <div class="form-group">
+                    <label>Agente / Personaje Main (Opcional)</label>
+                    <input type="text" name="main_agent" class="form-control" placeholder="Ej: Jett / Reinhardt">
+                </div>
+                <button type="submit" class="btn-scarlet-block">Completar Registro</button>
+            </form>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
