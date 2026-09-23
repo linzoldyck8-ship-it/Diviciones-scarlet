@@ -22,7 +22,7 @@
         </div>
     </div>
 
-    <!-- SECCIÓN DE LA MATRIZ DE ASISTENCIA -->
+    <!-- SECCIÓN 1: MATRIZ DE ASISTENCIA -->
     <div style="background: #121212; border: 1px solid #2a2a2a; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
         
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 15px;">
@@ -130,6 +130,76 @@
                 </div>
             </form>
         {% endif %}
+    </div>
+
+    <!-- SECCIÓN 2: ROSTER DE INTEGRANTES -->
+    <div style="background: #121212; border: 1px solid #2a2a2a; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+        <h3 style="margin: 0 0 20px 0; color: #fff; border-left: 4px solid var(--scarlet-primary); padding-left: 10px; font-size: 1.2rem;">
+            Roster Oficial de Integrantes
+        </h3>
+
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+                <thead>
+                    <tr style="background: #18181b; border-bottom: 2px solid var(--scarlet-primary); color: #a1a1aa;">
+                        <th style="padding: 12px;">Jugador / IGN</th>
+                        <th style="padding: 12px;">Nombre Real</th>
+                        <th style="padding: 12px;">Discord</th>
+                        <th style="padding: 12px;">Rol Main</th>
+                        <th style="padding: 12px;">Personaje / Agente</th>
+                        <th style="padding: 12px; text-align: center;">Rol de Usuario</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if members %}
+                        {% for m in members %}
+                            <tr style="border-bottom: 1px solid #2a2a2a; background-color: #0d0d0d;">
+                                <td style="padding: 12px; font-weight: bold; color: #fff;">{{ m.game_ign }}</td>
+                                <td style="padding: 12px; color: #a1a1aa;">{{ m.full_name }}</td>
+                                <td style="padding: 12px; color: #3b82f6;">{{ m.discord_tag }}</td>
+                                <td style="padding: 12px; color: #e4e4e7;">{{ m.main_role if m.main_role else '-' }}</td>
+                                <td style="padding: 12px; color: #e4e4e7;">{{ m.main_agent if m.main_agent else '-' }}</td>
+                                <td style="padding: 12px; text-align: center;">
+                                    <span style="background: #27272a; color: #ff809b; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;">
+                                        {{ m.role|upper if m.role else 'MEMBER' }}
+                                    </span>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" style="padding: 20px; text-align: center; color: #a1a1aa;">No hay miembros registrados en el Roster.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- SECCIÓN 3: TRACKER DE HORARIOS / PUNTUALIDAD -->
+    <div style="background: #121212; border: 1px solid #2a2a2a; padding: 20px; border-radius: 8px;">
+        <h3 style="margin: 0 0 20px 0; color: #fff; border-left: 4px solid var(--scarlet-primary); padding-left: 10px; font-size: 1.2rem;">
+            Tracker de Puntualidad y Horarios
+        </h3>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+            {% if members %}
+                {% for m in members %}
+                    <div style="background: #18181b; border: 1px solid #2a2a2a; border-radius: 6px; padding: 15px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <strong style="color: #fff; font-size: 1rem;">{{ m.game_ign }}</strong>
+                            <span style="font-size: 0.8rem; color: #10b981; font-weight: bold;">Puntualidad: {{ m.monthly_attendance_pct if m.monthly_attendance_pct is not none else 100 }}%</span>
+                        </div>
+                        <div style="font-size: 0.85rem; color: #a1a1aa;">
+                            <p style="margin: 4px 0;"><strong>Evaluaciones:</strong> {{ m.total_eval_days if m.total_eval_days else 0 }} días registrados</p>
+                            <p style="margin: 4px 0;"><strong>Estado Actual:</strong> <span style="color: #ff4d6d;">Activo</span></p>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p style="color: #a1a1aa;">No hay datos para mostrar en el Tracker.</p>
+            {% endif %}
+        </div>
     </div>
 
 </div>
