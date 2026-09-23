@@ -10,7 +10,7 @@
 
     <nav class="top-nav">
         <div class="brand-title">
-            ORGANIZACIÓN ESPORTS <span class="brand-badge">SISTEMA DE CONTROL DEPARTAMENTAL</span>
+            ORGANIZACIÓN ESPORTS <span class="brand-badge">PORTAL DE GESTIÓN DE DIVISIONES</span>
         </div>
     </nav>
 
@@ -26,28 +26,28 @@
 
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 30px;">
             
-            <!-- Login -->
+            <!-- Formulario Login -->
             <div class="corporate-card">
-                <h3 style="margin-top:0; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">Acceso al Portal</h3>
+                <h3 style="margin-top:0; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">Iniciar Sesión</h3>
                 <form action="{{ url_for('login') }}" method="POST">
                     <div class="form-group">
-                        <label>Correo Electrónico Oficial</label>
-                        <input type="email" name="email" class="form-control" placeholder="usuario@organizacion.com" required>
+                        <label>Correo Electrónico</label>
+                        <input type="email" name="email" class="form-control" placeholder="tu_correo@ejemplo.com" required>
                     </div>
                     <div class="form-group">
                         <label>Contraseña</label>
                         <input type="password" name="password" class="form-control" required>
                     </div>
-                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Ingresar</button>
+                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Ingresar al Panel</button>
                 </form>
             </div>
 
-            <!-- Registro -->
+            <!-- Formulario Registro -->
             <div class="corporate-card">
                 <h3 style="margin-top:0; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">Registro de Integrantes</h3>
                 <form action="{{ url_for('register') }}" method="POST">
                     <div class="form-group">
-                        <label>Nombre y Apellido Real</label>
+                        <label>Nombre Completo</label>
                         <input type="text" name="full_name" class="form-control" placeholder="Ej: Carlos Mendoza" required>
                     </div>
                     <div class="form-group">
@@ -59,11 +59,11 @@
                         <input type="password" name="password" class="form-control" required>
                     </div>
                     <div class="form-group">
-                        <label>Identificador de Discord</label>
+                        <label>Discord (Usuario)</label>
                         <input type="text" name="discord_tag" class="form-control" placeholder="usuario_discord" required>
                     </div>
                     <div class="form-group">
-                        <label>Departamento / División Asignada</label>
+                        <label>División / Juego</label>
                         <select name="division" class="form-control">
                             {% for div in divisions %}
                                 <option value="{{ div }}">{{ div }}</option>
@@ -71,15 +71,15 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>IGN / Nombre en Juego (con Tag)</label>
+                        <label>IGN (Nombre en juego con Tag)</label>
                         <input type="text" name="game_ign" class="form-control" placeholder="Player#1234" required>
                     </div>
                     <div class="form-group">
-                        <label>Rol Principal / Especialidad</label>
-                        <input type="text" name="main_role" class="form-control" placeholder="Ej: Entry / Tank / Duelista">
+                        <label>Rol Principal (Opcional)</label>
+                        <input type="text" name="main_role" class="form-control" placeholder="Ej: Entry / Tank / Controller">
                     </div>
                     <div class="form-group">
-                        <label>Personaje / Agente Dominante</label>
+                        <label>Agente / Personaje Main (Opcional)</label>
                         <input type="text" name="favorite_agent" class="form-control" placeholder="Ej: Jett / Reinhardt">
                     </div>
 
@@ -87,22 +87,30 @@
                         <div class="form-group">
                             <label>Tipo de Cuenta</label>
                             <select name="account_type" class="form-control" id="accountTypeSelect" onchange="toggleAdminDivisions()">
-                                <option value="player">Jugador / Integrante Estándar</option>
+                                <option value="player">Jugador Estándar</option>
                                 <option value="admin">Administrador de División</option>
                             </select>
                         </div>
                         
-                        <div class="form-group" id="adminDivGroup" style="display: none;">
-                            <label style="color: #60a5fa;">Jurisdicción del Administrador</label>
-                            <select name="admin_division" class="form-control">
-                                {% for div in divisions %}
-                                    <option value="{{ div }}">{{ div }}</option>
-                                {% endfor %}
-                            </select>
+                        <div id="adminFieldsGroup" style="display: none; background: rgba(37, 99, 235, 0.08); padding: 15px; border-radius: 6px; border: 1px solid rgba(59, 130, 246, 0.3);">
+                            <div class="form-group">
+                                <label style="color: #60a5fa; font-weight: bold;">Clave Maestra de Administrador</label>
+                                <input type="password" name="admin_key" class="form-control" placeholder="Clave de seguridad exclusiva">
+                                <small style="color: var(--text-muted); font-size: 0.75rem;">Requerida para otorgar permisos de edición (Por defecto: ADMIN1234).</small>
+                            </div>
+                            <div class="form-group">
+                                <label style="color: #60a5fa;">División a Administrar</label>
+                                <select name="admin_division" class="form-control">
+                                    <option value="TODAS">-- TODAS LAS DIVISIONES (Superadmin) --</option>
+                                    {% for div in divisions %}
+                                        <option value="{{ div }}">{{ div }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
                         </div>
                     </div>
 
-                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Solicitar Registro</button>
+                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 15px;">Completar Registro</button>
                 </form>
             </div>
 
@@ -113,7 +121,7 @@
     <script>
         function toggleAdminDivisions() {
             var type = document.getElementById("accountTypeSelect").value;
-            var group = document.getElementById("adminDivGroup");
+            var group = document.getElementById("adminFieldsGroup");
             group.style.display = (type === "admin") ? "block" : "none";
         }
     </script>
