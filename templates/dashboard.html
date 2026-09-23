@@ -3,16 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Control - Esports</title>
+    <title>Departamento: {{ division_name }} - Control Corporativo</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 
-    <nav class="navbar">
-        <div class="brand">⚡ PANEL DE CONTROL</div>
-        <div>
-            <a href="{{ url_for('index') }}" class="tab-btn">Volver al Inicio</a>
-            <a href="{{ url_for('logout') }}" class="tab-btn">Cerrar Sesión</a>
+    <nav class="top-nav">
+        <div class="brand-title">
+            ORGANIZACIÓN ESPORTS <span class="brand-badge">DEPARTAMENTO {{ division_name|upper }}</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <span style="font-size: 0.85rem; color: var(--text-muted);">
+                Usuario: <strong style="color: #fff;">{{ session.get('user_name') }}</strong> 
+                {% if is_current_admin %}
+                    <span class="brand-badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border-color: rgba(16, 185, 129, 0.4);">ADMINISTRADOR DE DIVISIÓN</span>
+                {% else %}
+                    <span class="brand-badge">JUGADOR DEPARTAMENTAL</span>
+                {% endif %}
+            </span>
+            <a href="{{ url_for('logout') }}" class="btn-secondary">Cerrar Sesión</a>
         </div>
     </nav>
 
@@ -26,58 +35,107 @@
           {% endif %}
         {% endwith %}
 
-        <!-- Mi Perfil -->
-        <div class="form-card" style="max-width: 100%; margin-bottom: 30px;">
-            <h3>Mi Ficha de Jugador</h3>
-            <p><strong>Nombre:</strong> {{ current_user.full_name }}</p>
-            <p><strong>IGN:</strong> {{ current_user.game_ign }}</p>
-            <p><strong>Discord:</strong> {{ current_user.discord_tag }}</p>
-            <p><strong>División:</strong> {{ current_user.division }}</p>
-            <p><strong>Estado en Roster:</strong> <span class="badge badge-{{ current_user.roster_status|lower }}">{{ current_user.roster_status }}</span></p>
-            <p><strong>Asistencia:</strong> {{ current_user.attendance }}%</p>
-            <p><strong>Anotaciones/Observaciones:</strong> {{ current_user.notes }}</p>
+        <!-- KPIs del Departamento -->
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-label">Plantilla Total</div>
+                <div class="kpi-value">{{ total_members }}</div>
+            </div>
+            <div class="kpi-card" style="border-left-color: #10b981;">
+                <div class="kpi-label">Titulares Activos</div>
+                <div class="kpi-value">{{ active_titulares }}</div>
+            </div>
+            <div class="kpi-card" style="border-left-color: #f59e0b;">
+                <div class="kpi-label">Promedio de Asistencia</div>
+                <div class="kpi-value">{{ avg_attendance }}%</div>
+            </div>
         </div>
 
-        <!-- Panel de Administración (Solo si es Admin) -->
-        {% if session.get('is_admin') %}
-            <h2>Modo Administrador - Gestión de División ({{ admin_division }})</h2>
-
-            <div class="grid-roster">
-                {% for player in players_to_manage %}
-                    <div class="player-card">
-                        <h4>{{ player.game_ign }} ({{ player.full_name }})</h4>
-                        <p style="font-size:0.85rem; color: var(--text-muted);">División: {{ player.division }}</p>
-                        
-                        <form action="{{ url_for('update_player') }}" method="POST" style="margin-top: 15px;">
-                            <input type="hidden" name="player_id" value="{{ player.id }}">
-                            
-                            <div class="form-group">
-                                <label>Estado Roster</label>
-                                <select name="roster_status" class="form-control">
-                                    <option value="Titular" {% if player.roster_status == 'Titular' %}selected{% endif %}>Titular</option>
-                                    <option value="Suplente" {% if player.roster_status == 'Suplente' %}selected{% endif %}>Suplente</option>
-                                    <option value="Banca" {% if player.roster_status == 'Banca' %}selected{% endif %}>Banca</option>
-                                    <option value="Inactivo" {% if player.roster_status == 'Inactivo' %}selected{% endif %}>Inactivo</option>
-                                    <option value="Pendiente" {% if player.roster_status == 'Pendiente' %}selected{% endif %}>Pendiente</option>
-                                </select>
-                            </div>
-
-                            <div class="form-group">
-                                <label>Asistencia (%)</label>
-                                <input type="number" name="attendance" class="form-control" value="{{ player.attendance }}" min="0" max="100">
-                            </div>
-
-                            <div class="form-group">
-                                <label>Notas / Anotaciones</label>
-                                <textarea name="notes" class="form-control" rows="2">{{ player.notes }}</textarea>
-                            </div>
-
-                            <button type="submit" class="btn" style="background-color: #059669;">Guardar Cambios</button>
-                        </form>
-                    </div>
-                {% endfor %}
+        <!-- Tabla de Control de Personal -->
+        <div class="corporate-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin:0;">Control de Roster y Asistencia</h3>
+                <span style="font-size:0.8rem; color: var(--text-muted);">Estatus controlado por departamento</span>
             </div>
-        {% endif %}
+
+            <div style="overflow-x: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Jugador / IGN</th>
+                            <th>Nombre Real</th>
+                            <th>Discord</th>
+                            <th>Rol / Main</th>
+                            <th>Estatus Roster</th>
+                            <th>Asistencia</th>
+                            <th>Observaciones</th>
+                            <th>Tracker GG</th>
+                            {% if is_current_admin %}
+                                <th>Gestión de Administrador</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if members %}
+                            {% for m in members %}
+                                <tr>
+                                    <td><strong style="color: #fff;">{{ m.game_ign }}</strong></td>
+                                    <td>{{ m.full_name }}</td>
+                                    <td style="color: #60a5fa;">{{ m.discord_tag }}</td>
+                                    <td>{{ m.main_role or 'N/A' }} / {{ m.favorite_agent or 'N/A' }}</td>
+                                    <td>
+                                        <span class="status-pill status-{{ m.roster_status|lower }}">{{ m.roster_status }}</span>
+                                    </td>
+                                    <td>
+                                        <strong>{{ m.attendance }}%</strong>
+                                    </td>
+                                    <td style="max-width: 200px; font-size: 0.8rem; color: var(--text-muted);">
+                                        {{ m.notes }}
+                                    </td>
+                                    <td>
+                                        {% if m.tracker_url and m.tracker_url != '#' %}
+                                            <a href="{{ m.tracker_url }}" target="_blank" class="btn-secondary" style="padding: 4px 8px; font-size: 0.75rem;">Ver Stats</a>
+                                        {% else %}
+                                            <span style="color: var(--text-muted); font-size:0.8rem;">Sin URL</span>
+                                        {% endif %}
+                                    </td>
+
+                                    {% if is_current_admin %}
+                                        <td>
+                                            <!-- Panel de Edición de Administrador -->
+                                            <form action="{{ url_for('update_member') }}" method="POST" style="display: grid; gap: 6px; min-width: 200px;">
+                                                <input type="hidden" name="member_id" value="{{ m.id }}">
+                                                <input type="hidden" name="target_division" value="{{ division_name }}">
+                                                
+                                                <select name="roster_status" class="form-control" style="padding: 4px; font-size: 0.8rem;">
+                                                    <option value="Titular" {% if m.roster_status == 'Titular' %}selected{% endif %}>Titular</option>
+                                                    <option value="Suplente" {% if m.roster_status == 'Suplente' %}selected{% endif %}>Suplente</option>
+                                                    <option value="Reserva" {% if m.roster_status == 'Reserva' %}selected{% endif %}>Reserva</option>
+                                                    <option value="Inactivo" {% if m.roster_status == 'Inactivo' %}selected{% endif %}>Inactivo</option>
+                                                    <option value="Pendiente" {% if m.roster_status == 'Pendiente' %}selected{% endif %}>Pendiente</option>
+                                                </select>
+
+                                                <input type="number" name="attendance" value="{{ m.attendance }}" min="0" max="100" class="form-control" style="padding: 4px; font-size: 0.8rem;" placeholder="Asistencia %">
+
+                                                <input type="text" name="notes" value="{{ m.notes }}" class="form-control" style="padding: 4px; font-size: 0.8rem;" placeholder="Observación">
+
+                                                <button type="submit" class="btn-primary" style="padding: 5px; font-size: 0.75rem; background-color: #059669;">Guardar Cambios</button>
+                                            </form>
+                                        </td>
+                                    {% endif %}
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="9" style="text-align: center; padding: 30px; color: var(--text-muted);">
+                                    No hay jugadores registrados en la división <strong>{{ division_name }}</strong>.
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
     </div>
 </body>
