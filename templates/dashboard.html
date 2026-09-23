@@ -2,181 +2,94 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Roster - Esports</title>
+    <title>Dashboard - {{ division_name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+    <nav class="navbar navbar-dark mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="/">🎮 Scarlet Esports - {{ division_name }}</a>
+            <a href="/" class="btn btn-outline-light btn-sm">Volver</a>
+        </div>
+    </nav>
 
     <div class="container">
-        <h1>🎮 Panel de Control de Roster</h1>
+        <!-- Mostrar Mensajes de Flash -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
 
-        <!-- SECCIÓN 1: FORMULARIO DE REGISTRO -->
-        <div class="card">
-            <h2>Registrar Nuevo Jugador</h2>
-            <form action="/registro" method="POST" class="form-grid">
+        <!-- Pestañas -->
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="roster-tab" data-bs-toggle="tab" data-bs-target="#roster" type="button" role="tab">📋 Roster</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="evidencia-tab" data-bs-toggle="tab" data-bs-target="#evidencia" type="button" role="tab">📸 Evidencias</button>
+            </li>
+        </ul>
 
-                <div class="form-group">
-                    <label for="juego">Juego *</label>
-                    <select id="juego" name="juego" required onchange="actualizarOpcionesJuego()">
-                        <option value="Valorant">Valorant</option>
-                        <option value="LeagueOfLegends">League of Legends</option>
-                        <option value="Overwatch">Overwatch 2</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="nick">Nick / ID *</label>
-                    <input type="text" id="nick" name="nick" placeholder="Ej: Faker#LAN" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="nombre_real">Nombre Real *</label>
-                    <input type="text" id="nombre_real" name="nombre_real" placeholder="Ej: Juan Pérez" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="rol_principal">Rol Principal</label>
-                    <select id="rol_principal" name="rol_principal"></select>
-                </div>
-
-                <div class="form-group">
-                    <label for="rol_secundario">Rol Secundario</label>
-                    <select id="rol_secundario" name="rol_secundario"></select>
-                </div>
-
-                <div class="form-group">
-                    <label for="personaje">Agente / Héroe Preferido</label>
-                    <select id="personaje" name="personaje"></select>
-                </div>
-
-                <div class="form-group">
-                    <label for="rango">Rango Actual</label>
-                    <select id="rango" name="rango"></select>
-                </div>
-
-                <div class="form-group col-span-2">
-                    <label>Contacto *</label>
-                    <div class="contacto-group">
-                        <select id="tipo_contacto" name="tipo_contacto" onchange="actualizarPlaceholderContacto()">
-                            <option value="Discord">Discord</option>
-                            <option value="WhatsApp">WhatsApp</option>
-                            <option value="Email">Email</option>
-                        </select>
-                        <input type="text" id="contacto_valor" name="contacto_valor" placeholder="usuario#1234" required>
-                    </div>
-                </div>
-
-                <div class="form-group col-span-2">
-                    <label for="notas">Notas Adicionales</label>
-                    <input type="text" id="notas" name="notas" placeholder="Ej: Disponibilidad horaria, experiencia previo...">
-                </div>
-
-                <button type="submit" class="btn-submit">Registrar Jugador</button>
-            </form>
-        </div>
-
-        <!-- SECCIÓN 2: TABLA DE JUGADORES -->
-        <div class="card">
-            <h2>Roster Actual ({{ jugadores|length }})</h2>
-            <div class="table-responsive">
-                <table>
+        <!-- Contenido de las Pestañas -->
+        <div class="tab-content card p-4 mt-2" id="myTabContent">
+            
+            <!-- TAB ROSTER -->
+            <div class="tab-pane fade show active" id="roster" role="tabpanel">
+                <h4>Jugadores Registrados</h4>
+                <table class="table table-dark table-hover mt-3">
                     <thead>
                         <tr>
-                            <th>Juego</th>
-                            <th>Nick</th>
-                            <th>Nombre Real</th>
-                            <th>Roles</th>
-                            <th>Personaje</th>
+                            <th>ID</th>
+                            <th>Nickname</th>
+                            <th>Rol</th>
                             <th>Rango</th>
-                            <th>Contacto</th>
                             <th>Estado</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% if jugadores %}
-                            {% for j in jugadores %}
-                            <tr>
-                                <td><span class="badge badge-juego">{{ j.juego }}</span></td>
-                                <td><strong>{{ j.nick }}</strong></td>
-                                <td>{{ j.nombre_real }}</td>
-                                <td>{{ j.rol_principal }}{% if j.rol_secundario %} / {{ j.rol_secundario }}{% endif %}</td>
-                                <td>{{ j.personaje if j.personaje else '-' }}</td>
-                                <td><span class="badge badge-rango">{{ j.rango if j.rango else '-' }}</span></td>
-                                <td>{{ j.contacto }}</td>
-                                <td><span class="badge badge-estado">{{ j.estado }}</span></td>
-                            </tr>
-                            {% endfor %}
-                        {% else %}
-                            <tr>
-                                <td colspan="8" style="text-align: center; padding: 20px;">No hay jugadores registrados todavía.</td>
-                            </tr>
-                        {% endif %}
+                        {% for player in roster %}
+                        <tr>
+                            <td>{{ player.id }}</td>
+                            <td>{{ player.nickname }}</td>
+                            <td>{{ player.rol }}</td>
+                            <td>{{ player.rango }}</td>
+                            <td>{{ player.estado }}</td>
+                        </tr>
+                        {% endfor %}
                     </tbody>
                 </table>
+
+                <hr class="border-secondary mt-4">
+                <h5>Agregar Nuevo Jugador</h5>
+                <form action="/add_player" method="POST" class="row g-3">
+                    <input type="hidden" name="division" value="{{ division_slug }}">
+                    <div class="col-md-3"><input type="text" name="nickname" class="form-control bg-dark text-light border-secondary" placeholder="Nickname" required></div>
+                    <div class="col-md-3"><input type="text" name="rol" class="form-control bg-dark text-light border-secondary" placeholder="Rol (ej. Duelista)"></div>
+                    <div class="col-md-3"><input type="text" name="rango" class="form-control bg-dark text-light border-secondary" placeholder="Rango"></div>
+                    <div class="col-md-3"><button type="submit" class="btn btn-danger w-100">Guardar Jugador</button></div>
+                </form>
             </div>
+
+            <!-- TAB EVIDENCIAS -->
+            <div class="tab-pane fade" id="evidencia" role="tabpanel">
+                <h4>Cargar Evidencia de Rendimiento</h4>
+                <form action="/upload_evidence" method="POST" enctype="multipart/form-data" class="mt-4">
+                    <input type="hidden" name="division" value="{{ division_slug }}">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Selecciona una captura (PNG, JPG)</label>
+                        <input class="form-control bg-dark text-light border-secondary" type="file" id="file" name="file" required>
+                    </div>
+                    <button type="submit" class="btn btn-danger">Subir a Supabase</button>
+                </form>
+            </div>
+
         </div>
     </div>
 
-    <!-- SCRIPT JS DESPLEGABLE DINÁMICO -->
-    <script>
-        const DATOS_JUEGOS = {
-            Valorant: {
-                agentes: ['Jett', 'Reyna', 'Omen', 'Sova', 'Sage', 'Raze', 'Cypher', 'Chamber', 'Fade', 'Iso', 'Clove', 'Vyse'],
-                roles: ['Iniciador', 'Duelista', 'Controlador', 'Centinela'],
-                rangos: ['Hierro', 'Bronce', 'Plata', 'Oro', 'Platino', 'Diamante', 'Ascendente', 'Inmortal', 'Radiante']
-            },
-            LeagueOfLegends: {
-                agentes: ['Ahri', 'Yasuo', 'Lee Sin', 'Thresh', 'Jinx', 'Garen', 'Lux', 'Zed', 'Kaisa', 'Viego'],
-                roles: ['Top', 'Jungle', 'Mid', 'ADC', 'Support'],
-                rangos: ['Hierro', 'Bronce', 'Plata', 'Oro', 'Platino', 'Esmeralda', 'Diamante', 'Master', 'Grandmaster', 'Challenger']
-            },
-            Overwatch: {
-                agentes: ['Tracer', 'Reinhardt', 'Mercy', 'Genji', 'Ana', 'Kiriko', 'D.Va', 'Sombra', 'Juno'],
-                roles: ['Tanque', 'Daño', 'Soporte'],
-                rangos: ['Bronce', 'Plata', 'Oro', 'Platino', 'Diamante', 'Maestro', 'Gran Maestro']
-            }
-        };
-
-        function actualizarOpcionesJuego() {
-            const juego = document.getElementById('juego').value;
-            const datos = DATOS_JUEGOS[juego];
-
-            // Cargar Personajes
-            const selectPersonaje = document.getElementById('personaje');
-            selectPersonaje.innerHTML = '<option value="">-- Seleccionar --</option>';
-            datos.agentes.forEach(a => selectPersonaje.innerHTML += `<option value="${a}">${a}</option>`);
-
-            // Cargar Rol Principal
-            const selectRol1 = document.getElementById('rol_principal');
-            selectRol1.innerHTML = '<option value="">-- Seleccionar --</option>';
-            datos.roles.forEach(r => selectRol1.innerHTML += `<option value="${r}">${r}</option>`);
-
-            // Cargar Rol Secundario
-            const selectRol2 = document.getElementById('rol_secundario');
-            selectRol2.innerHTML = '<option value="">-- Ninguno --</option>';
-            datos.roles.forEach(r => selectRol2.innerHTML += `<option value="${r}">${r}</option>`);
-
-            // Cargar Rango
-            const selectRango = document.getElementById('rango');
-            selectRango.innerHTML = '<option value="">-- Seleccionar --</option>';
-            datos.rangos.forEach(rg => selectRango.innerHTML += `<option value="${rg}">${rg}</option>`);
-        }
-
-        function actualizarPlaceholderContacto() {
-            const tipo = document.getElementById('tipo_contacto').value;
-            const inputContacto = document.getElementById('contacto_valor');
-
-            if (tipo === 'Discord') inputContacto.placeholder = 'usuario#1234 o @usuario';
-            if (tipo === 'WhatsApp') inputContacto.placeholder = '+56 9 1234 5678';
-            if (tipo === 'Email') inputContacto.placeholder = 'correo@ejemplo.com';
-        }
-
-        // Ejecutar al cargar la página
-        document.addEventListener('DOMContentLoaded', () => {
-            actualizarOpcionesJuego();
-            actualizarPlaceholderContacto();
-        });
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
