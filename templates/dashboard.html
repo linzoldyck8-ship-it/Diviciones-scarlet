@@ -2,20 +2,22 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Dashboard - {{ division_name }}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control - Esports</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <nav class="navbar navbar-dark mb-4">
-        <div class="container">
-            <a class="navbar-brand" href="/">🎮 Scarlet Esports - {{ division_name }}</a>
-            <a href="/" class="btn btn-outline-light btn-sm">Volver</a>
+
+    <nav class="navbar">
+        <div class="brand">⚡ PANEL DE CONTROL</div>
+        <div>
+            <a href="{{ url_for('index') }}" class="tab-btn">Volver al Inicio</a>
+            <a href="{{ url_for('logout') }}" class="tab-btn">Cerrar Sesión</a>
         </div>
     </nav>
 
     <div class="container">
-        <!-- Mostrar Mensajes de Flash -->
+
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
@@ -24,72 +26,59 @@
           {% endif %}
         {% endwith %}
 
-        <!-- Pestañas -->
-        <ul class="nav nav-tabs" id="myTab" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="roster-tab" data-bs-toggle="tab" data-bs-target="#roster" type="button" role="tab">📋 Roster</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="evidencia-tab" data-bs-toggle="tab" data-bs-target="#evidencia" type="button" role="tab">📸 Evidencias</button>
-            </li>
-        </ul>
-
-        <!-- Contenido de las Pestañas -->
-        <div class="tab-content card p-4 mt-2" id="myTabContent">
-            
-            <!-- TAB ROSTER -->
-            <div class="tab-pane fade show active" id="roster" role="tabpanel">
-                <h4>Jugadores Registrados</h4>
-                <table class="table table-dark table-hover mt-3">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Nickname</th>
-                            <th>Rol</th>
-                            <th>Rango</th>
-                            <th>Estado</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for player in roster %}
-                        <tr>
-                            <td>{{ player.id }}</td>
-                            <td>{{ player.nickname }}</td>
-                            <td>{{ player.rol }}</td>
-                            <td>{{ player.rango }}</td>
-                            <td>{{ player.estado }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-
-                <hr class="border-secondary mt-4">
-                <h5>Agregar Nuevo Jugador</h5>
-                <form action="/add_player" method="POST" class="row g-3">
-                    <input type="hidden" name="division" value="{{ division_slug }}">
-                    <div class="col-md-3"><input type="text" name="nickname" class="form-control bg-dark text-light border-secondary" placeholder="Nickname" required></div>
-                    <div class="col-md-3"><input type="text" name="rol" class="form-control bg-dark text-light border-secondary" placeholder="Rol (ej. Duelista)"></div>
-                    <div class="col-md-3"><input type="text" name="rango" class="form-control bg-dark text-light border-secondary" placeholder="Rango"></div>
-                    <div class="col-md-3"><button type="submit" class="btn btn-danger w-100">Guardar Jugador</button></div>
-                </form>
-            </div>
-
-            <!-- TAB EVIDENCIAS -->
-            <div class="tab-pane fade" id="evidencia" role="tabpanel">
-                <h4>Cargar Evidencia de Rendimiento</h4>
-                <form action="/upload_evidence" method="POST" enctype="multipart/form-data" class="mt-4">
-                    <input type="hidden" name="division" value="{{ division_slug }}">
-                    <div class="mb-3">
-                        <label for="file" class="form-label">Selecciona una captura (PNG, JPG)</label>
-                        <input class="form-control bg-dark text-light border-secondary" type="file" id="file" name="file" required>
-                    </div>
-                    <button type="submit" class="btn btn-danger">Subir a Supabase</button>
-                </form>
-            </div>
-
+        <!-- Mi Perfil -->
+        <div class="form-card" style="max-width: 100%; margin-bottom: 30px;">
+            <h3>Mi Ficha de Jugador</h3>
+            <p><strong>Nombre:</strong> {{ current_user.full_name }}</p>
+            <p><strong>IGN:</strong> {{ current_user.game_ign }}</p>
+            <p><strong>Discord:</strong> {{ current_user.discord_tag }}</p>
+            <p><strong>División:</strong> {{ current_user.division }}</p>
+            <p><strong>Estado en Roster:</strong> <span class="badge badge-{{ current_user.roster_status|lower }}">{{ current_user.roster_status }}</span></p>
+            <p><strong>Asistencia:</strong> {{ current_user.attendance }}%</p>
+            <p><strong>Anotaciones/Observaciones:</strong> {{ current_user.notes }}</p>
         </div>
-    </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <!-- Panel de Administración (Solo si es Admin) -->
+        {% if session.get('is_admin') %}
+            <h2>Modo Administrador - Gestión de División ({{ admin_division }})</h2>
+
+            <div class="grid-roster">
+                {% for player in players_to_manage %}
+                    <div class="player-card">
+                        <h4>{{ player.game_ign }} ({{ player.full_name }})</h4>
+                        <p style="font-size:0.85rem; color: var(--text-muted);">División: {{ player.division }}</p>
+                        
+                        <form action="{{ url_for('update_player') }}" method="POST" style="margin-top: 15px;">
+                            <input type="hidden" name="player_id" value="{{ player.id }}">
+                            
+                            <div class="form-group">
+                                <label>Estado Roster</label>
+                                <select name="roster_status" class="form-control">
+                                    <option value="Titular" {% if player.roster_status == 'Titular' %}selected{% endif %}>Titular</option>
+                                    <option value="Suplente" {% if player.roster_status == 'Suplente' %}selected{% endif %}>Suplente</option>
+                                    <option value="Banca" {% if player.roster_status == 'Banca' %}selected{% endif %}>Banca</option>
+                                    <option value="Inactivo" {% if player.roster_status == 'Inactivo' %}selected{% endif %}>Inactivo</option>
+                                    <option value="Pendiente" {% if player.roster_status == 'Pendiente' %}selected{% endif %}>Pendiente</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Asistencia (%)</label>
+                                <input type="number" name="attendance" class="form-control" value="{{ player.attendance }}" min="0" max="100">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Notas / Anotaciones</label>
+                                <textarea name="notes" class="form-control" rows="2">{{ player.notes }}</textarea>
+                            </div>
+
+                            <button type="submit" class="btn" style="background-color: #059669;">Guardar Cambios</button>
+                        </form>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+    </div>
 </body>
 </html>
