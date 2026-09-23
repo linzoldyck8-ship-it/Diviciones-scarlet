@@ -177,6 +177,15 @@ def division_dashboard(division_name):
             flash(f"ACCESO RESTRINGIDO: Perteneces a la división '{user_division}'.", "warning")
             return redirect(url_for("division_dashboard", division_name=user_division))
 
+    # Obtener imagen de la división actual
+    division_image = ""
+    try:
+        div_res = supabase.table("division_config").select("image_url").eq("division_name", division_name).execute()
+        if div_res.data and len(div_res.data) > 0:
+            division_image = div_res.data[0].get("image_url", "")
+    except Exception as e:
+        print("Aviso: No se pudo cargar la imagen de la división", e)
+
     # Configuración del mes y año seleccionados
     now = datetime.now()
     selected_year = request.args.get("year", now.year, type=int)
@@ -254,8 +263,30 @@ def division_dashboard(division_name):
         selected_month=selected_month,
         selected_month_name=MONTH_NAMES.get(selected_month, ""),
         month_names=MONTH_NAMES,
-        days_list=days_list
+        days_list=days_list,
+        division_image=division_image
     )
+
+# NUEVA RUTA PARA GUARDAR LA IMAGEN DE LA DIVISIÓN
+@app.route("/admin/update-division-image", methods=["POST"])
+def update_division_image():
+    if "user_id" not in session or session.get("role") != "admin":
+        flash("Acción denegada.", "danger")
+        return redirect(url_for("index"))
+
+    target_division = request.form.get("target_division")
+    image_url = request.form.get("image_url", "").strip()
+
+    try:
+        supabase.table("division_config").upsert({
+            "division_name": target_division,
+            "image_url": image_url
+        }, on_conflict="division_name").execute()
+        flash("Imagen de la división actualizada correctamente.", "success")
+    except Exception as e:
+        flash(f"Error al actualizar la imagen: {str(e)}", "danger")
+
+    return redirect(url_for("division_dashboard", division_name=target_division))
 
 # GUARDAR MATRIZ COMPLETA DE ASISTENCIA (SOLO ADMINS)
 @app.route("/admin/save-attendance-matrix", methods=["POST"])
@@ -368,7 +399,7 @@ def delete_member():
         return redirect(url_for("index"))
 
     member_id = request.form.get("member_id")
-    target_division = request.form.get("target_division")
+    target_division = request.main.get("target_division") if hasattr(request, 'main') else request.form.get("target_division")
 
     try:
         supabase.table("profiles").delete().eq("id", member_id).execute()
