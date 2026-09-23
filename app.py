@@ -1,4 +1,6 @@
 import os
+import calendar
+from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 from supabase import create_client, Client
@@ -10,7 +12,6 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY", "executive_esports_key_2026_
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://vlwsrjptvhbthcbqzmws.supabase.co")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsd3NyanB0dmhidGhjYnF6bXdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk4Mzc4MzgsImV4cCI6MjEwNTQxMzgzOH0.9l369_HN_QsKgaOSKFDnRqrD6xtnsjccQvB-Tl8WqUU")
 
-# Conexión directa
 try:
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 except Exception as e:
@@ -26,6 +27,11 @@ DIVISIONS = [
     "Overwatch B",
     "Counter Strike"
 ]
+
+MONTH_NAMES = {
+    1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril", 5: "Mayo", 6: "Junio",
+    7: "Julio", 8: "Agosto", 9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
+}
 
 def build_tracker_url(division, ign):
     if not ign or not ign.strip():
@@ -59,11 +65,10 @@ def index():
 
     return render_template("index.html", divisions=DIVISIONS)
 
-# REGISTRO PÚBLICO: Exclusivamente para Jugadores
 @app.route("/register", methods=["POST"])
 def register():
     if not supabase:
-        flash("Error: No hay conexión con Supabase. Revisa las credenciales en app.py.", "danger")
+        flash("Error: No hay conexión con Supabase.", "danger")
         return redirect(url_for("index"))
 
     email = request.form.get("email", "").strip().lower()
@@ -106,7 +111,7 @@ def register():
 @app.route("/login", methods=["POST"])
 def login():
     if not supabase:
-        flash("Error: No hay conexión con Supabase. Revisa las credenciales en app.py.", "danger")
+        flash("Error: No hay conexión con Supabase.", "danger")
         return redirect(url_for("index"))
 
     email = request.form.get("email", "").strip().lower()
@@ -172,6 +177,14 @@ def division_dashboard(division_name):
             flash(f"ACCESO RESTRINGIDO: Perteneces a la división '{user_division}'.", "warning")
             return redirect(url_for("division_dashboard", division_name=user_division))
 
+    # Configuración del mes y año seleccionados
+    now = datetime.now()
+    selected_year = request.args.get("year", now.year, type=int)
+    selected_month = request.args.get("month", now.month, type=int)
+
+    _, num_days = calendar.monthrange(selected_year, selected_month)
+    days_list = list(range(1, num_days + 1))
+
     try:
         res = supabase.table("profiles").select("*").eq("division", division_name).execute()
         members = res.data if res.data else []
@@ -179,9 +192,50 @@ def division_dashboard(division_name):
         members = []
         flash(f"Error al cargar datos: {str(e)}", "danger")
 
+    # Cargar matriz de asistencia para el mes seleccionado
+    start_date = f"{selected_year:04d}-{selected_month:02d}-01"
+    end_date = f"{selected_year:04d}-{selected_month:02d}-{num_days:02d}"
+
+    attendance_data = {}
+    try:
+        att_res = supabase.table("attendance_logs")\
+            .select("*")\
+            .gte("date", start_date)\
+            .lte("date", end_date)\
+            .execute()
+
+        for log in (att_res.data or []):
+            p_id = str(log["profile_id"])
+            log_day = int(log["date"].split("-")[2])
+            if p_id not in attendance_data:
+                attendance_data[p_id] = {}
+            attendance_data[p_id][log_day] = log["status"]
+    except Exception as e:
+        print("Aviso: No se pudieron obtener los registros de asistencia:", e)
+
+    # Procesar métricas por jugador
+    for m in members:
+        p_id = str(m["id"])
+        m_logs = attendance_data.get(p_id, {})
+        m["daily_status"] = m_logs
+
+        p_cnt = sum(1 for s in m_logs.values() if s == "P")
+        a_cnt = sum(1 for s in m_logs.values() if s == "A")
+        j_cnt = sum(1 for s in m_logs.values() if s == "J")
+        t_cnt = sum(1 for s in m_logs.values() if s == "T")
+
+        total_eval = p_cnt + a_cnt + j_cnt + t_cnt
+        m["total_eval_days"] = total_eval
+
+        if total_eval > 0:
+            score = (p_cnt * 100.0) + (j_cnt * 100.0) + (t_cnt * 80.0)
+            m["monthly_attendance_pct"] = round(score / total_eval, 1)
+        else:
+            m["monthly_attendance_pct"] = 100.0
+
     total_members = len(members)
     active_titulares = sum(1 for m in members if m.get("roster_status") == "Titular")
-    avg_attendance = round(sum(float(m.get("attendance", 100)) for m in members) / total_members, 1) if total_members > 0 else 100.0
+    avg_attendance = round(sum(m["monthly_attendance_pct"] for m in members) / total_members, 1) if total_members > 0 else 100.0
 
     is_super_admin = (user_role == "admin" and admin_division == "TODAS")
     is_current_admin = (user_role == "admin" and (admin_division == division_name or admin_division == "TODAS"))
@@ -195,13 +249,55 @@ def division_dashboard(division_name):
         active_titulares=active_titulares,
         avg_attendance=avg_attendance,
         is_current_admin=is_current_admin,
-        is_super_admin=is_super_admin
+        is_super_admin=is_super_admin,
+        selected_year=selected_year,
+        selected_month=selected_month,
+        selected_month_name=MONTH_NAMES.get(selected_month, ""),
+        month_names=MONTH_NAMES,
+        days_list=days_list
     )
 
-# ACTUALIZACIÓN EXCLUSIVA PARA ADMINISTRADORES
+# GUARDAR MATRIZ COMPLETA DE ASISTENCIA (SOLO ADMINS)
+@app.route("/admin/save-attendance-matrix", methods=["POST"])
+def save_attendance_matrix():
+    if "user_id" not in session or session.get("role") != "admin":
+        flash("Acción denegada: Solo los administradores pueden modificar la asistencia.", "danger")
+        return redirect(url_for("index"))
+
+    target_division = request.form.get("target_division")
+    year = int(request.form.get("year"))
+    month = int(request.form.get("month"))
+
+    _, num_days = calendar.monthrange(year, month)
+
+    res = supabase.table("profiles").select("id").eq("division", target_division).execute()
+    members = res.data or []
+
+    upsert_records = []
+    for m in members:
+        p_id = str(m["id"])
+        for day in range(1, num_days + 1):
+            field_name = f"att_{p_id}_{day}"
+            status = request.form.get(field_name, "").strip()
+            if status in ["P", "A", "J", "T"]:
+                date_str = f"{year:04d}-{month:02d}-{day:02d}"
+                upsert_records.append({
+                    "profile_id": p_id,
+                    "date": date_str,
+                    "status": status
+                })
+
+    try:
+        if upsert_records:
+            supabase.table("attendance_logs").upsert(upsert_records, on_conflict="profile_id,date").execute()
+        flash("Registro de asistencia guardado correctamente.", "success")
+    except Exception as e:
+        flash(f"Error al guardar la asistencia: {str(e)}", "danger")
+
+    return redirect(url_for("division_dashboard", division_name=target_division, year=year, month=month))
+
 @app.route("/admin/update-member", methods=["POST"])
 def update_member():
-    # 1. Seguridad: Solo los usuarios con rol 'admin' pueden realizar modificaciones
     if "user_id" not in session or session.get("role") != "admin":
         flash("Acción denegada: Solo los administradores pueden modificar información.", "danger")
         return redirect(url_for("index"))
@@ -210,28 +306,20 @@ def update_member():
     target_division = request.form.get("target_division")
     game_ign = request.form.get("game_ign", "").strip()
     roster_status = request.form.get("roster_status")
-    
-    try:
-        attendance = float(request.form.get("attendance", 100))
-    except ValueError:
-        attendance = 100.0
-        
     notes = request.form.get("notes", "").strip()
 
-    # 2. Recalcula automáticamente el tracker si el Nick ID cambia
     new_tracker_url = build_tracker_url(target_division, game_ign)
 
     update_payload = {
         "game_ign": game_ign,
         "roster_status": roster_status,
-        "attendance": attendance,
         "notes": notes,
         "tracker_url": new_tracker_url
     }
 
     try:
         supabase.table("profiles").update(update_payload).eq("id", member_id).execute()
-        flash("Ficha del jugador, asistencia y anotaciones actualizadas correctamente.", "success")
+        flash("Ficha del jugador actualizada correctamente.", "success")
     except Exception as e:
         flash(f"Error al actualizar la ficha: {str(e)}", "danger")
 
