@@ -52,8 +52,23 @@ def build_tracker_url(division, ign):
         return f"https://csstats.gg/player/{clean_ign}"
     return "#"
 
+# RUTA PRINCIPAL: Muestra la nueva pantalla de bienvenida
 @app.route("/")
 def index():
+    if "user_id" in session:
+        if session.get("role") == "admin":
+            target_div = session.get("admin_division", DIVISIONS[0])
+            if target_div == "TODAS" or not target_div:
+                target_div = DIVISIONS[0]
+            return redirect(url_for("division_dashboard", division_name=target_div))
+        else:
+            return redirect(url_for("division_dashboard", division_name=session.get("division", DIVISIONS[0])))
+
+    return render_template("welcome.html")
+
+# RUTA DEL PORTAL: Muestra el Login y Registro (la pantalla anterior)
+@app.route("/portal")
+def portal():
     if "user_id" in session:
         if session.get("role") == "admin":
             target_div = session.get("admin_division", DIVISIONS[0])
@@ -69,7 +84,7 @@ def index():
 def register():
     if not supabase:
         flash("Error: No hay conexión con Supabase.", "danger")
-        return redirect(url_for("index"))
+        return redirect(url_for("portal"))
 
     email = request.form.get("email", "").strip().lower()
     password = request.form.get("password")
@@ -106,13 +121,13 @@ def register():
     except Exception as e:
         flash(f"Error al registrar cuenta: {str(e)}", "danger")
 
-    return redirect(url_for("index"))
+    return redirect(url_for("portal"))
 
 @app.route("/login", methods=["POST"])
 def login():
     if not supabase:
         flash("Error: No hay conexión con Supabase.", "danger")
-        return redirect(url_for("index"))
+        return redirect(url_for("portal"))
 
     email = request.form.get("email", "").strip().lower()
     password = request.form.get("password")
@@ -146,7 +161,7 @@ def login():
     except Exception as e:
         flash(f"Error al autenticar: {str(e)}", "danger")
 
-    return redirect(url_for("index"))
+    return redirect(url_for("portal"))
 
 @app.route("/logout")
 def logout():
@@ -158,11 +173,11 @@ def logout():
 def division_dashboard(division_name):
     if "user_id" not in session:
         flash("Debe iniciar sesión para ver los registros.", "danger")
-        return redirect(url_for("index"))
+        return redirect(url_for("portal"))
 
     if not supabase:
         flash("Error de conexión con Supabase.", "danger")
-        return redirect(url_for("index"))
+        return redirect(url_for("portal"))
 
     user_role = session.get("role", "player")
     user_division = session.get("division")
@@ -272,7 +287,7 @@ def division_dashboard(division_name):
 def update_division_image():
     if "user_id" not in session or session.get("role") != "admin":
         flash("Acción denegada.", "danger")
-        return redirect(url_for("index"))
+        return redirect(url_for("portal"))
 
     target_division = request.form.get("target_division")
     image_url = request.form.get("image_url", "").strip()
@@ -293,7 +308,7 @@ def update_division_image():
 def save_attendance_matrix():
     if "user_id" not in session or session.get("role") != "admin":
         flash("Acción denegada: Solo los administradores pueden modificar la asistencia.", "danger")
-        return redirect(url_for("index"))
+        return redirect(url_for("portal"))
 
     target_division = request.form.get("target_division")
     year = int(request.form.get("year"))
@@ -331,7 +346,7 @@ def save_attendance_matrix():
 def update_member():
     if "user_id" not in session or session.get("role") != "admin":
         flash("Acción denegada: Solo los administradores pueden modificar información.", "danger")
-        return redirect(url_for("index"))
+        return redirect(url_for("portal"))
 
     member_id = request.form.get("member_id")
     target_division = request.form.get("target_division")
@@ -360,7 +375,7 @@ def update_member():
 def update_role():
     if "user_id" not in session or session.get("role") != "admin" or session.get("admin_division") != "TODAS":
         flash("Acción denegada: Solo el Super Administrador puede gestionar permisos.", "danger")
-        return redirect(url_for("index"))
+        return redirect(url_for("portal"))
 
     member_id = request.form.get("member_id")
     target_division = request.form.get("target_division")
@@ -396,10 +411,10 @@ def update_role():
 def delete_member():
     if "user_id" not in session or session.get("role") != "admin":
         flash("Acción denegada.", "danger")
-        return redirect(url_for("index"))
+        return redirect(url_for("portal"))
 
     member_id = request.form.get("member_id")
-    target_division = request.main.get("target_division") if hasattr(request, 'main') else request.form.get("target_division")
+    target_division = request.form.get("target_division")
 
     try:
         supabase.table("profiles").delete().eq("id", member_id).execute()
