@@ -1,23 +1,165 @@
+:root {
+  --bg-dark: #0f172a;
+  --bg-card: #1e293b;
+  --primary: #6366f1;
+  --primary-hover: #4f46e5;
+  --accent: #10b981;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --border-color: #334155;
+}
+
 body {
-    background-color: #121212;
-    color: #ffffff;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: var(--bg-dark);
+  color: var(--text-main);
 }
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* Header & Navbar */
 .navbar {
-    background-color: #dc3545 !important;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 30px;
+  background-color: var(--bg-card);
+  border-bottom: 1px solid var(--border-color);
 }
-.card {
-    background-color: #1e1e1e;
-    border: 1px solid #333;
+
+.brand {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
-.nav-tabs .nav-link {
-    color: #ccc;
+
+/* Tabs de División */
+.division-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 25px 0;
 }
-.nav-tabs .nav-link.active {
-    background-color: #1e1e1e;
-    color: #dc3545;
-    border-color: #333 #333 #1e1e1e;
+
+.tab-btn {
+  padding: 10px 18px;
+  background-color: var(--bg-card);
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.2s ease;
 }
-.table {
-    color: #fff;
+
+.tab-btn:hover, .tab-btn.active {
+  background-color: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
 }
+
+/* Grilla de Jugadores */
+.grid-roster {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.player-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  position: relative;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.badge-titular { background-color: #059669; color: #fff; }
+.badge-suplente { background-color: #d97706; color: #fff; }
+.badge-banca { background-color: #475569; color: #fff; }
+.badge-inactivo { background-color: #dc2626; color: #fff; }
+.badge-pendiente { background-color: #2563eb; color: #fff; }
+
+.attendance-bar-bg {
+  background-color: #334155;
+  border-radius: 6px;
+  height: 8px;
+  width: 100%;
+  overflow: hidden;
+  margin-top: 5px;
+}
+
+.attendance-bar-fill {
+  background-color: var(--accent);
+  height: 100%;
+}
+
+/* Formularios y Botones */
+.form-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 25px;
+  border-radius: 12px;
+  max-width: 500px;
+  margin: 20px auto;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text-muted);
+}
+
+.form-control {
+  width: 100%;
+  padding: 10px;
+  background-color: #0f172a;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: #fff;
+  box-sizing: border-box;
+}
+
+.btn {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 6px;
+  background-color: var(--primary);
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  width: 100%;
+}
+
+.btn:hover { background-color: var(--primary-hover); }
+
+/* Alertas */
+.alert {
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+.alert-success { background-color: #065f46; color: #a7f3d0; }
+.alert-danger { background-color: #991b1b; color: #fecaca; }
+.alert-warning { background-color: #92400e; color: #fde68a; }
+.alert-info { background-color: #1e40af; color: #bfdbfe; }
