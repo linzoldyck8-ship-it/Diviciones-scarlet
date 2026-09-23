@@ -85,6 +85,29 @@
         .att-badge-J { background-color: #f59e0b; color: #fff; }
         .att-badge-T { background-color: #3b82f6; color: #fff; }
         .att-badge-empty { color: #52525b; }
+
+        /* Estilo para Modal / Drawer flotante de edición */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .modal-card {
+            background: #141419;
+            border: 1px solid var(--scarlet-primary);
+            border-radius: 10px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 25px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+        }
     </style>
 </head>
 <body>
@@ -139,7 +162,7 @@
             </div>
         {% endif %}
 
-        <!-- Configuración de Imagen de División (Solo para Administradores de la división) -->
+        <!-- Configuración de Imagen de División -->
         {% if is_current_admin %}
             <div class="corporate-card" style="padding: 15px; background: rgba(18, 18, 18, 0.9);">
                 <form action="{{ url_for('update_division_image') }}" method="POST" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
@@ -150,21 +173,15 @@
                 </form>
             </div>
 
-            <!-- SECCIÓN DE GESTIÓN DE BLACKLIST (SOLO ADMINS) -->
+            <!-- GESTIÓN DE BLACKLIST -->
             <div class="corporate-card" style="padding: 20px; background: rgba(18, 18, 24, 0.95); border: 1px solid rgba(255, 75, 75, 0.3);">
                 <h3 style="color: #ff4b4b; margin-top: 0; margin-bottom: 10px; font-size: 1.15rem;">🚫 Gestión de Lista Negra (Blacklist)</h3>
-                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 15px;">
-                    Los correos agregados aquí no podrán registrarse ni volver a iniciar sesión en el portal.
-                </p>
-
-                <!-- Formulario para agregar nuevo correo a la blacklist -->
-                <form action="{{ url_for('add_to_blacklist') }}" method="POST" style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                <form action="{{ url_for('add_to_blacklist') }}" method="POST" style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
                     <input type="hidden" name="target_division" value="{{ division_name }}">
                     <input type="email" name="blacklist_email" placeholder="correo_a_bloquear@ejemplo.com" required style="flex: 1; min-width: 250px; padding: 8px; background: #1a1a24; border: 1px solid #333; color: #fff; border-radius: 4px; font-size: 0.85rem;">
                     <button type="submit" style="background: #ff4b4b; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.85rem;">Bloquear Correo</button>
                 </form>
 
-                <!-- Tabla de correos bloqueados actuales -->
                 <div style="overflow-x: auto;">
                     <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
                         <thead>
@@ -182,14 +199,14 @@
                                         <form action="{{ url_for('remove_from_blacklist') }}" method="POST" style="display: inline;">
                                             <input type="hidden" name="target_division" value="{{ division_name }}">
                                             <input type="hidden" name="blacklist_id" value="{{ item.id }}">
-                                            <button type="submit" style="background: transparent; border: 1px solid #666; color: #ccc; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">Quitar de Blacklist</button>
+                                            <button type="submit" style="background: transparent; border: 1px solid #666; color: #ccc; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">Quitar</button>
                                         </form>
                                     </td>
                                 </tr>
                                 {% endfor %}
                             {% else %}
                                 <tr>
-                                    <td colspan="2" style="padding: 12px; text-align: center; color: var(--text-muted);">No hay correos en la lista negra actualmente.</td>
+                                    <td colspan="2" style="padding: 10px; text-align: center; color: var(--text-muted);">No hay correos en la lista negra.</td>
                                 </tr>
                             {% endif %}
                         </tbody>
@@ -216,11 +233,9 @@
 
         <!-- SECCIÓN 1: MATRIZ DE ASISTENCIA -->
         <div class="corporate-card">
-            
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 15px;">
                 <h3 style="margin:0; font-size: 1.15rem; color:#fff;">Matriz Mensual de Asistencia</h3>
                 
-                <!-- Selector de Mes y Año -->
                 <form method="GET" action="{{ url_for('division_dashboard', division_name=division_name) }}" style="display: flex; gap: 8px; align-items: center;">
                     <select name="month" class="form-control" style="padding: 5px; font-size: 0.85rem;" onchange="this.form.submit()">
                         {% for num, name in month_names.items() %}
@@ -246,11 +261,11 @@
                     REGISTRO DE ASISTENCIA – {{ selected_month_name|upper }} {{ selected_year }}
                 </div>
                 <div class="excel-legend-bar">
-                    <strong>Leyenda de Códigos:</strong> 
-                    <span style="color:#34d399; margin-left: 8px;">P = Presente</span> | 
-                    <span style="color:#f87171; margin-left: 8px;">A = Ausencia</span> | 
-                    <span style="color:#fbbf24; margin-left: 8px;">J = Justificado</span> | 
-                    <span style="color:#60a5fa; margin-left: 8px;">T = Tardanza (80%)</span>
+                    <strong>Leyenda:</strong> 
+                    <span style="color:#34d399; margin-left: 6px;">P = Presente</span> | 
+                    <span style="color:#f87171; margin-left: 6px;">A = Ausencia</span> | 
+                    <span style="color:#fbbf24; margin-left: 6px;">J = Justificado</span> | 
+                    <span style="color:#60a5fa; margin-left: 6px;">T = Tardanza</span>
                 </div>
 
                 <table class="excel-table">
@@ -260,8 +275,8 @@
                             {% for day in days_list %}
                                 <th>{{ day }}</th>
                             {% endfor %}
-                            <th style="background-color: #27272a;">Días Eval.</th>
-                            <th style="background-color: #1e1b4b; color: #93c5fd;">% Asistencia</th>
+                            <th style="background-color: #27272a;">Días</th>
+                            <th style="background-color: #1e1b4b; color: #93c5fd;">% Asist.</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -303,8 +318,8 @@
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="{{ days_list|length + 3 }}" style="padding: 25px; color: var(--text-muted);">
-                                    No hay jugadores registrados en esta división.
+                                <td colspan="{{ days_list|length + 3 }}" style="padding: 20px; color: var(--text-muted);">
+                                    No hay jugadores registrados.
                                 </td>
                             </tr>
                         {% endif %}
@@ -314,7 +329,7 @@
 
             {% if is_current_admin %}
                     <div style="margin-top: 15px; text-align: right;">
-                        <button type="submit" class="btn-primary" style="background-color: #059669; border-color: #10b981; padding: 10px 20px;">
+                        <button type="submit" class="btn-primary" style="background-color: #059669; border-color: #10b981; padding: 8px 16px;">
                             💾 Guardar Asistencia del Mes
                         </button>
                     </div>
@@ -322,7 +337,7 @@
             {% endif %}
         </div>
 
-        <!-- SECCIÓN 2: ROSTER GENERAL Y FICHAS -->
+        <!-- SECCIÓN 2: ROSTER GENERAL Y FICHAS (DISEÑO CÓMODO Y LIMPIO) -->
         <div class="corporate-card">
             <h3 style="margin-top:0; color:#fff; font-size:1.15rem;">Roster General y Fichas de Jugadores</h3>
             <div style="overflow-x: auto; margin-top: 15px;">
@@ -334,12 +349,9 @@
                             <th>Discord</th>
                             <th>Rol / Main</th>
                             <th>Estatus Roster</th>
-                            <th>Anotaciones / Observaciones</th>
-                            {% if is_current_admin %}
-                                <th style="min-width: 240px; text-align: center; background-color: #09090b;">Editar Ficha</th>
-                            {% endif %}
-                            {% if is_super_admin %}
-                                <th style="min-width: 210px; text-align: center; background-color: #1e1b4b; color: #a5b4fc;">Permisos (SuperAdmin)</th>
+                            <th>Anotaciones</th>
+                            {% if is_current_admin or is_super_admin %}
+                                <th style="text-align: center; width: 120px;">Acciones</th>
                             {% endif %}
                         </tr>
                     </thead>
@@ -362,81 +374,100 @@
                                 <td>{{ m.main_role or '-' }} / {{ m.favorite_agent or '-' }}</td>
                                 <td><span class="status-pill status-{{ m.roster_status|lower }}">{{ m.roster_status }}</span></td>
 
-                                <td style="max-width: 240px;">
+                                <td style="max-width: 220px;">
                                     {% if m.notes %}
-                                        <div style="background: rgba(255,255,255,0.03); padding: 6px 10px; border-radius: 4px; font-size: 0.8rem; border-left: 3px solid var(--scarlet-primary); color: #e2e8f0; white-space: pre-wrap;">{{ m.notes }}</div>
+                                        <div style="background: rgba(255,255,255,0.03); padding: 5px 8px; border-radius: 4px; font-size: 0.8rem; border-left: 3px solid var(--scarlet-primary); color: #e2e8f0; white-space: pre-wrap;">{{ m.notes }}</div>
                                     {% else %}
                                         <span style="color: var(--text-muted); font-size: 0.75rem;">Sin anotaciones</span>
                                     {% endif %}
                                 </td>
 
-                                {% if is_current_admin %}
-                                    <td style="background: rgba(9, 9, 11, 0.6); padding: 12px;">
-                                        <form action="{{ url_for('update_member') }}" method="POST" style="display: grid; gap: 6px;">
-                                            <input type="hidden" name="member_id" value="{{ m.id }}">
-                                            <input type="hidden" name="target_division" value="{{ division_name }}">
-                                            
-                                            <label style="font-size: 0.7rem; color: var(--text-muted);">IGN:</label>
-                                            <input type="text" name="game_ign" value="{{ m.game_ign }}" class="form-control" style="padding: 4px; font-size: 0.8rem;" required placeholder="IGN">
-
-                                            <label style="font-size: 0.7rem; color: var(--text-muted);">Nombre Real:</label>
-                                            <input type="text" name="full_name" value="{{ m.full_name }}" class="form-control" style="padding: 4px; font-size: 0.8rem;" placeholder="Nombre Real">
-
-                                            <label style="font-size: 0.7rem; color: var(--text-muted);">Discord:</label>
-                                            <input type="text" name="discord_tag" value="{{ m.discord_tag }}" class="form-control" style="padding: 4px; font-size: 0.8rem;" placeholder="Discord">
-
-                                            <label style="font-size: 0.7rem; color: var(--text-muted);">Rol / Main:</label>
-                                            <input type="text" name="main_role" value="{{ m.main_role or '' }}" class="form-control" style="padding: 4px; font-size: 0.8rem;" placeholder="Rol / Main">
-
-                                            <label style="font-size: 0.7rem; color: var(--text-muted);">Agente / Favorito:</label>
-                                            <input type="text" name="favorite_agent" value="{{ m.favorite_agent or '' }}" class="form-control" style="padding: 4px; font-size: 0.8rem;" placeholder="Agente Favorito">
-                                            
-                                            <label style="font-size: 0.7rem; color: var(--text-muted);">Estatus Roster:</label>
-                                            <select name="roster_status" class="form-control" style="padding: 4px; font-size: 0.8rem;">
-                                                <option value="Titular" {% if m.roster_status == 'Titular' %}selected{% endif %}>Titular</option>
-                                                <option value="Suplente" {% if m.roster_status == 'Suplente' %}selected{% endif %}>Suplente</option>
-                                                <option value="Reserva" {% if m.roster_status == 'Reserva' %}selected{% endif %}>Reserva</option>
-                                                <option value="Inactivo" {% if m.roster_status == 'Inactivo' %}selected{% endif %}>Inactivo</option>
-                                                <option value="Pendiente" {% if m.roster_status == 'Pendiente' %}selected{% endif %}>Pendiente</option>
-                                            </select>
-
-                                            <label style="font-size: 0.7rem; color: var(--text-muted);">Anotaciones:</label>
-                                            <textarea name="notes" class="form-control" style="padding: 4px; font-size: 0.8rem; height: 38px;" placeholder="Anotaciones...">{{ m.notes or '' }}</textarea>
-
-                                            <button type="submit" class="btn-primary" style="padding: 5px; font-size: 0.75rem; margin-top: 4px;">💾 Guardar Ficha</button>
-                                        </form>
-
-                                        <form action="{{ url_for('delete_member') }}" method="POST" style="margin-top: 6px;" onsubmit="return confirm('¿Seguro que deseas eliminar este jugador?');">
-                                            <input type="hidden" name="member_id" value="{{ m.id }}">
-                                            <input type="hidden" name="target_division" value="{{ division_name }}">
-                                            <button type="submit" style="width: 100%; background: transparent; border: 1px solid #ef4444; color: #f87171; padding: 3px; font-size: 0.75rem; border-radius: 4px; cursor: pointer;">🗑️ Eliminar Jugador</button>
-                                        </form>
+                                {% if is_current_admin or is_super_admin %}
+                                    <td style="text-align: center; vertical-align: middle;">
+                                        <button type="button" class="btn-secondary" style="padding: 6px 10px; font-size: 0.75rem; border-color: var(--scarlet-light); color: #fff;" onclick="openEditModal('{{ m.id }}')">
+                                            ⚙️ Gestionar
+                                        </button>
                                     </td>
                                 {% endif %}
+                            </tr>
 
-                                {% if is_super_admin %}
-                                    <td style="background: rgba(30, 27, 75, 0.3); padding: 12px;">
-                                        <form action="{{ url_for('update_role') }}" method="POST" style="display: grid; gap: 6px;">
+                            <!-- MODAL / VENTANA FLOTANTE PARA CADA JUGADOR -->
+                            {% if is_current_admin or is_super_admin %}
+                            <div id="modal-{{ m.id }}" class="modal-overlay">
+                                <div class="modal-card">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                        <h3 style="margin: 0; color: #fff; font-size: 1.1rem;">Gestionar a: {{ m.game_ign }}</h3>
+                                        <button type="button" onclick="closeEditModal('{{ m.id }}')" style="background: transparent; border: none; color: #fff; font-size: 1.2rem; cursor: pointer;">✕</button>
+                                    </div>
+
+                                    {% if is_current_admin %}
+                                    <form action="{{ url_for('update_member') }}" method="POST" style="display: grid; gap: 8px; margin-bottom: 15px;">
+                                        <input type="hidden" name="member_id" value="{{ m.id }}">
+                                        <input type="hidden" name="target_division" value="{{ division_name }}">
+                                        
+                                        <label style="font-size: 0.75rem; color: var(--text-muted);">IGN (In-Game Name):</label>
+                                        <input type="text" name="game_ign" value="{{ m.game_ign }}" class="form-control" required style="padding: 6px; font-size: 0.85rem;">
+
+                                        <label style="font-size: 0.75rem; color: var(--text-muted);">Nombre Real:</label>
+                                        <input type="text" name="full_name" value="{{ m.full_name }}" class="form-control" style="padding: 6px; font-size: 0.85rem;">
+
+                                        <label style="font-size: 0.75rem; color: var(--text-muted);">Discord Tag:</label>
+                                        <input type="text" name="discord_tag" value="{{ m.discord_tag }}" class="form-control" style="padding: 6px; font-size: 0.85rem;">
+
+                                        <label style="font-size: 0.75rem; color: var(--text-muted);">Rol / Main:</label>
+                                        <input type="text" name="main_role" value="{{ m.main_role or '' }}" class="form-control" style="padding: 6px; font-size: 0.85rem;">
+
+                                        <label style="font-size: 0.75rem; color: var(--text-muted);">Agente Favorito:</label>
+                                        <input type="text" name="favorite_agent" value="{{ m.favorite_agent or '' }}" class="form-control" style="padding: 6px; font-size: 0.85rem;">
+                                        
+                                        <label style="font-size: 0.75rem; color: var(--text-muted);">Estatus Roster:</label>
+                                        <select name="roster_status" class="form-control" style="padding: 6px; font-size: 0.85rem;">
+                                            <option value="Titular" {% if m.roster_status == 'Titular' %}selected{% endif %}>Titular</option>
+                                            <option value="Suplente" {% if m.roster_status == 'Suplente' %}selected{% endif %}>Suplente</option>
+                                            <option value="Reserva" {% if m.roster_status == 'Reserva' %}selected{% endif %}>Reserva</option>
+                                            <option value="Inactivo" {% if m.roster_status == 'Inactivo' %}selected{% endif %}>Inactivo</option>
+                                            <option value="Pendiente" {% if m.roster_status == 'Pendiente' %}selected{% endif %}>Pendiente</option>
+                                        </select>
+
+                                        <label style="font-size: 0.75rem; color: var(--text-muted);">Anotaciones:</label>
+                                        <textarea name="notes" class="form-control" style="padding: 6px; font-size: 0.85rem; height: 60px;">{{ m.notes or '' }}</textarea>
+
+                                        <button type="submit" class="btn-primary" style="padding: 8px; font-size: 0.85rem; margin-top: 5px;">💾 Guardar Cambios</button>
+                                    </form>
+
+                                    <form action="{{ url_for('delete_member') }}" method="POST" onsubmit="return confirm('¿Seguro que deseas eliminar este jugador de la división?');">
+                                        <input type="hidden" name="member_id" value="{{ m.id }}">
+                                        <input type="hidden" name="target_division" value="{{ division_name }}">
+                                        <button type="submit" style="width: 100%; background: transparent; border: 1px solid #ef4444; color: #f87171; padding: 6px; font-size: 0.8rem; border-radius: 4px; cursor: pointer;">🗑️ Eliminar Jugador</button>
+                                    </form>
+                                    {% endif %}
+
+                                    {% if is_super_admin %}
+                                    <div style="margin-top: 15px; border-top: 1px solid #333; padding-top: 15px;">
+                                        <span style="font-size: 0.75rem; color: #a5b4fc; font-weight: bold; display: block; margin-bottom: 6px;">PERMISOS DE SUPERADMIN:</span>
+                                        <form action="{{ url_for('update_role') }}" method="POST" style="display: grid; gap: 8px;">
                                             <input type="hidden" name="member_id" value="{{ m.id }}">
                                             <input type="hidden" name="target_division" value="{{ division_name }}">
 
-                                            <select name="role_type" class="form-control" style="padding: 4px; font-size: 0.8rem;" onchange="this.nextElementSibling.style.display = (this.value === 'admin') ? 'block' : 'none';">
+                                            <select name="role_type" class="form-control" style="padding: 6px; font-size: 0.85rem;" onchange="this.nextElementSibling.style.display = (this.value === 'admin') ? 'block' : 'none';">
                                                 <option value="player" {% if m.role == 'player' %}selected{% endif %}>Jugador Estándar</option>
                                                 <option value="admin" {% if m.role == 'admin' and m.admin_division != 'TODAS' %}selected{% endif %}>Admin de División</option>
                                                 <option value="superadmin" {% if m.role == 'admin' and m.admin_division == 'TODAS' %}selected{% endif %}>Super Administrador</option>
                                             </select>
 
-                                            <select name="assigned_admin_division" class="form-control" style="padding: 4px; font-size: 0.8rem; display: {% if m.role == 'admin' and m.admin_division != 'TODAS' %}block{% else %}none{% endif %};">
+                                            <select name="assigned_admin_division" class="form-control" style="padding: 6px; font-size: 0.85rem; display: {% if m.role == 'admin' and m.admin_division != 'TODAS' %}block{% else %}none{% endif %};">
                                                 {% for div in divisions %}
                                                     <option value="{{ div }}" {% if m.admin_division == div %}selected{% endif %}>{{ div }}</option>
                                                 {% endfor %}
                                             </select>
 
-                                            <button type="submit" class="btn-primary" style="padding: 5px; font-size: 0.75rem; background-color: #4f46e5; border-color: #6366f1;">Actualizar Rol</button>
+                                            <button type="submit" class="btn-primary" style="padding: 6px; font-size: 0.8rem; background-color: #4f46e5; border-color: #6366f1;">Actualizar Rol</button>
                                         </form>
-                                    </td>
-                                {% endif %}
-                            </tr>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
                         {% endfor %}
                     </tbody>
                 </table>
@@ -444,5 +475,23 @@
         </div>
 
     </div>
+
+    <!-- Script JavaScript para abrir y cerrar las ventanas flotantes de edición -->
+    <script>
+        function openEditModal(memberId) {
+            const modal = document.getElementById('modal-' + memberId);
+            if (modal) modal.style.display = 'flex';
+        }
+        function closeEditModal(memberId) {
+            const modal = document.getElementById('modal-' + memberId);
+            if (modal) modal.style.display = 'none';
+        }
+        // Cerrar modal al hacer clic fuera de la tarjeta
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal-overlay')) {
+                event.target.style.display = "none";
+            }
+        }
+    </script>
 </body>
 </html>
