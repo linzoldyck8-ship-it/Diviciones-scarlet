@@ -2,27 +2,162 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Scarlet Esports - Inicio</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Esports Roster & Stats</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <nav class="navbar navbar-dark mb-4">
-        <div class="container">
-            <a class="navbar-brand" href="#">🎮 Scarlet Esports Management</a>
+
+    <nav class="navbar">
+        <div class="brand">⚡ ESPORTS ROSTER</div>
+        <div>
+            {% if session.get('user_id') %}
+                <a href="{{ url_for('dashboard') }}" class="tab-btn active">Mi Panel</a>
+                <a href="{{ url_for('logout') }}" class="tab-btn">Cerrar Sesión</a>
+            {% else %}
+                <a href="#login" class="tab-btn">Iniciar Sesión</a>
+                <a href="#register" class="tab-btn active">Registrarse</a>
+            {% endif %}
         </div>
     </nav>
-    <div class="container text-center mt-5">
+
+    <div class="container">
+
+        <!-- Mensajes Flash -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
         <h2>Selecciona una División</h2>
-        <form action="/dashboard" method="GET" class="mt-4 col-md-4 mx-auto">
-            <select name="division" class="form-select mb-3">
-                <option value="valorant_a">Valorant A</option>
-                <option value="valorant_b">Valorant B</option>
-                <option value="overwatch">Overwatch</option>
-                <option value="cs">Counter-Strike</option>
-            </select>
-            <button type="submit" class="btn btn-danger w-100">Ingresar al Panel</button>
-        </form>
+        <div class="division-tabs">
+            {% for div in divisions %}
+                <a href="{{ url_for('index', division=div) }}" 
+                   class="tab-btn {% if selected_division == div %}active{% endif %}">
+                    {{ div }}
+                </a>
+            {% endfor %}
+        </div>
+
+        <h3>Roster Actual: <span style="color: var(--primary);">{{ selected_division }}</span></h3>
+
+        <div class="grid-roster">
+            {% if players %}
+                {% for player in players %}
+                    <div class="player-card">
+                        <span class="badge badge-{{ player.roster_status|lower }}">{{ player.roster_status }}</span>
+                        <h4 style="margin: 10px 0 5px 0;">{{ player.game_ign }}</h4>
+                        <p style="margin: 0; color: var(--text-muted); font-size: 0.9rem;">Nombre: {{ player.full_name }}</p>
+                        <p style="margin: 5px 0; color: #818cf8; font-size: 0.9rem;">Discord: {{ player.discord_tag }}</p>
+                        
+                        <div style="margin: 12px 0; font-size: 0.85rem;">
+                            <strong>Rol:</strong> {{ player.main_role or 'N/A' }} | 
+                            <strong>Main:</strong> {{ player.favorite_agent or 'N/A' }}
+                        </div>
+
+                        <div>
+                            <small>Asistencia: {{ player.attendance }}%</small>
+                            <div class="attendance-bar-bg">
+                                <div class="attendance-bar-fill" style="width: {{ player.attendance }}%;"></div>
+                            </div>
+                        </div>
+
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 10px;">
+                            <em>Nota: {{ player.notes }}</em>
+                        </p>
+
+                        {% if player.tracker_url and player.tracker_url != '#' %}
+                            <a href="{{ player.tracker_url }}" target="_blank" class="tab-btn" style="display:block; text-align:center; margin-top:10px;">Ver Tracker GG</a>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>No hay jugadores registrados en esta división aún.</p>
+            {% endif %}
+        </div>
+
+        <hr style="margin: 40px 0; border-color: var(--border-color);">
+
+        <!-- Sección Registro e Inicio de Sesión -->
+        {% if not session.get('user_id') %}
+        <div style="display: flex; flex-wrap: wrap; gap: 30px;">
+            <div class="form-card" id="register" style="flex: 1; min-width: 300px;">
+                <h3>Registro de Jugador</h3>
+                <form action="{{ url_for('register') }}" method="POST">
+                    <div class="form-group">
+                        <label>Nombre Real</label>
+                        <input type="text" name="full_name" class="form-control" required placeholder="Ej: Juan Pérez">
+                    </div>
+                    <div class="form-group">
+                        <label>Correo Electrónico</label>
+                        <input type="email" name="email" class="form-control" required placeholder="correo@ejemplo.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Contraseña</label>
+                        <input type="password" name="password" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Discord Tag</label>
+                        <input type="text" name="discord_tag" class="form-control" required placeholder="ejemplo#1234 o usuario">
+                    </div>
+                    <div class="form-group">
+                        <label>División</label>
+                        <select name="division" class="form-control">
+                            {% for div in divisions %}
+                                <option value="{{ div }}">{{ div }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>IGN / Nickname en Juego</label>
+                        <input type="text" name="game_ign" class="form-control" required placeholder="Ej: Player#LAN">
+                    </div>
+                    <div class="form-group">
+                        <label>Rol Principal</label>
+                        <input type="text" name="main_role" class="form-control" placeholder="Ej: Duelista / Tank / Entry">
+                    </div>
+                    <div class="form-group">
+                        <label>Personaje / Agente Favorito</label>
+                        <input type="text" name="favorite_agent" class="form-control" placeholder="Ej: Jett / Reinhardt">
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" name="is_admin"> ¿Es Administrador de División?
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>División a Administrar (si aplica)</label>
+                        <select name="admin_division" class="form-control">
+                            <option value="TODAS">TODAS LAS DIVISIONES</option>
+                            {% for div in divisions %}
+                                <option value="{{ div }}">{{ div }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn">Registrarse</button>
+                </form>
+            </div>
+
+            <div class="form-card" id="login" style="flex: 1; min-width: 300px;">
+                <h3>Iniciar Sesión</h3>
+                <form action="{{ url_for('login') }}" method="POST">
+                    <div class="form-group">
+                        <label>Correo Electrónico</label>
+                        <input type="email" name="email" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Contraseña</label>
+                        <input type="password" name="password" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn">Ingresar</button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
     </div>
 </body>
 </html>
