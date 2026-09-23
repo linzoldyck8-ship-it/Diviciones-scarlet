@@ -80,10 +80,6 @@ def register():
     main_role = request.form.get("main_role", "").strip()
     favorite_agent = request.form.get("favorite_agent", "").strip()
 
-    if not email or not password:
-        flash("El correo y la contraseña son obligatorios.", "danger")
-        return redirect(url_for("index"))
-
     password_hash = generate_password_hash(password)
     tracker_url = build_tracker_url(division, game_ign)
 
@@ -121,26 +117,20 @@ def login():
     email = request.form.get("email", "").strip().lower()
     password = request.form.get("password")
 
-    if not email or not password:
-        flash("Por favor ingresa correo y contraseña.", "danger")
-        return redirect(url_for("index"))
-
     try:
         res = supabase.table("profiles").select("*").eq("email", email).execute()
-        users = res.data if res and hasattr(res, 'data') else []
+        users = res.data
 
         if users and len(users) > 0:
             user = users[0]
-            stored_hash = user.get("password_hash")
-            
-            if stored_hash and check_password_hash(stored_hash, password):
+            if check_password_hash(user["password_hash"], password):
                 session["user_id"] = user["id"]
-                session["user_name"] = user.get("full_name", "Usuario")
+                session["user_name"] = user["full_name"]
                 session["role"] = user.get("role", "player")
-                session["division"] = user.get("division", DIVISIONS[0])
+                session["division"] = user.get("division")
                 session["admin_division"] = user.get("admin_division")
                 
-                flash(f"Sesión iniciada correctamente. Bienvenido {user.get('full_name', '')}.", "success")
+                flash(f"Sesión iniciada correctamente. Bienvenido {user['full_name']}.", "success")
                 
                 if session["role"] == "admin":
                     target_div = session.get("admin_division", DIVISIONS[0])
@@ -187,6 +177,7 @@ def division_dashboard(division_name):
             flash(f"ACCESO RESTRINGIDO: Perteneces a la división '{user_division}'.", "warning")
             return redirect(url_for("division_dashboard", division_name=user_division))
 
+    # Configuración del mes y año seleccionados
     now = datetime.now()
     selected_year = request.args.get("year", now.year, type=int)
     selected_month = request.args.get("month", now.month, type=int)
@@ -196,11 +187,12 @@ def division_dashboard(division_name):
 
     try:
         res = supabase.table("profiles").select("*").eq("division", division_name).execute()
-        members = res.data if res and res.data else []
+        members = res.data if res.data else []
     except Exception as e:
         members = []
         flash(f"Error al cargar datos: {str(e)}", "danger")
 
+    # Cargar matriz de asistencia para el mes seleccionado
     start_date = f"{selected_year:04d}-{selected_month:02d}-01"
     end_date = f"{selected_year:04d}-{selected_month:02d}-{num_days:02d}"
 
@@ -221,6 +213,7 @@ def division_dashboard(division_name):
     except Exception as e:
         print("Aviso: No se pudieron obtener los registros de asistencia:", e)
 
+    # Procesar métricas por jugador
     for m in members:
         p_id = str(m["id"])
         m_logs = attendance_data.get(p_id, {})
@@ -264,10 +257,11 @@ def division_dashboard(division_name):
         days_list=days_list
     )
 
+# GUARDAR MATRIZ COMPLETA DE ASISTENCIA (SOLO ADMINS)
 @app.route("/admin/save-attendance-matrix", methods=["POST"])
 def save_attendance_matrix():
     if "user_id" not in session or session.get("role") != "admin":
-        flash("Acción denegada.", "danger")
+        flash("Acción denegada: Solo los administradores pueden modificar la asistencia.", "danger")
         return redirect(url_for("index"))
 
     target_division = request.form.get("target_division")
@@ -296,16 +290,16 @@ def save_attendance_matrix():
     try:
         if upsert_records:
             supabase.table("attendance_logs").upsert(upsert_records, on_conflict="profile_id,date").execute()
-        flash("Asistencia guardada correctamente.", "success")
+        flash("Registro de asistencia guardado correctamente.", "success")
     except Exception as e:
-        flash(f"Error al guardar: {str(e)}", "danger")
+        flash(f"Error al guardar la asistencia: {str(e)}", "danger")
 
     return redirect(url_for("division_dashboard", division_name=target_division, year=year, month=month))
 
 @app.route("/admin/update-member", methods=["POST"])
 def update_member():
     if "user_id" not in session or session.get("role") != "admin":
-        flash("Acción denegada.", "danger")
+        flash("Acción denegada: Solo los administradores pueden modificar información.", "danger")
         return redirect(url_for("index"))
 
     member_id = request.form.get("member_id")
@@ -325,9 +319,9 @@ def update_member():
 
     try:
         supabase.table("profiles").update(update_payload).eq("id", member_id).execute()
-        flash("Jugador actualizado.", "success")
+        flash("Ficha del jugador actualizada correctamente.", "success")
     except Exception as e:
-        flash(f"Error al actualizar: {str(e)}", "danger")
+        flash(f"Error al actualizar la ficha: {str(e)}", "danger")
 
     return redirect(url_for("division_dashboard", division_name=target_division))
 
@@ -346,7 +340,7 @@ def update_role():
         admin_div_val = None
     elif new_role_type == "admin":
         role_val = "admin"
-        admin_div_val = target_division
+        admin_div_val = request.form.get("assigned_admin_division")
     elif new_role_type == "superadmin":
         role_val = "admin"
         admin_div_val = "TODAS"
@@ -361,7 +355,7 @@ def update_role():
 
     try:
         supabase.table("profiles").update(update_payload).eq("id", member_id).execute()
-        flash("Permisos / Rango actualizado correctamente.", "success")
+        flash("Permisos actualizados correctamente.", "success")
     except Exception as e:
         flash(f"Error al actualizar permisos: {str(e)}", "danger")
 
@@ -369,8 +363,8 @@ def update_role():
 
 @app.route("/admin/delete-member", methods=["POST"])
 def delete_member():
-    if "user_id" not in session or session.get("role") != "admin" or session.get("admin_division") != "TODAS":
-        flash("Acción denegada: Solo el Super Administrador puede eliminar integrantes.", "danger")
+    if "user_id" not in session or session.get("role") != "admin":
+        flash("Acción denegada.", "danger")
         return redirect(url_for("index"))
 
     member_id = request.form.get("member_id")
@@ -378,7 +372,7 @@ def delete_member():
 
     try:
         supabase.table("profiles").delete().eq("id", member_id).execute()
-        flash("Integrante eliminado permanentemente.", "info")
+        flash("Integrante eliminado de la división.", "info")
     except Exception as e:
         flash(f"Error al eliminar: {str(e)}", "danger")
 
