@@ -1,77 +1,119 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for
-from supabase import create_client, Client
+from flask import Flask, render_template, request, redirect, url_for, flash
+from sqlalchemy import create_engine, text
+from supabase import create_client
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", "clave-secreta-esports-123")
+app.secret_key = "scarlet_super_secret_key"  # Requerido para usar flash()
 
-# Credenciales de Supabase desde las variables de entorno de Render
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
+# ---------------------------------------------------------
+# VARIABLES DE ENTORNO (Render / Supabase)
+# ---------------------------------------------------------
+DB_URL = os.getenv("DATABASE_URL", "")
+if DB_URL.startswith("postgres://"):
+    DB_URL = DB_URL.replace("postgres://", "postgresql://", 1)
 
-# Inicializar cliente de Supabase
-supabase: Client = None
-if SUPABASE_URL and SUPABASE_KEY:
-    try:
-        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-    except Exception as e:
-        print(f"Error al conectar con Supabase: {e}")
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 
+# ---------------------------------------------------------
+# CONEXIONES
+# ---------------------------------------------------------
+# SQLAlchemy Engine
+engine = create_engine(DB_URL, pool_pre_ping=True) if DB_URL else None
+
+# Supabase Storage Client
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
+
+def init_db_schema(table_name: str):
+    """Crea la tabla de la división si no existe."""
+    if not engine: return
+    schema_sql = f"""
+    CREATE TABLE IF NOT EXISTS {table_name} (
+        id SERIAL PRIMARY KEY,
+        nickname VARCHAR(100) NOT NULL,
+        rol VARCHAR(50),
+        rango VARCHAR(50),
+        estado VARCHAR(50) DEFAULT 'Titular'
+    );
+    """
+    with engine.begin() as conn:
+        conn.execute(text(schema_sql))
+
+# ---------------------------------------------------------
+# RUTAS DE NAVEGACIÓN
+# ---------------------------------------------------------
 @app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/dashboard')
 def dashboard():
-    jugadores = []
-    if supabase:
-        try:
-            # Obtener todos los jugadores de Supabase ordenados por fecha
-            response = supabase.table('jugadores').select('*').order('created_at', desc=True).execute()
-            jugadores = response.data
-        except Exception as e:
-            print(f"Error al obtener jugadores: {e}")
-
-    return render_template('dashboard.html', jugadores=jugadores)
-
-@app.route('/registro', methods=['POST'])
-def registrar_jugador():
-    if not supabase:
-        return "Error: Supabase no está configurado correctamente en las variables de entorno.", 500
-
-    # Obtener los datos enviados desde el HTML
-    nick = request.form.get('nick')
-    nombre_real = request.form.get('nombre_real')
-    juego = request.form.get('juego')
-    rol_principal = request.form.get('rol_principal')
-    rol_secundario = request.form.get('rol_secundario')
-    personaje = request.form.get('personaje')
-    rango = request.form.get('rango')
+    division_slug = request.args.get('division', 'valorant_a')
+    table_name = f"roster_{division_slug}"
     
-    # Formatear el contacto
-    tipo_contacto = request.form.get('tipo_contacto')
-    contacto_valor = request.form.get('contacto_valor')
-    contacto_completo = f"{tipo_contacto}: {contacto_valor}" if tipo_contacto and contacto_valor else ""
+    init_db_schema(table_name)
+    
+    # Obtener el roster actual
+    roster_data = []
+    if engine:
+        with engine.connect() as conn:
+            result = conn.execute(text(f"SELECT * FROM {table_name} ORDER BY id ASC"))
+            roster_data = [row._asdict() for row in result]
+            
+    division_name = division_slug.replace('_', ' ').title()
+    return render_template('dashboard.html', 
+                           division_name=division_name, 
+                           division_slug=division_slug, 
+                           roster=roster_data)
 
-    notas = request.form.get('notas', '')
+# ---------------------------------------------------------
+# RUTAS DE ACCIÓN (POST)
+# ---------------------------------------------------------
+@app.route('/add_player', methods=['POST'])
+def add_player():
+    division_slug = request.form.get('division')
+    nickname = request.form.get('nickname')
+    rol = request.form.get('rol')
+    rango = request.form.get('rango')
+    table_name = f"roster_{division_slug}"
+    
+    if engine and nickname:
+        with engine.begin() as conn:
+            query = text(f"""
+                INSERT INTO {table_name} (nickname, rol, rango, estado) 
+                VALUES (:nick, :rol, :rango, 'Titular')
+            """)
+            conn.execute(query, {"nick": nickname, "rol": rol, "rango": rango})
+        flash(f"Jugador {nickname} agregado exitosamente.", "success")
+        
+    return redirect(url_for('dashboard', division=division_slug))
 
-    datos = {
-        "nick": nick,
-        "nombre_real": nombre_real,
-        "juego": juego,
-        "rol_principal": rol_principal,
-        "rol_secundario": rol_secundario,
-        "personaje": personaje,
-        "rango": rango,
-        "contacto": contacto_completo,
-        "cargo": "Jugador",
-        "estado": "Activo",
-        "actividad": "Al día",
-        "notas": notas
-    }
-
-    try:
-        supabase.table('jugadores').insert(datos).execute()
-    except Exception as e:
-        print(f"Error insertando datos: {e}")
-
-    return redirect(url_for('dashboard'))
+@app.route('/upload_evidence', methods=['POST'])
+def upload_evidence():
+    division_slug = request.form.get('division')
+    file = request.files.get('file')
+    
+    if file and file.filename != '' and supabase:
+        try:
+            bucket_name = "capturas"
+            file_path = f"evidencias/{division_slug}/{file.filename}"
+            file_bytes = file.read()
+            
+            # Subir a Supabase Storage
+            supabase.storage.from_(bucket_name).upload(
+                path=file_path,
+                file=file_bytes,
+                file_options={"content-type": file.content_type, "upsert": "true"}
+            )
+            flash("Captura subida exitosamente a Supabase Storage.", "success")
+        except Exception as e:
+            flash(f"Error al subir: {str(e)}", "danger")
+    else:
+        flash("No se seleccionó archivo o faltan credenciales de Supabase.", "warning")
+        
+    return redirect(url_for('dashboard', division=division_slug))
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Ejecución local en desarrollo
+    app.run(debug=True, port=5000)
