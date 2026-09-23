@@ -6,11 +6,19 @@ from supabase import create_client, Client
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "executive_esports_key_2026_secret")
 
-# Variables de entorno en Render
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://tu-proyecto.supabase.co")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "tu-anon-key-de-supabase")
+# Clave secreta requerida para crear cuentas de Administrador
+ADMIN_SECRET_KEY = os.environ.get("ADMIN_SECRET_KEY", "ADMIN1234")
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# Variables de entorno Supabase
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+
+supabase: Client = None
+if SUPABASE_URL and SUPABASE_KEY:
+    try:
+        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+    except Exception as e:
+        print(f"Error al inicializar cliente de Supabase: {e}")
 
 DIVISIONS = [
     "Valorant A",
@@ -44,7 +52,6 @@ def build_tracker_url(division, ign):
 @app.route("/")
 def index():
     if "user_id" in session:
-        # Redireccionar al departamento autorizado según rol
         if session.get("role") == "admin":
             target_div = session.get("admin_division", DIVISIONS[0])
             if target_div == "TODAS" or not target_div:
@@ -67,9 +74,15 @@ def register():
     favorite_agent = request.form.get("favorite_agent", "").strip()
     
     account_type = request.form.get("account_type", "player")
+    admin_key_input = request.form.get("admin_key", "").strip()
     admin_division = request.form.get("admin_division") if account_type == "admin" else None
 
-    # Hashing seguro de contraseña
+    # VALIDACIÓN DE SEGURIDAD MÁXIMA PARA MODO ADMINISTRADOR
+    if account_type == "admin":
+        if admin_key_input != ADMIN_SECRET_KEY:
+            flash("ACCESO DENEGADO: La Clave Maestra de Administrador es incorrecta. Tu cuenta no ha sido creada.", "danger")
+            return redirect(url_for("index"))
+
     password_hash = generate_password_hash(password)
     tracker_url = build_tracker_url(division, game_ign)
 
@@ -84,7 +97,7 @@ def register():
         "favorite_agent": favorite_agent,
         "roster_status": "Pendiente",
         "attendance": 100,
-        "notes": "Registro corporativo completado.",
+        "notes": "Registro completado.",
         "tracker_url": tracker_url,
         "role": account_type,
         "admin_division": admin_division
@@ -92,7 +105,10 @@ def register():
 
     try:
         supabase.table("profiles").insert(data).execute()
-        flash("Solicitud de acceso enviada correctamente. Proceda a iniciar sesión.", "success")
+        if account_type == "admin":
+            flash("Cuenta de ADMINISTRADOR creada con éxito. Inicie sesión.", "success")
+        else:
+            flash("Registro exitoso. Procede a iniciar sesión.", "success")
     except Exception as e:
         flash(f"Error al registrar cuenta: {str(e)}", "danger")
 
@@ -116,60 +132,57 @@ def login():
                 session["division"] = user.get("division")
                 session["admin_division"] = user.get("admin_division")
                 
-                flash(f"Bienvenido de nuevo, {user['full_name']}.", "success")
+                flash(f"Sesión iniciada correctamente. Bienvenido {user['full_name']}.", "success")
                 
                 if session["role"] == "admin":
                     target_div = session.get("admin_division", DIVISIONS[0])
-                    if target_div == "TODAS":
+                    if target_div == "TODAS" or not target_div:
                         target_div = DIVISIONS[0]
                     return redirect(url_for("division_dashboard", division_name=target_div))
                 else:
                     return redirect(url_for("division_dashboard", division_name=session["division"]))
             else:
-                flash("Credenciales no válidas. Contraseña incorrecta.", "danger")
+                flash("Contraseña incorrecta.", "danger")
         else:
-            flash("No existe un perfil registrado con este correo.", "danger")
+            flash("El correo no se encuentra registrado.", "danger")
     except Exception as e:
-        flash(f"Error al procesar la autenticación: {str(e)}", "danger")
+        flash(f"Error al autenticar: {str(e)}", "danger")
 
     return redirect(url_for("index"))
 
 @app.route("/logout")
 def logout():
     session.clear()
-    flash("Sesión corporativa cerrada exitosamente.", "info")
+    flash("Sesión cerrada.", "info")
     return redirect(url_for("index"))
 
-# DASHBOARD POR DEPARTAMENTO / DIVISIÓN CON CONTROL RIGUROSO
 @app.route("/division/<path:division_name>")
 def division_dashboard(division_name):
     if "user_id" not in session:
-        flash("Acceso restringido. Por favor inicie sesión.", "danger")
+        flash("Debe iniciar sesión para ver los registros.", "danger")
         return redirect(url_for("index"))
 
     user_role = session.get("role", "player")
     user_division = session.get("division")
     admin_division = session.get("admin_division")
 
-    # CONTROL ESTRICTO DE ACCESO POR DIVISIÓN
+    # CONTROL ESTRICTO DE ACCESO
     if user_role == "admin":
         if admin_division != "TODAS" and admin_division != division_name:
-            flash(f"ACCESO RESTRINGIDO: Su cuenta de Administrador está asignada exclusivamente a '{admin_division}'.", "danger")
+            flash(f"RESTRICCIÓN DE ADMIN: Tu cuenta está asignada a la división '{admin_division}'.", "warning")
             return redirect(url_for("division_dashboard", division_name=admin_division))
     else:
         if user_division != division_name:
-            flash(f"ACCESO NO AUTORIZADO: Su perfil pertenece al departamento '{user_division}'.", "warning")
+            flash(f"ACCESO RESTRINGIDO: Perteneces a la división '{user_division}'.", "warning")
             return redirect(url_for("division_dashboard", division_name=user_division))
 
-    # Cargar miembros de la división activa
     try:
         res = supabase.table("profiles").select("*").eq("division", division_name).execute()
         members = res.data if res.data else []
     except Exception as e:
         members = []
-        flash(f"Error al cargar registros del departamento: {str(e)}", "danger")
+        flash(f"Error al cargar datos: {str(e)}", "danger")
 
-    # Métricas del Departamento
     total_members = len(members)
     active_titulares = sum(1 for m in members if m.get("roster_status") == "Titular")
     avg_attendance = round(sum(float(m.get("attendance", 100)) for m in members) / total_members, 1) if total_members > 0 else 100.0
@@ -185,20 +198,16 @@ def division_dashboard(division_name):
         is_current_admin=(user_role == "admin" and (admin_division == division_name or admin_division == "TODAS"))
     )
 
+# ACCIÓN DE ADMINISTRADOR: ACTUALIZAR JUGADOR
 @app.route("/admin/update-member", methods=["POST"])
 def update_member():
     if "user_id" not in session or session.get("role") != "admin":
-        flash("Acción no autorizada.", "danger")
+        flash("Acción denegada. Permisos insuficientes.", "danger")
         return redirect(url_for("index"))
 
     member_id = request.form.get("member_id")
     target_division = request.form.get("target_division")
-    admin_division = session.get("admin_division")
-
-    if admin_division != "TODAS" and admin_division != target_division:
-        flash("ACCESO RESTRINGIDO: No tiene permisos de edición sobre esta división.", "danger")
-        return redirect(url_for("division_dashboard", division_name=admin_division))
-
+    
     roster_status = request.form.get("roster_status")
     attendance = float(request.form.get("attendance", 100))
     notes = request.form.get("notes")
@@ -211,9 +220,27 @@ def update_member():
 
     try:
         supabase.table("profiles").update(update_payload).eq("id", member_id).execute()
-        flash("Ficha del integrante actualizada con éxito.", "success")
+        flash("Jugador actualizado correctamente.", "success")
     except Exception as e:
-        flash(f"Error al guardar los cambios: {str(e)}", "danger")
+        flash(f"Error al actualizar: {str(e)}", "danger")
+
+    return redirect(url_for("division_dashboard", division_name=target_division))
+
+# ACCIÓN DE ADMINISTRADOR: ELIMINAR JUGADOR
+@app.route("/admin/delete-member", methods=["POST"])
+def delete_member():
+    if "user_id" not in session or session.get("role") != "admin":
+        flash("Acción denegada.", "danger")
+        return redirect(url_for("index"))
+
+    member_id = request.form.get("member_id")
+    target_division = request.form.get("target_division")
+
+    try:
+        supabase.table("profiles").delete().eq("id", member_id).execute()
+        flash("Integrante eliminado de la división.", "info")
+    except Exception as e:
+        flash(f"Error al eliminar: {str(e)}", "danger")
 
     return redirect(url_for("division_dashboard", division_name=target_division))
 
