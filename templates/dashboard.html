@@ -1,107 +1,138 @@
-<!-- SECCIÓN 1: MATRIZ DE ASISTENCIA (SIN SCROLL HORIZONTAL Y ESTILO ESCARLATA) -->
-<div class="corporate-card" style="margin-bottom: 30px; background: #121212; border: 1px solid #2a2a2a; padding: 20px; border-radius: 8px;">
-    
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 10px;">
-        <h3 style="margin:0; color: #fff; border-left: 4px solid var(--scarlet-primary); padding-left: 10px;">Matriz Mensual de Asistencia</h3>
-        
-        <!-- Selector de Mes y Año -->
-        <form method="GET" action="{{ url_for('division_dashboard', division_name=division_name) }}" style="display: flex; gap: 10px; align-items: center;">
-            <select name="month" class="form-control" style="padding: 5px 10px; font-size: 0.85rem; background: #18181b; color: #fff; border: 1px solid #3f3f46; border-radius: 4px;" onchange="this.form.submit()">
-                {% for num, name in month_names.items() %}
-                    <option value="{{ num }}" {% if num == selected_month %}selected{% endif %}>{{ name }}</option>
-                {% endfor %}
-            </select>
-            <select name="year" class="form-control" style="padding: 5px 10px; font-size: 0.85rem; background: #18181b; color: #fff; border: 1px solid #3f3f46; border-radius: 4px;" onchange="this.form.submit()">
-                <option value="2026" {% if selected_year == 2026 %}selected{% endif %}>2026</option>
-                <option value="2027" {% if selected_year == 2027 %}selected{% endif %}>2027</option>
-            </select>
-        </form>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración - Esports</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body style="background-color: #0a0a0a; color: #ffffff; padding: 20px;">
+
+<div style="max-width: 1400px; margin: 0 auto;">
+
+    <!-- BARRA SUPERIOR / NAVEGACIÓN -->
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: #121212; border: 1px solid #2a2a2a; border-radius: 8px; margin-bottom: 25px;">
+        <h2 style="margin: 0; font-size: 1.4rem; letter-spacing: 1px; color: #fff;">
+            PANEL DE ADMINISTRACIÓN — <span style="color: var(--scarlet-light);">{{ division_name if division_name else 'GENERAL' }}</span>
+        </h2>
+        <div>
+            {% if session.get('user_id') %}
+                <a href="{{ url_for('logout') }}" class="btn-scarlet" style="text-decoration: none;">Cerrar Sesión</a>
+            {% endif %}
+        </div>
     </div>
 
-    {% if is_current_admin %}
-        <form action="{{ url_for('save_attendance_matrix') }}" method="POST">
-            <input type="hidden" name="target_division" value="{{ division_name }}">
-            <input type="hidden" name="year" value="{{ selected_year }}">
-            <input type="hidden" name="month" value="{{ selected_month }}">
-    {% endif %}
-
-    <div class="excel-table-container">
-        <div class="excel-header-title">
-            REGISTRO DE ASISTENCIA – {{ selected_month_name|upper }} {{ selected_year }}
-        </div>
-        <div class="excel-legend-bar">
-            <strong>Códigos:</strong> 
-            <span style="color:#10b981; margin-left: 10px; font-weight:bold;">P = Presente</span> | 
-            <span style="color:#ef4444; margin-left: 10px; font-weight:bold;">A = Ausencia</span> | 
-            <span style="color:#f59e0b; margin-left: 10px; font-weight:bold;">J = Justificado</span> | 
-            <span style="color:#3b82f6; margin-left: 10px; font-weight:bold;">T = Tardanza (80%)</span>
-        </div>
-
-        <table class="excel-table">
-            <thead>
-                <tr>
-                    <th class="sticky-col">Integrante</th>
-                    {% for day in days_list %}
-                        <th style="font-size: 0.75rem;">{{ day }}</th>
+    <!-- SECCIÓN DE LA MATRIZ DE ASISTENCIA -->
+    <div style="background: #121212; border: 1px solid #2a2a2a; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 15px;">
+            <h3 style="margin:0; color: #fff; border-left: 4px solid var(--scarlet-primary); padding-left: 10px; font-size: 1.2rem;">
+                Matriz Mensual de Asistencia
+            </h3>
+            
+            <!-- Selector de Mes y Año -->
+            <form method="GET" action="{{ url_for('division_dashboard', division_name=division_name) if division_name else '#' }}" style="display: flex; gap: 10px; align-items: center;">
+                <select name="month" class="form-control" style="padding: 6px 12px; font-size: 0.85rem; background: #18181b; color: #fff; border: 1px solid #3f3f46; border-radius: 4px;" onchange="this.form.submit()">
+                    {% for num, name in month_names.items() %}
+                        <option value="{{ num }}" {% if num == selected_month %}selected{% endif %}>{{ name }}</option>
                     {% endfor %}
-                    <th style="width: 5%; background-color: #27272a; font-size: 0.7rem;">Días</th>
-                    <th style="width: 6%; background-color: #40000d; color: #ff809b; font-size: 0.7rem;">% Asist</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% if members %}
-                    {% for m in members %}
-                        <tr>
-                            <td class="sticky-col" title="{{ m.game_ign }} ({{ m.full_name }})">
-                                {{ m.game_ign }}
-                            </td>
-                            
-                            {% for day in days_list %}
-                                {% set current_status = m.daily_status.get(day, '') %}
-                                <td>
-                                    {% if is_current_admin %}
-                                        <select name="att_{{ m.id }}_{{ day }}" class="att-select">
-                                            <option value="" {% if current_status == '' %}selected{% endif %}>-</option>
-                                            <option value="P" {% if current_status == 'P' %}selected{% endif %}>P</option>
-                                            <option value="A" {% if current_status == 'A' %}selected{% endif %}>A</option>
-                                            <option value="J" {% if current_status == 'J' %}selected{% endif %}>J</option>
-                                            <option value="T" {% if current_status == 'T' %}selected{% endif %}>T</option>
-                                        </select>
-                                    {% else %}
-                                        {% if current_status %}
-                                            <span class="att-badge att-badge-{{ current_status }}">{{ current_status }}</span>
-                                        {% else %}
-                                            <span class="att-badge-empty">-</span>
-                                        {% endif %}
-                                    {% endif %}
-                                </td>
-                            {% endfor %}
+                </select>
+                <select name="year" class="form-control" style="padding: 6px 12px; font-size: 0.85rem; background: #18181b; color: #fff; border: 1px solid #3f3f46; border-radius: 4px;" onchange="this.form.submit()">
+                    <option value="2026" {% if selected_year == 2026 %}selected{% endif %}>2026</option>
+                    <option value="2027" {% if selected_year == 2027 %}selected{% endif %}>2027</option>
+                </select>
+            </form>
+        </div>
 
-                            <td style="font-weight: bold; background-color: rgba(39, 39, 42, 0.4); color: #a1a1aa;">
-                                {{ m.total_eval_days }}
-                            </td>
-                            <td style="font-weight: bold; background-color: rgba(64, 0, 13, 0.3); {% if m.monthly_attendance_pct < 80 %}color: #ef4444;{% else %}color: #10b981;{% endif %}">
-                                {{ m.monthly_attendance_pct }}%
+        {% if is_current_admin or session.get('role') in ['admin', 'superadmin'] %}
+            <form action="{{ url_for('save_attendance_matrix') }}" method="POST">
+                <input type="hidden" name="target_division" value="{{ division_name }}">
+                <input type="hidden" name="year" value="{{ selected_year }}">
+                <input type="hidden" name="month" value="{{ selected_month }}">
+        {% endif %}
+
+        <div class="excel-table-container">
+            <div class="excel-header-title">
+                REGISTRO DE ASISTENCIA – {{ selected_month_name|upper if selected_month_name else 'SEPTIEMBRE' }} {{ selected_year if selected_year else '2026' }}
+            </div>
+            <div class="excel-legend-bar">
+                <strong>Códigos:</strong> 
+                <span style="color:#10b981; margin-left: 10px; font-weight:bold;">P = Presente</span> | 
+                <span style="color:#ef4444; margin-left: 10px; font-weight:bold;">A = Ausencia</span> | 
+                <span style="color:#f59e0b; margin-left: 10px; font-weight:bold;">J = Justificado</span> | 
+                <span style="color:#3b82f6; margin-left: 10px; font-weight:bold;">T = Tardanza (80%)</span>
+            </div>
+
+            <table class="excel-table">
+                <thead>
+                    <tr>
+                        <th class="sticky-col">Integrante</th>
+                        {% for day in days_list %}
+                            <th>{{ day }}</th>
+                        {% endfor %}
+                        <th style="width: 4%; background-color: #27272a; font-size: 0.7rem;">Días</th>
+                        <th style="width: 5%; background-color: #40000d; color: #ff809b; font-size: 0.7rem;">% Asist</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if members %}
+                        {% for m in members %}
+                            <tr>
+                                <td class="sticky-col" title="{{ m.game_ign }} ({{ m.full_name }})">
+                                    {{ m.game_ign }}
+                                </td>
+                                
+                                {% for day in days_list %}
+                                    {% set current_status = m.daily_status.get(day, '') if m.daily_status else '' %}
+                                    <td>
+                                        {% if is_current_admin or session.get('role') in ['admin', 'superadmin'] %}
+                                            <select name="att_{{ m.id }}_{{ day }}" class="att-select">
+                                                <option value="" {% if current_status == '' %}selected{% endif %}>-</option>
+                                                <option value="P" {% if current_status == 'P' %}selected{% endif %}>P</option>
+                                                <option value="A" {% if current_status == 'A' %}selected{% endif %}>A</option>
+                                                <option value="J" {% if current_status == 'J' %}selected{% endif %}>J</option>
+                                                <option value="T" {% if current_status == 'T' %}selected{% endif %}>T</option>
+                                            </select>
+                                        {% else %}
+                                            {% if current_status %}
+                                                <span class="att-badge att-badge-{{ current_status }}">{{ current_status }}</span>
+                                            {% else %}
+                                                <span class="att-badge-empty">-</span>
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+
+                                <td style="font-weight: bold; background-color: rgba(39, 39, 42, 0.4); color: #a1a1aa;">
+                                    {{ m.total_eval_days if m.total_eval_days else 0 }}
+                                </td>
+                                <td style="font-weight: bold; background-color: rgba(64, 0, 13, 0.3); {% if m.monthly_attendance_pct and m.monthly_attendance_pct < 80 %}color: #ef4444;{% else %}color: #10b981;{% endif %}">
+                                    {{ m.monthly_attendance_pct if m.monthly_attendance_pct is not none else 100 }}%
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="{{ (days_list|length if days_list else 30) + 3 }}" style="padding: 20px; color: var(--text-muted); text-align: center;">
+                                No hay integrantes registrados en esta sección.
                             </td>
                         </tr>
-                    {% endfor %}
-                {% else %}
-                    <tr>
-                        <td colspan="{{ days_list|length + 3 }}" style="padding: 20px; color: var(--text-muted);">
-                            No hay jugadores registrados en esta división.
-                        </td>
-                    </tr>
-                {% endif %}
-            </tbody>
-        </table>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if is_current_admin or session.get('role') in ['admin', 'superadmin'] %}
+                <div style="margin-top: 15px; text-align: right;">
+                    <button type="submit" class="btn-scarlet">
+                        💾 Guardar Asistencia del Mes
+                    </button>
+                </div>
+            </form>
+        {% endif %}
     </div>
 
-    {% if is_current_admin %}
-            <div style="margin-top: 15px; text-align: right;">
-                <button type="submit" class="btn-scarlet">
-                    💾 Guardar Asistencia del Mes
-                </button>
-            </div>
-        </form>
-    {% endif %}
 </div>
+
+</body>
+</html>
