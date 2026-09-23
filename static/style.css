@@ -17,10 +17,114 @@ body {
     padding: 0;
 }
 
-/* Rediseño de la Matriz de Asistencia */
+/* --- ESTILOS DE LOGIN Y REGISTRO --- */
+.login-container {
+    max-width: 1100px;
+    margin: 40px auto;
+    padding: 20px;
+}
+
+.portal-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.portal-title {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #ffffff;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    border-bottom: 2px solid var(--scarlet-primary);
+    display: inline-block;
+    padding-bottom: 8px;
+}
+
+.auth-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 30px;
+    align-items: start;
+}
+
+@media (max-width: 768px) {
+    .auth-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.auth-card {
+    background: #121212;
+    border: 1px solid var(--border-color);
+    border-top: 4px solid var(--scarlet-primary);
+    border-radius: 8px;
+    padding: 30px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+}
+
+.auth-card h2 {
+    color: #ffffff;
+    font-size: 1.3rem;
+    margin-top: 0;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.form-group {
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    font-size: 0.85rem;
+    color: #a1a1aa;
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+
+.form-control {
+    width: 100%;
+    padding: 10px 12px;
+    background: #18181b;
+    border: 1px solid #3f3f46;
+    border-radius: 6px;
+    color: #ffffff;
+    font-size: 0.9rem;
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--scarlet-light);
+    box-shadow: 0 0 8px var(--scarlet-glow);
+}
+
+.btn-scarlet-block {
+    width: 100%;
+    background: linear-gradient(135deg, var(--scarlet-primary) 0%, #600020 100%);
+    color: #ffffff;
+    border: 1px solid var(--scarlet-light);
+    padding: 12px;
+    font-size: 0.95rem;
+    font-weight: bold;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-top: 10px;
+}
+
+.btn-scarlet-block:hover {
+    background: linear-gradient(135deg, var(--scarlet-light) 0%, var(--scarlet-primary) 100%);
+    box-shadow: 0 0 12px var(--scarlet-glow);
+}
+
+/* --- TABLA DE ASISTENCIA SIN SCROLL --- */
 .excel-table-container {
     width: 100%;
-    overflow-x: hidden; /* Elimina la barra de desplazamiento horizontal */
+    overflow-x: hidden;
     border: 1px solid var(--scarlet-primary);
     border-radius: 8px;
     margin-top: 15px;
@@ -52,7 +156,7 @@ body {
 .excel-table {
     width: 100%;
     border-collapse: collapse;
-    table-layout: fixed; /* Mantiene proporciones fijas para evitar el scroll */
+    table-layout: fixed;
     font-size: 0.75rem;
 }
 
@@ -81,7 +185,7 @@ body {
     text-overflow: ellipsis;
 }
 
-/* Selectores más grandes y estéticos para Admins */
+/* SELECTORES MÁS GRANDES Y VISIBLES */
 .att-select {
     width: 100%;
     background: #18181b;
@@ -89,12 +193,12 @@ body {
     border: 1px solid #3f3f46;
     border-radius: 4px;
     padding: 4px 0;
-    font-size: 0.95rem; /* Tamaño de letra más grande */
-    font-weight: 800; /* Texto en negrita */
+    font-size: 0.95rem;
+    font-weight: 800;
     text-align: center;
     text-align-last: center;
     cursor: pointer;
-    appearance: none; /* Elimina la flecha predeterminada para maximizar espacio */
+    appearance: none;
     -webkit-appearance: none;
     -moz-appearance: none;
     transition: all 0.2s ease;
@@ -112,7 +216,6 @@ body {
     font-weight: bold;
 }
 
-/* Badges de solo lectura para Jugadores */
 .att-badge {
     display: inline-block;
     width: 100%;
@@ -129,7 +232,6 @@ body {
 .att-badge-T { background-color: #3b82f6; color: #fff; }
 .att-badge-empty { color: #52525b; font-weight: normal; }
 
-/* Botones principales estilo Escarlata */
 .btn-scarlet {
     background: linear-gradient(135deg, var(--scarlet-primary) 0%, #600020 100%);
     color: #ffffff;
