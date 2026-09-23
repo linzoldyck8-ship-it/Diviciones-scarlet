@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>División: {{ division_name }} - Panel de Gestión</title>
+    <title>División: {{ division_name }} - Panel de Control</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
@@ -15,8 +15,10 @@
         <div style="display: flex; align-items: center; gap: 15px;">
             <span style="font-size: 0.85rem; color: var(--text-muted);">
                 Usuario: <strong style="color: #fff;">{{ session.get('user_name') }}</strong> 
-                {% if is_current_admin %}
-                    <span class="brand-badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border-color: rgba(16, 185, 129, 0.4);">MODO ADMINISTRADOR</span>
+                {% if is_super_admin %}
+                    <span class="brand-badge" style="background: rgba(239, 68, 68, 0.2); color: #f87171; border-color: rgba(239, 68, 68, 0.4);">SUPER ADMINISTRADOR</span>
+                {% elif is_current_admin %}
+                    <span class="brand-badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border-color: rgba(16, 185, 129, 0.4);">ADMIN DE DIVISIÓN</span>
                 {% else %}
                     <span class="brand-badge">JUGADOR</span>
                 {% endif %}
@@ -35,15 +37,15 @@
           {% endif %}
         {% endwith %}
 
-        <!-- Selector rápido de divisiones para Administradores -->
+        <!-- Selector de Divisiones para Admins -->
         {% if session.get('role') == 'admin' %}
             <div class="corporate-card" style="margin-bottom: 20px; padding: 15px;">
-                <div style="display: flex; align-items: center; gap: 15px;">
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                     <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: bold;">CAMBIAR DIVISIÓN:</span>
                     {% for div in divisions %}
                         <a href="{{ url_for('division_dashboard', division_name=div) }}" 
                            class="btn-secondary" 
-                           style="{% if div == division_name %}border-color: var(--primary-accent); color: #fff; background: rgba(37, 99, 235, 0.2);{% endif %} padding: 5px 10px; font-size: 0.8rem;">
+                           style="{% if div == division_name %}border-color: var(--primary-accent); color: #fff; background: rgba(37, 99, 235, 0.2);{% endif %} padding: 4px 10px; font-size: 0.8rem;">
                             {{ div }}
                         </a>
                     {% endfor %}
@@ -51,7 +53,7 @@
             </div>
         {% endif %}
 
-        <!-- KPIs del Departamento -->
+        <!-- KPIs -->
         <div class="kpi-grid">
             <div class="kpi-card">
                 <div class="kpi-label">Integrantes en Roster</div>
@@ -67,13 +69,10 @@
             </div>
         </div>
 
-        <!-- Tabla Roster -->
+        <!-- Tabla -->
         <div class="corporate-card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h3 style="margin:0;">Control de Jugadores y Asistencia</h3>
-                {% if is_current_admin %}
-                    <span style="font-size: 0.8rem; color: #34d399; font-weight: bold;">● MODO EDICIÓN ACTIVADO</span>
-                {% endif %}
+                <h3 style="margin:0;">Control de Jugadores y Permisos</h3>
             </div>
 
             <div style="overflow-x: auto;">
@@ -86,10 +85,12 @@
                             <th>Rol / Main</th>
                             <th>Estatus Roster</th>
                             <th>Asistencia</th>
-                            <th>Observaciones</th>
-                            <th>Stats</th>
+                            <th>Rol de Usuario</th>
                             {% if is_current_admin %}
-                                <th style="min-width: 260px; text-align: center;">Panel de Control Admin</th>
+                                <th style="min-width: 220px; text-align: center;">Control de Roster</th>
+                            {% endif %}
+                            {% if is_super_admin %}
+                                <th style="min-width: 240px; text-align: center; background-color: #1e1b4b; color: #a5b4fc;">Gestión de Permisos (SuperAdmin)</th>
                             {% endif %}
                         </tr>
                     </thead>
@@ -109,26 +110,25 @@
                                             {{ m.attendance }}%
                                         </strong>
                                     </td>
-                                    <td style="max-width: 180px; font-size: 0.8rem; color: var(--text-muted);">
-                                        {{ m.notes }}
-                                    </td>
                                     <td>
-                                        {% if m.tracker_url and m.tracker_url != '#' %}
-                                            <a href="{{ m.tracker_url }}" target="_blank" class="btn-secondary" style="padding: 3px 8px; font-size: 0.75rem;">Tracker</a>
+                                        {% if m.role == 'admin' and m.admin_division == 'TODAS' %}
+                                            <span style="color: #f87171; font-weight: bold; font-size: 0.75rem;">⚡ SUPER ADMIN</span>
+                                        {% elif m.role == 'admin' %}
+                                            <span style="color: #34d399; font-weight: bold; font-size: 0.75rem;">🛡️ ADMIN ({{ m.admin_division }})</span>
                                         {% else %}
-                                            <span style="color: var(--text-muted); font-size:0.75rem;">-</span>
+                                            <span style="color: var(--text-muted); font-size: 0.75rem;">🎮 JUGADOR</span>
                                         {% endif %}
                                     </td>
 
+                                    <!-- Edición de Roster (Admins de División y SuperAdmin) -->
                                     {% if is_current_admin %}
-                                        <td style="background: rgba(15, 23, 42, 0.5); padding: 10px; border-radius: 6px;">
-                                            <!-- Guardar Cambios -->
+                                        <td style="background: rgba(15, 23, 42, 0.5); padding: 10px;">
                                             <form action="{{ url_for('update_member') }}" method="POST" style="display: grid; gap: 6px;">
                                                 <input type="hidden" name="member_id" value="{{ m.id }}">
                                                 <input type="hidden" name="target_division" value="{{ division_name }}">
                                                 
                                                 <div style="display: flex; gap: 5px;">
-                                                    <select name="roster_status" class="form-control" style="padding: 4px; font-size: 0.75rem;">
+                                                    <select name="roster_status" class="form-control" style="padding: 3px; font-size: 0.75rem;">
                                                         <option value="Titular" {% if m.roster_status == 'Titular' %}selected{% endif %}>Titular</option>
                                                         <option value="Suplente" {% if m.roster_status == 'Suplente' %}selected{% endif %}>Suplente</option>
                                                         <option value="Reserva" {% if m.roster_status == 'Reserva' %}selected{% endif %}>Reserva</option>
@@ -136,19 +136,42 @@
                                                         <option value="Pendiente" {% if m.roster_status == 'Pendiente' %}selected{% endif %}>Pendiente</option>
                                                     </select>
 
-                                                    <input type="number" name="attendance" value="{{ m.attendance }}" min="0" max="100" class="form-control" style="padding: 4px; font-size: 0.75rem; width: 70px;" placeholder="% Asist">
+                                                    <input type="number" name="attendance" value="{{ m.attendance }}" min="0" max="100" class="form-control" style="padding: 3px; font-size: 0.75rem; width: 60px;" placeholder="%">
                                                 </div>
 
-                                                <input type="text" name="notes" value="{{ m.notes }}" class="form-control" style="padding: 4px; font-size: 0.75rem;" placeholder="Observación admin">
+                                                <input type="text" name="notes" value="{{ m.notes }}" class="form-control" style="padding: 3px; font-size: 0.75rem;" placeholder="Observación">
 
-                                                <button type="submit" class="btn-primary" style="padding: 4px 8px; font-size: 0.75rem; background-color: #059669;">Guardar</button>
+                                                <button type="submit" class="btn-primary" style="padding: 4px; font-size: 0.75rem; background-color: #059669;">Guardar Ficha</button>
                                             </form>
 
-                                            <!-- Eliminar Integrante -->
-                                            <form action="{{ url_for('delete_member') }}" method="POST" style="margin-top: 5px;" onsubmit="return confirm('¿Está seguro de eliminar a este integrante de la división?');">
+                                            <form action="{{ url_for('delete_member') }}" method="POST" style="margin-top: 4px;" onsubmit="return confirm('¿Eliminar integrante?');">
                                                 <input type="hidden" name="member_id" value="{{ m.id }}">
                                                 <input type="hidden" name="target_division" value="{{ division_name }}">
-                                                <button type="submit" style="width: 100%; background: transparent; border: 1px solid var(--danger); color: #f87171; padding: 2px; font-size: 0.7rem; border-radius: 4px; cursor: pointer;">Eliminar Jugador</button>
+                                                <button type="submit" style="width: 100%; background: transparent; border: 1px solid var(--danger); color: #f87171; padding: 2px; font-size: 0.7rem; border-radius: 4px; cursor: pointer;">Eliminar</button>
+                                            </form>
+                                        </td>
+                                    {% endif %}
+
+                                    <!-- Panel EXCLUSIVO para SuperAdmin para otorgar/quitar permisos -->
+                                    {% if is_super_admin %}
+                                        <td style="background: rgba(30, 27, 75, 0.4); padding: 10px; border-left: 2px solid #6366f1;">
+                                            <form action="{{ url_for('update_role') }}" method="POST" style="display: grid; gap: 6px;">
+                                                <input type="hidden" name="member_id" value="{{ m.id }}">
+                                                <input type="hidden" name="target_division" value="{{ division_name }}">
+
+                                                <select name="role_type" class="form-control" style="padding: 3px; font-size: 0.75rem;" onchange="this.nextElementSibling.style.display = (this.value === 'admin') ? 'block' : 'none';">
+                                                    <option value="player" {% if m.role == 'player' %}selected{% endif %}>Jugador Estándar</option>
+                                                    <option value="admin" {% if m.role == 'admin' and m.admin_division != 'TODAS' %}selected{% endif %}>Admin de División</option>
+                                                    <option value="superadmin" {% if m.role == 'admin' and m.admin_division == 'TODAS' %}selected{% endif %}>Super Administrador</option>
+                                                </select>
+
+                                                <select name="assigned_admin_division" class="form-control" style="padding: 3px; font-size: 0.75rem; display: {% if m.role == 'admin' and m.admin_division != 'TODAS' %}block{% else %}none{% endif %};">
+                                                    {% for div in divisions %}
+                                                        <option value="{{ div }}" {% if m.admin_division == div %}selected{% endif %}>División: {{ div }}</option>
+                                                    {% endfor %}
+                                                </select>
+
+                                                <button type="submit" class="btn-primary" style="padding: 4px; font-size: 0.75rem; background-color: #4f46e5;">Actualizar Permisos</button>
                                             </form>
                                         </td>
                                     {% endif %}
@@ -157,7 +180,7 @@
                         {% else %}
                             <tr>
                                 <td colspan="9" style="text-align: center; padding: 30px; color: var(--text-muted);">
-                                    No hay jugadores registrados en esta división aún.
+                                    No hay jugadores en esta división.
                                 </td>
                             </tr>
                         {% endif %}
