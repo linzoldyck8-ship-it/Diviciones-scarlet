@@ -6,16 +6,17 @@ from supabase import create_client, Client
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "executive_esports_key_2026_secret")
 
-# Variables de entorno Supabase
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+# --- CONFIGURACIÓN DE SUPABASE ---
+# Reemplaza estas dos cadenas con tus credenciales reales de Supabase:
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://TU-PROYECTO.supabase.co")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "TU-ANON-KEY-DE-SUPABASE")
 
-supabase: Client = None
-if SUPABASE_URL and SUPABASE_KEY:
-    try:
-        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-    except Exception as e:
-        print(f"Error al inicializar cliente de Supabase: {e}")
+# Conexión directa
+try:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+except Exception as e:
+    print(f"Error al conectar con Supabase: {e}")
+    supabase = None
 
 DIVISIONS = [
     "Valorant A",
@@ -62,6 +63,10 @@ def index():
 # REGISTRO PÚBLICO: Exclusivamente para Jugadores
 @app.route("/register", methods=["POST"])
 def register():
+    if not supabase:
+        flash("Error: No hay conexión con Supabase. Revisa las credenciales en app.py.", "danger")
+        return redirect(url_for("index"))
+
     email = request.form.get("email", "").strip().lower()
     password = request.form.get("password")
     full_name = request.form.get("full_name", "").strip()
@@ -74,7 +79,6 @@ def register():
     password_hash = generate_password_hash(password)
     tracker_url = build_tracker_url(division, game_ign)
 
-    # Todo registro público es 'player' por seguridad
     data = {
         "email": email,
         "password_hash": password_hash,
@@ -102,6 +106,10 @@ def register():
 
 @app.route("/login", methods=["POST"])
 def login():
+    if not supabase:
+        flash("Error: No hay conexión con Supabase. Revisa las credenciales en app.py.", "danger")
+        return redirect(url_for("index"))
+
     email = request.form.get("email", "").strip().lower()
     password = request.form.get("password")
 
@@ -148,11 +156,14 @@ def division_dashboard(division_name):
         flash("Debe iniciar sesión para ver los registros.", "danger")
         return redirect(url_for("index"))
 
+    if not supabase:
+        flash("Error de conexión con Supabase.", "danger")
+        return redirect(url_for("index"))
+
     user_role = session.get("role", "player")
     user_division = session.get("division")
     admin_division = session.get("admin_division")
 
-    # Control de acceso
     if user_role == "admin":
         if admin_division != "TODAS" and admin_division != division_name:
             flash(f"RESTRICCIÓN DE ADMIN: Tu cuenta está asignada a la división '{admin_division}'.", "warning")
@@ -188,7 +199,6 @@ def division_dashboard(division_name):
         is_super_admin=is_super_admin
     )
 
-# ACTUALIZAR DATOS DE ROSTER
 @app.route("/admin/update-member", methods=["POST"])
 def update_member():
     if "user_id" not in session or session.get("role") != "admin":
@@ -197,7 +207,6 @@ def update_member():
 
     member_id = request.form.get("member_id")
     target_division = request.form.get("target_division")
-    
     roster_status = request.form.get("roster_status")
     attendance = float(request.form.get("attendance", 100))
     notes = request.form.get("notes")
@@ -216,16 +225,15 @@ def update_member():
 
     return redirect(url_for("division_dashboard", division_name=target_division))
 
-# EXCLUSIVO SUPER ADMIN: OTORGAR O QUITAR PERMISOS DE ADMINISTRADOR
 @app.route("/admin/update-role", methods=["POST"])
 def update_role():
     if "user_id" not in session or session.get("role") != "admin" or session.get("admin_division") != "TODAS":
-        flash("Acción denegada: Solo el Super Administrador puede gestionar permisos de usuario.", "danger")
+        flash("Acción denegada: Solo el Super Administrador puede gestionar permisos.", "danger")
         return redirect(url_for("index"))
 
     member_id = request.form.get("member_id")
     target_division = request.form.get("target_division")
-    new_role_type = request.form.get("role_type") # 'player', 'admin', 'superadmin'
+    new_role_type = request.form.get("role_type")
 
     if new_role_type == "player":
         role_val = "player"
@@ -247,13 +255,12 @@ def update_role():
 
     try:
         supabase.table("profiles").update(update_payload).eq("id", member_id).execute()
-        flash("Permisos de usuario actualizados correctamente.", "success")
+        flash("Permisos actualizados correctamente.", "success")
     except Exception as e:
         flash(f"Error al actualizar permisos: {str(e)}", "danger")
 
     return redirect(url_for("division_dashboard", division_name=target_division))
 
-# ELIMINAR JUGADOR
 @app.route("/admin/delete-member", methods=["POST"])
 def delete_member():
     if "user_id" not in session or session.get("role") != "admin":
