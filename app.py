@@ -378,7 +378,12 @@ def update_member():
 
     member_id = request.form.get("member_id")
     target_division = request.form.get("target_division")
+    
     game_ign = request.form.get("game_ign", "").strip()
+    full_name = request.form.get("full_name", "").strip()
+    discord_tag = request.form.get("discord_tag", "").strip()
+    main_role = request.form.get("main_role", "").strip()
+    favorite_agent = request.form.get("favorite_agent", "").strip()
     roster_status = request.form.get("roster_status")
     notes = request.form.get("notes", "").strip()
 
@@ -386,6 +391,10 @@ def update_member():
 
     update_payload = {
         "game_ign": game_ign,
+        "full_name": full_name,
+        "discord_tag": discord_tag,
+        "main_role": main_role,
+        "favorite_agent": favorite_agent,
         "roster_status": roster_status,
         "notes": notes,
         "tracker_url": new_tracker_url
@@ -445,8 +454,6 @@ def delete_member():
     target_division = request.form.get("target_division")
 
     try:
-        # Opcional: obtener el correo antes de borrar para añadirlo automáticamente a la blacklist si se desea, 
-        # o simplemente eliminar el perfil. Aquí borramos el perfil como ya lo hacía:
         supabase.table("profiles").delete().eq("id", member_id).execute()
         flash("Integrante eliminado de la división.", "info")
     except Exception as e:
@@ -454,7 +461,6 @@ def delete_member():
 
     return redirect(url_for("division_dashboard", division_name=target_division))
 
-# NUEVAS RUTAS PARA GESTIONAR LA BLACKLIST (ADMINS Y SUPERADMINS)
 @app.route("/admin/add-to-blacklist", methods=["POST"])
 def add_to_blacklist():
     if "user_id" not in session or session.get("role") != "admin":
@@ -470,7 +476,6 @@ def add_to_blacklist():
 
     try:
         supabase.table("blacklist").insert({"email": email}).execute()
-        # Si el usuario ya tenía cuenta creada, la eliminamos también de profiles para expulsarlo inmediatamente
         supabase.table("profiles").delete().eq("email", email).execute()
         flash(f"El correo {email} ha sido añadido a la lista negra.", "success")
     except Exception as e:
