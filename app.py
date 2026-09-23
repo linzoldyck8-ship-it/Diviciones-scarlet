@@ -8,8 +8,8 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY", "executive_esports_key_2026_
 
 # --- CONFIGURACIÓN DE SUPABASE ---
 # Reemplaza estas dos cadenas con tus credenciales reales de Supabase:
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://TU-PROYECTO.supabase.co")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "TU-ANON-KEY-DE-SUPABASE")
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://vlwsrjptvhbthcbqzmws.supabase.co")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsd3NyanB0dmhidGhjYnF6bXdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk4Mzc4MzgsImV4cCI6MjEwNTQxMzgzOH0.9l369_HN_QsKgaOSKFDnRqrD6xtnsjccQvB-Tl8WqUU")
 
 # Conexión directa
 try:
