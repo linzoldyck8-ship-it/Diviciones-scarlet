@@ -17,7 +17,7 @@
         </h2>
         <div>
             {% if session.get('user_id') %}
-                <a href="{{ url_for('logout') }}" class="btn-scarlet" style="text-decoration: none;">Cerrar Sesión</a>
+                <a href="{{ url_for('logout') }}" class="btn-scarlet" style="text-decoration: none; padding: 8px 15px;">Cerrar Sesión</a>
             {% endif %}
         </div>
     </div>
@@ -132,10 +132,10 @@
         {% endif %}
     </div>
 
-    <!-- SECCIÓN 2: ROSTER DE INTEGRANTES -->
+    <!-- SECCIÓN 2: ROSTER Y GESTIÓN DE ROLES DE ADMINISTRADOR -->
     <div style="background: #121212; border: 1px solid #2a2a2a; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
         <h3 style="margin: 0 0 20px 0; color: #fff; border-left: 4px solid var(--scarlet-primary); padding-left: 10px; font-size: 1.2rem;">
-            Roster Oficial de Integrantes
+            Roster Oficial y Gestión de Roles
         </h3>
 
         <div style="overflow-x: auto;">
@@ -147,7 +147,10 @@
                         <th style="padding: 12px;">Discord</th>
                         <th style="padding: 12px;">Rol Main</th>
                         <th style="padding: 12px;">Personaje / Agente</th>
-                        <th style="padding: 12px; text-align: center;">Rol de Usuario</th>
+                        <th style="padding: 12px; text-align: center;">Permisos / Rol</th>
+                        {% if session.get('role') == 'superadmin' %}
+                            <th style="padding: 12px; text-align: center;">Acciones</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -160,15 +163,32 @@
                                 <td style="padding: 12px; color: #e4e4e7;">{{ m.main_role if m.main_role else '-' }}</td>
                                 <td style="padding: 12px; color: #e4e4e7;">{{ m.main_agent if m.main_agent else '-' }}</td>
                                 <td style="padding: 12px; text-align: center;">
-                                    <span style="background: #27272a; color: #ff809b; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;">
-                                        {{ m.role|upper if m.role else 'MEMBER' }}
-                                    </span>
+                                    {% if session.get('role') == 'superadmin' %}
+                                        <!-- Formulario para modificar rol en vivo si es superadmin -->
+                                        <form action="{{ url_for('update_user_role', user_id=m.id) }}" method="POST" style="display: inline-flex; gap: 5px; align-items: center;">
+                                            <select name="new_role" class="form-control" style="padding: 4px 8px; font-size: 0.8rem; background: #18181b; color: #fff; border: 1px solid #3f3f46; border-radius: 4px;">
+                                                <option value="member" {% if m.role == 'member' %}selected{% endif %}>Member</option>
+                                                <option value="admin" {% if m.role == 'admin' %}selected{% endif %}>Admin</option>
+                                                <option value="superadmin" {% if m.role == 'superadmin' %}selected{% endif %}>Superadmin</option>
+                                            </select>
+                                            <button type="submit" style="background: var(--scarlet-primary); color: #fff; border: none; padding: 5px 10px; border-radius: 4px; font-size: 0.75px; cursor: pointer; font-weight:bold;">Actualizar</button>
+                                        </form>
+                                    {% else %}
+                                        <span style="background: #27272a; color: #ff809b; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;">
+                                            {{ m.role|upper if m.role else 'MEMBER' }}
+                                        </span>
+                                    {% endif %}
                                 </td>
+                                {% if session.get('role') == 'superadmin' %}
+                                    <td style="padding: 12px; text-align: center;">
+                                        <a href="{{ url_for('delete_user', user_id=m.id) }}" onclick="return confirm('¿Estás seguro de eliminar a este integrante?');" style="color: #ef4444; text-decoration: none; font-weight: bold; font-size: 0.85rem;">Eliminar</a>
+                                    </td>
+                                {% endif %}
                             </tr>
                         {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="6" style="padding: 20px; text-align: center; color: #a1a1aa;">No hay miembros registrados en el Roster.</td>
+                            <td colspan="7" style="padding: 20px; text-align: center; color: #a1a1aa;">No hay miembros registrados en el Roster.</td>
                         </tr>
                     {% endif %}
                 </tbody>
@@ -192,7 +212,7 @@
                         </div>
                         <div style="font-size: 0.85rem; color: #a1a1aa;">
                             <p style="margin: 4px 0;"><strong>Evaluaciones:</strong> {{ m.total_eval_days if m.total_eval_days else 0 }} días registrados</p>
-                            <p style="margin: 4px 0;"><strong>Estado Actual:</strong> <span style="color: #ff4d6d;">Activo</span></p>
+                            <p style="margin: 4px 0;"><strong>Rol:</strong> {{ m.role|upper }}</p>
                         </div>
                     </div>
                 {% endfor %}
