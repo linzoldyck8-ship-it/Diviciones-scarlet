@@ -7,10 +7,8 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
         .excel-table-container {
-            width: 100%;
             overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            border: 1px solid var(--border-color, #27272a);
+            border: 1px solid var(--border-color);
             border-radius: 8px;
             margin-top: 15px;
             background: #0d0d0d;
@@ -20,7 +18,6 @@
             border-collapse: collapse;
             font-size: 0.8rem;
             text-align: center;
-            white-space: nowrap;
         }
         .excel-header-title {
             background-color: #09090b;
@@ -30,17 +27,17 @@
             padding: 12px;
             letter-spacing: 1px;
             text-transform: uppercase;
-            border-bottom: 2px solid var(--scarlet-primary, #ff4d6d);
+            border-bottom: 2px solid var(--scarlet-primary);
         }
         .excel-legend-bar {
             background: #18181b;
-            color: var(--text-muted, #a1a1aa);
+            color: var(--text-muted);
             padding: 8px;
             font-size: 0.75rem;
-            border-bottom: 1px solid #27272a;
+            border-bottom: 1px solid var(--border-color);
         }
         .excel-table th, .excel-table td {
-            border: 1px solid #27272a;
+            border: 1px solid var(--border-color);
             padding: 6px 4px;
             min-width: 32px;
         }
@@ -53,13 +50,13 @@
             position: sticky;
             left: 0;
             background-color: #141414 !important;
-            z-index: 3;
+            z-index: 2;
             text-align: left;
             padding-left: 12px !important;
             min-width: 170px !important;
             font-weight: bold;
             color: #fff;
-            border-right: 2px solid var(--scarlet-primary, #ff4d6d) !important;
+            border-right: 2px solid var(--scarlet-primary) !important;
         }
         .att-select {
             background: #18181b;
@@ -102,7 +99,7 @@
         }
         .modal-card {
             background: #141419;
-            border: 1px solid var(--scarlet-primary, #ff4d6d);
+            border: 1px solid var(--scarlet-primary);
             border-radius: 10px;
             width: 100%;
             max-width: 500px;
@@ -116,16 +113,16 @@
 <body>
 
     <nav class="top-nav">
-        <div class="brand-title" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <div class="brand-title" style="display: flex; align-items: center; gap: 12px;">
             {% if division_image %}
-                <img src="{{ division_image }}" alt="Logo" style="width: 38px; height: 38px; object-fit: cover; border-radius: 8px; border: 1px solid var(--scarlet-light, #ff4d6d);">
+                <img src="{{ division_image }}" alt="Logo" style="width: 38px; height: 38px; object-fit: cover; border-radius: 8px; border: 1px solid var(--scarlet-light);">
             {% endif %}
             <div>
                 ORGANIZACIÓN ESPORTS <span class="brand-badge">{{ division_name|upper }}</span>
             </div>
         </div>
-        <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
-            <span style="font-size: 0.85rem; color: var(--text-muted, #a1a1aa);">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <span style="font-size: 0.85rem; color: var(--text-muted);">
                 Usuario: <strong style="color: #fff;">{{ session.get('user_name') }}</strong> 
                 {% if is_super_admin %}
                     <span class="brand-badge" style="background: rgba(239, 68, 68, 0.2); color: #f87171; border-color:#ef4444;">SUPER ADMINISTRADOR</span>
@@ -153,11 +150,11 @@
         {% if session.get('role') == 'admin' %}
             <div class="corporate-card" style="padding: 12px 20px;">
                 <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                    <span style="font-size: 0.8rem; color: var(--text-muted, #a1a1aa); font-weight: bold;">CAMBIAR DIVISIÓN:</span>
+                    <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: bold;">CAMBIAR DIVISIÓN:</span>
                     {% for div in divisions %}
                         <a href="{{ url_for('division_dashboard', division_name=div, month=selected_month, year=selected_year) }}" 
                            class="btn-secondary" 
-                           style="{% if div == division_name %}border-color: var(--scarlet-light, #ff4d6d); color: #fff; background: rgba(144, 12, 63, 0.25);{% endif %} padding: 5px 12px; font-size: 0.8rem;">
+                           style="{% if div == division_name %}border-color: var(--scarlet-light); color: #fff; background: rgba(144, 12, 63, 0.25);{% endif %} padding: 5px 12px; font-size: 0.8rem;">
                             {{ div }}
                         </a>
                     {% endfor %}
@@ -170,7 +167,7 @@
             <div class="corporate-card" style="padding: 15px; background: rgba(18, 18, 18, 0.9);">
                 <form action="{{ url_for('update_division_image') }}" method="POST" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                     <input type="hidden" name="target_division" value="{{ division_name }}">
-                    <span style="font-size: 0.85rem; font-weight: bold; color: #fff;">🖼️ URL de Logo de División:</span>
+                    <span style="font-size: 0.85rem; font-weight: bold; color: #fff;">🖼️ URL de Imagen / Logo de División:</span>
                     <input type="url" name="image_url" value="{{ division_image }}" class="form-control" style="flex: 1; min-width: 250px; padding: 6px; font-size: 0.85rem;" placeholder="https://ejemplo.com/logo.png">
                     <button type="submit" class="btn-primary" style="padding: 6px 14px; font-size: 0.8rem;">Guardar Imagen</button>
                 </form>
@@ -185,10 +182,10 @@
                     <button type="submit" style="background: #ff4b4b; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.85rem;">Bloquear Correo</button>
                 </form>
 
-                <div class="table-container-wrapper">
+                <div style="overflow-x: auto;">
                     <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
                         <thead>
-                            <tr style="border-bottom: 1px solid #333; color: var(--text-muted, #a1a1aa);">
+                            <tr style="border-bottom: 1px solid #333; color: var(--text-muted);">
                                 <th style="padding: 8px;">Correo Electrónico Bloqueado</th>
                                 <th style="padding: 8px; text-align: right;">Acciones</th>
                             </tr>
@@ -209,7 +206,7 @@
                                 {% endfor %}
                             {% else %}
                                 <tr>
-                                    <td colspan="2" style="padding: 10px; text-align: center; color: var(--text-muted, #a1a1aa);">No hay correos en la lista negra.</td>
+                                    <td colspan="2" style="padding: 10px; text-align: center; color: var(--text-muted);">No hay correos en la lista negra.</td>
                                 </tr>
                             {% endif %}
                         </tbody>
@@ -239,7 +236,7 @@
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 15px;">
                 <h3 style="margin:0; font-size: 1.15rem; color:#fff;">Matriz Mensual de Asistencia</h3>
                 
-                <form method="GET" action="{{ url_for('division_dashboard', division_name=division_name) }}" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <form method="GET" action="{{ url_for('division_dashboard', division_name=division_name) }}" style="display: flex; gap: 8px; align-items: center;">
                     <select name="month" class="form-control" style="padding: 5px; font-size: 0.85rem;" onchange="this.form.submit()">
                         {% for num, name in month_names.items() %}
                             <option value="{{ num }}" {% if num == selected_month %}selected{% endif %}>{{ name }}</option>
@@ -287,7 +284,7 @@
                             {% for m in members %}
                                 <tr>
                                     <td class="sticky-col">
-                                        {{ m.game_ign }} <span style="font-size:0.7rem; color:var(--text-muted, #a1a1aa); font-weight:normal;">({{ m.full_name }})</span>
+                                        {{ m.game_ign }} <span style="font-size:0.7rem; color:var(--text-muted); font-weight:normal;">({{ m.full_name }})</span>
                                     </td>
                                     
                                     {% for day in days_list %}
@@ -321,7 +318,7 @@
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="{{ days_list|length + 3 }}" style="padding: 20px; color: var(--text-muted, #a1a1aa);">
+                                <td colspan="{{ days_list|length + 3 }}" style="padding: 20px; color: var(--text-muted);">
                                     No hay jugadores registrados.
                                 </td>
                             </tr>
@@ -340,10 +337,10 @@
             {% endif %}
         </div>
 
-        <!-- SECCIÓN 2: ROSTER GENERAL Y FICHAS -->
+        <!-- SECCIÓN 2: ROSTER GENERAL Y FICHAS (DISEÑO CÓMODO Y LIMPIO) -->
         <div class="corporate-card">
             <h3 style="margin-top:0; color:#fff; font-size:1.15rem;">Roster General y Fichas de Jugadores</h3>
-            <div class="table-container-wrapper" style="margin-top: 15px;">
+            <div style="overflow-x: auto; margin-top: 15px;">
                 <table class="data-table">
                     <thead>
                         <tr>
@@ -379,15 +376,15 @@
 
                                 <td style="max-width: 220px;">
                                     {% if m.notes %}
-                                        <div style="background: rgba(255,255,255,0.03); padding: 5px 8px; border-radius: 4px; font-size: 0.8rem; border-left: 3px solid var(--scarlet-primary, #ff4d6d); color: #e2e8f0; white-space: pre-wrap;">{{ m.notes }}</div>
+                                        <div style="background: rgba(255,255,255,0.03); padding: 5px 8px; border-radius: 4px; font-size: 0.8rem; border-left: 3px solid var(--scarlet-primary); color: #e2e8f0; white-space: pre-wrap;">{{ m.notes }}</div>
                                     {% else %}
-                                        <span style="color: var(--text-muted, #a1a1aa); font-size: 0.75rem;">Sin anotaciones</span>
+                                        <span style="color: var(--text-muted); font-size: 0.75rem;">Sin anotaciones</span>
                                     {% endif %}
                                 </td>
 
                                 {% if is_current_admin or is_super_admin %}
                                     <td style="text-align: center; vertical-align: middle;">
-                                        <button type="button" class="btn-secondary" style="padding: 6px 10px; font-size: 0.75rem; border-color: var(--scarlet-light, #ff4d6d); color: #fff;" onclick="openEditModal('{{ m.id }}')">
+                                        <button type="button" class="btn-secondary" style="padding: 6px 10px; font-size: 0.75rem; border-color: var(--scarlet-light); color: #fff;" onclick="openEditModal('{{ m.id }}')">
                                             ⚙️ Gestionar
                                         </button>
                                     </td>
@@ -408,22 +405,22 @@
                                         <input type="hidden" name="member_id" value="{{ m.id }}">
                                         <input type="hidden" name="target_division" value="{{ division_name }}">
                                         
-                                        <label style="font-size: 0.75rem; color: var(--text-muted, #a1a1aa);">IGN (In-Game Name):</label>
+                                        <label style="font-size: 0.75rem; color: var(--text-muted);">IGN (In-Game Name):</label>
                                         <input type="text" name="game_ign" value="{{ m.game_ign }}" class="form-control" required style="padding: 6px; font-size: 0.85rem;">
 
-                                        <label style="font-size: 0.75rem; color: var(--text-muted, #a1a1aa);">Nombre Real:</label>
+                                        <label style="font-size: 0.75rem; color: var(--text-muted);">Nombre Real:</label>
                                         <input type="text" name="full_name" value="{{ m.full_name }}" class="form-control" style="padding: 6px; font-size: 0.85rem;">
 
-                                        <label style="font-size: 0.75rem; color: var(--text-muted, #a1a1aa);">Discord Tag:</label>
+                                        <label style="font-size: 0.75rem; color: var(--text-muted);">Discord Tag:</label>
                                         <input type="text" name="discord_tag" value="{{ m.discord_tag }}" class="form-control" style="padding: 6px; font-size: 0.85rem;">
 
-                                        <label style="font-size: 0.75rem; color: var(--text-muted, #a1a1aa);">Rol / Main:</label>
+                                        <label style="font-size: 0.75rem; color: var(--text-muted);">Rol / Main:</label>
                                         <input type="text" name="main_role" value="{{ m.main_role or '' }}" class="form-control" style="padding: 6px; font-size: 0.85rem;">
 
-                                        <label style="font-size: 0.75rem; color: var(--text-muted, #a1a1aa);">Agente Favorito:</label>
+                                        <label style="font-size: 0.75rem; color: var(--text-muted);">Agente Favorito:</label>
                                         <input type="text" name="favorite_agent" value="{{ m.favorite_agent or '' }}" class="form-control" style="padding: 6px; font-size: 0.85rem;">
                                         
-                                        <label style="font-size: 0.75rem; color: var(--text-muted, #a1a1aa);">Estatus Roster:</label>
+                                        <label style="font-size: 0.75rem; color: var(--text-muted);">Estatus Roster:</label>
                                         <select name="roster_status" class="form-control" style="padding: 6px; font-size: 0.85rem;">
                                             <option value="Titular" {% if m.roster_status == 'Titular' %}selected{% endif %}>Titular</option>
                                             <option value="Suplente" {% if m.roster_status == 'Suplente' %}selected{% endif %}>Suplente</option>
@@ -432,7 +429,7 @@
                                             <option value="Pendiente" {% if m.roster_status == 'Pendiente' %}selected{% endif %}>Pendiente</option>
                                         </select>
 
-                                        <label style="font-size: 0.75rem; color: var(--text-muted, #a1a1aa);">Anotaciones:</label>
+                                        <label style="font-size: 0.75rem; color: var(--text-muted);">Anotaciones:</label>
                                         <textarea name="notes" class="form-control" style="padding: 6px; font-size: 0.85rem; height: 60px;">{{ m.notes or '' }}</textarea>
 
                                         <button type="submit" class="btn-primary" style="padding: 8px; font-size: 0.85rem; margin-top: 5px;">💾 Guardar Cambios</button>
@@ -489,6 +486,7 @@
             const modal = document.getElementById('modal-' + memberId);
             if (modal) modal.style.display = 'none';
         }
+        // Cerrar modal al hacer clic fuera de la tarjeta
         window.onclick = function(event) {
             if (event.target.classList.contains('modal-overlay')) {
                 event.target.style.display = "none";
