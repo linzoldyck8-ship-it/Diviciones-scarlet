@@ -1,36 +1,48 @@
 /* --- CONFIGURACIÓN GENERAL Y FONDO POR URL --- */
 body {
-    /* PEGA AQUÍ LA URL DE TU IMAGEN ENTRE LAS COMILLAS */
     background-image: url('https://i.pinimg.com/736x/33/05/07/33050706d23fb7f4dcfb3b14325f49c6.jpg');
-    
-    background-size: cover;          /* Cubre toda la pantalla */
-    background-position: center;     /* Centra la imagen */
-    background-attachment: fixed;    /* Fija el fondo al hacer scroll */
-    background-repeat: no-repeat;    /* Evita que se repita */
-    
+    background-size: cover;          
+    background-position: center;     
+    background-attachment: fixed;    
+    background-repeat: no-repeat;    
     color: #f8fafc;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     margin: 0;
     padding: 0;
-    background-color: #0b0f19; /* Color de respaldo por si carga lento */
+    background-color: #0b0f19;
+    box-sizing: border-box;
+}
+
+*, *:before, *:after {
+    box-sizing: inherit;
 }
 
 /* Contenedor principal de la app */
 .container {
     max-width: 1400px;
+    width: 100%;
     margin: 0 auto;
-    padding: 20px;
+    padding: 15px;
 }
 
-/* Tarjetas con fondo oscuro translúcido para que resalten sobre la imagen */
+/* Contenedor fluido reutilizable para tablas anchas */
+.table-container-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Tarjetas con fondo oscuro translúcido */
 .corporate-card {
-    background: rgba(18, 18, 24, 0.90); /* Fondo oscuro con transparencia (90%) */
+    background: rgba(18, 18, 24, 0.90);
     border: 1px solid #27272a;
     border-radius: 12px;
     padding: 20px;
     margin-bottom: 20px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(8px); /* Efecto cristal esmerilado */
+    backdrop-filter: blur(8px);
+    width: 100%;
+    overflow: hidden;
 }
 
 /* Barra de navegación superior */
@@ -46,6 +58,8 @@ body {
     top: 0;
     z-index: 100;
     backdrop-filter: blur(8px);
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
 .brand-title {
@@ -110,7 +124,6 @@ body {
     padding: 8px;
     font-size: 0.9rem;
     width: 100%;
-    box-sizing: border-box;
 }
 
 .form-control:focus {
@@ -132,7 +145,7 @@ body {
 .alert-warning { background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b; color: #fbbf24; }
 .alert-info { background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; color: #60a5fa; }
 
-/* Tarjetas KPI (Estadísticas superiores) */
+/* Tarjetas KPI */
 .kpi-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -170,6 +183,7 @@ body {
     border-collapse: collapse;
     font-size: 0.85rem;
     text-align: left;
+    white-space: nowrap;
 }
 
 .data-table th, .data-table td {
@@ -198,3 +212,16 @@ body {
 .status-reserva { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid #f59e0b; }
 .status-inactivo { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; }
 .status-pendiente { background: rgba(113, 113, 122, 0.2); color: #a1a1aa; border: 1px solid #71717a; }
+
+/* Media Queries para ajuste perfecto en celulares */
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+    .corporate-card {
+        padding: 12px;
+    }
+    .top-nav {
+        padding: 10px 15px;
+    }
+}
